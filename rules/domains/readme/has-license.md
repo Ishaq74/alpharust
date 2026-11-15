@@ -5,4 +5,6 @@ severity: warning
 pattern: ""
 ---
 
-# Le README doit mentionner la licence
+# Licence requise
+
+Le README doit mentionner la licence du projet.

@@ -5,4 +5,6 @@ severity: warning
 pattern: ""
 ---
 
-# Le README doit contenir une section Installation
+# Section Installation requise
+
+Le README doit contenir une section claire expliquant comment installer le projet.

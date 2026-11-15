@@ -5,4 +5,6 @@ severity: warning
 pattern: ""
 ---
 
-# Le README doit contenir une section Usage
+# Section Usage requise
+
+Le README doit contenir une section expliquant comment utiliser le projet.

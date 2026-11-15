@@ -1,6 +1,19 @@
 pub fn generate(project_name: &str) -> String {
     format!(
-        "# Documentation {}\n\n## Overview\n\nGénéré par AlphaRust.\n\n## API\n\n## Examples\n",
-        project_name
+        r#"# Documentation {name}
+
+## Overview
+
+Documentation générée par AlphaRust.
+
+## Installation
+
+## Usage
+
+## API
+
+## Examples
+"#,
+        name = project_name
     )
 }
