@@ -1,6 +1,6 @@
 ---
 name: no-plaintext-secrets
-apply: *
+apply: "*"
 severity: error
 pattern: "(password|secret|api_key|token)\\s*[:=]\\s*['\"][^'\"]+['\"]"
 ---

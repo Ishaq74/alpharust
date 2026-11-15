@@ -1,6 +1,6 @@
 ---
 name: example-rule
-apply: *
+apply: "*"
 severity: error
 pattern: ""
 ---
@@ -8,9 +8,3 @@ pattern: ""
 # Description
 
 Décrire ce que la règle interdit ou exige.
-
-## Pattern
-
-```regex
-
-```

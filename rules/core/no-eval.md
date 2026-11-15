@@ -1,6 +1,6 @@
 ---
 name: no-eval
-apply: *
+apply: "*"
 severity: error
 pattern: "\\beval\\s*\\("
 ---

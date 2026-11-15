@@ -70,10 +70,11 @@ mod tests {
 
     #[test]
     fn parse_simple_rule() {
-        let md = "---\nname: test-rule\napply: *\nseverity: error\npattern: \"foo\"\n---\n\nDescription here.\n";
+        let md = "---\nname: test-rule\napply: \"*\"\nseverity: error\npattern: \"foo\"\n---\n\nDescription here.\n";
         let rule = Rule::from_markdown(Path::new("test.md"), md).unwrap();
         assert_eq!(rule.name, "test-rule");
         assert_eq!(rule.severity, "error");
+        assert_eq!(rule.apply, "*");
         assert!(rule.pattern.is_some());
     }
 }
