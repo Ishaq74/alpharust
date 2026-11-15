@@ -22,24 +22,28 @@ cargo build --release
 ./target/release/alpharust list
 ./target/release/alpharust list --profiles
 
-# Initialiser
+# Initialiser un projet (dans sites/ par défaut)
 ./target/release/alpharust init mon-projet
 
-# Générer un projet framework
+# Générer un projet framework (dans sites/ par défaut)
 ./target/release/alpharust generate wagtail mon-site
 ./target/release/alpharust generate astro mon-site
 ./target/release/alpharust generate laravel mon-site
+
+# Avec chemin explicite
+./target/release/alpharust generate astro mon-site --path ./custom
 
 # Générer README / Docs
 ./target/release/alpharust readme mon-projet
 ./target/release/alpharust docs mon-projet
 ```
 
+Les projets générés vont dans le dossier `sites/` sauf si `--path` est fourni.
+
 ## Configuration
 
-Créer un `.alpharust.toml` :
-
 ```toml
+# .alpharust.toml
 profile = "strict"
 ```
 

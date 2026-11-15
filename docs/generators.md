@@ -1,24 +1,20 @@
 # Generators
 
-Les générateurs AlphaRust produisent des artefacts directement utilisables et conformes aux règles.
+Les générateurs créent des projets dans le dossier `sites/` par défaut.
 
-## bootstrap
+## Commandes
 
-Crée :
-- `README.md` structuré
-- `.gitignore`
-- `src/main.rs` minimal
+```bash
+alpharust init mon-projet                  # → sites/mon-projet/
+alpharust generate wagtail mon-site        # → sites/mon-site/
+alpharust generate astro mon-site --path ./autre
+```
 
-## readme
+## Disponibles
 
-Génère un README avec sections Installation, Usage et License.
-
-## docs
-
-Génère un squelette de documentation technique.
-
-## tests
-
-Génère des modules de tests unitaires avec cas basique et edge case.
-
-Tous les générateurs sont accessibles via la CLI ou en tant que bibliothèque.
+- `init` : projet minimal
+- `generate wagtail`
+- `generate astro`
+- `generate laravel`
+- `readme`
+- `docs`

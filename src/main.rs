@@ -38,15 +38,15 @@ enum Commands {
     },
     Init {
         name: String,
-        #[arg(default_value = ".")]
-        path: PathBuf,
+        #[arg(short, long)]
+        path: Option<PathBuf>,
     },
     Generate {
         #[arg(value_enum)]
         kind: GeneratorKind,
         name: String,
-        #[arg(default_value = ".")]
-        path: PathBuf,
+        #[arg(short, long)]
+        path: Option<PathBuf>,
     },
     Readme { name: String },
     Docs { name: String },
@@ -57,6 +57,10 @@ enum GeneratorKind {
     Wagtail,
     Astro,
     Laravel,
+}
+
+fn default_sites_path(name: &str) -> PathBuf {
+    PathBuf::from("sites").join(name)
 }
 
 fn main() -> Result<()> {
@@ -95,12 +99,18 @@ fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Init { name, path } => bootstrap::bootstrap(&path, &name)?,
-        Commands::Generate { kind, name, path } => match kind {
-            GeneratorKind::Wagtail => wagtail::generate(&path, &name)?,
-            GeneratorKind::Astro => astro::generate(&path, &name)?,
-            GeneratorKind::Laravel => laravel::generate(&path, &name)?,
-        },
+        Commands::Init { name, path } => {
+            let target = path.unwrap_or_else(|| default_sites_path(&name));
+            bootstrap::bootstrap(&target, &name)?;
+        }
+        Commands::Generate { kind, name, path } => {
+            let target = path.unwrap_or_else(|| default_sites_path(&name));
+            match kind {
+                GeneratorKind::Wagtail => wagtail::generate(&target, &name)?,
+                GeneratorKind::Astro => astro::generate(&target, &name)?,
+                GeneratorKind::Laravel => laravel::generate(&target, &name)?,
+            }
+        }
         Commands::Readme { name } => println!("{}", readme::generate(&name)),
         Commands::Docs { name } => println!("{}", docs::generate(&name)),
     }
