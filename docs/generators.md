@@ -1,11 +1,14 @@
 # Generators
 
-AlphaRust inclut des générateurs intégrés :
+Les générateurs AlphaRust produisent des artefacts conformes aux règles.
 
-- `bootstrap` : initialise un projet
-- `readme` : génère un README
-- `docs` : génère de la documentation
-- `tests` : génère des squelettes de tests
-- `checks` : génère des vérifications
+## Disponibles
 
-Utilisables via la CLI ou en bibliothèque.
+| Générateur | Commande CLI | Description |
+|-------------|--------------|-------------|
+| bootstrap   | `init`       | Projet minimal |
+| readme      | `readme`     | README structuré |
+| docs        | `docs`       | Documentation |
+| tests       | (interne)    | Squelettes de tests |
+
+Tous respectent les domaines `readme`, `docs` et `tests`.

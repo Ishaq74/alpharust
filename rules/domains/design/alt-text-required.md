@@ -2,7 +2,9 @@
 name: alt-text-required
 apply: "*"
 severity: warning
-pattern: "<img(?![^>]*alt=)"
+pattern: "<img(?![^>]*\\balt\\s*=)"
 ---
 
-# Alt text requis sur les images
+# Texte alternatif requis
+
+Toute balise `<img>` doit posséder un attribut `alt` descriptif.

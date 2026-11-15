@@ -1,8 +1,10 @@
 ---
 name: csrf-protection
-apply: *
+apply: "*"
 severity: error
 pattern: ""
 ---
 
-# Protection CSRF requise
+# Protection CSRF
+
+Toutes les actions mutantes (POST, PUT, DELETE) doivent être protégées contre le CSRF.

@@ -1,8 +1,11 @@
 ---
 name: migrations-required
-apply: *
+apply: "*"
 severity: warning
 pattern: ""
 ---
 
-# Les migrations doivent être présentes et à jour
+# Migrations requises
+
+Toute modification de schéma doit passer par une migration versionnée.
+Les bases ne doivent jamais être modifiées manuellement en production.

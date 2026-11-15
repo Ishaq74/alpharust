@@ -1,3 +1,10 @@
 # Minimal Template
 
-Template de base AlphaRust.
+Template de départ le plus léger.
+
+Contient :
+- README conforme
+- .gitignore
+- Structure de base
+
+Utilisé par `alpharust init`.

@@ -1,8 +1,10 @@
 ---
 name: webhook-signature
-apply: *
+apply: "*"
 severity: error
 pattern: ""
 ---
 
-# Vérification de signature des webhooks obligatoire
+# Signature des webhooks
+
+Toute réception de webhook (Stripe, Mollie, PayPal, etc.) doit vérifier la signature cryptographique avant traitement.
