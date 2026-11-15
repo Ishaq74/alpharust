@@ -1,50 +1,65 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Rule {
     pub name: String,
     pub apply: String,
     pub severity: String,
+    #[serde(default)]
     pub pattern: Option<String>,
+    #[serde(skip)]
     pub description: String,
-    pub path: String,
+    #[serde(skip)]
+    pub path: PathBuf,
 }
 
 impl Rule {
-    pub fn from_markdown(path: &Path, content: &str) -> anyhow::Result<Self> {
+    pub fn load_all() -> Result<Vec<Self>> {
+        let mut rules = Vec::new();
+        let root = Path::new("rules");
+        if !root.exists() {
+            return Ok(rules);
+        }
+        for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("md") {
+                if let Ok(rule) = Self::from_file(path) {
+                    rules.push(rule);
+                }
+            }
+        }
+        Ok(rules)
+    }
+
+    pub fn from_file(path: &Path) -> Result<Self> {
+        let content = std::fs::read_to_string(path)
+            .with_context(|| format!("reading {}", path.display()))?;
+        Self::from_markdown(path, &content)
+    }
+
+    pub fn from_markdown(path: &Path, content: &str) -> Result<Self> {
         let (front, body) = split_frontmatter(content)?;
-        let fm: Frontmatter = serde_yaml::from_str(&front)?;
-        Ok(Rule {
-            name: fm.name,
-            apply: fm.apply,
-            severity: fm.severity,
-            pattern: fm.pattern,
-            description: body.trim().to_string(),
-            path: path.display().to_string(),
-        })
+        let mut rule: Rule = serde_yaml::from_str(&front)
+            .with_context(|| format!("parsing frontmatter in {}", path.display()))?;
+        rule.description = body.trim().to_string();
+        rule.path = path.to_path_buf();
+        Ok(rule)
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct Frontmatter {
-    name: String,
-    apply: String,
-    severity: String,
-    pattern: Option<String>,
-}
-
-fn split_frontmatter(content: &str) -> anyhow::Result<(String, String)> {
-    let content = content.trim();
+fn split_frontmatter(content: &str) -> Result<(String, String)> {
+    let content = content.trim_start();
     if !content.starts_with("---") {
-        anyhow::bail!("Missing frontmatter");
+        anyhow::bail!("missing frontmatter");
     }
     let rest = &content[3..];
-    if let Some(end) = rest.find("\n---") {
-        let front = &rest[..end];
-        let body = &rest[end + 4..];
-        Ok((front.trim().to_string(), body.to_string()))
-    } else {
-        anyhow::bail!("Unclosed frontmatter")
-    }
+    let end = rest
+        .find("\n---")
+        .ok_or_else(|| anyhow::anyhow!("unclosed frontmatter"))?;
+    let front = rest[..end].trim().to_string();
+    let body = rest[end + 4..].to_string();
+    Ok((front, body))
 }

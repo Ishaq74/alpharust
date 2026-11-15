@@ -1,3 +1,4 @@
 pub mod parser;
 pub mod engine;
-pub mod checkers;
+pub mod generators;
+pub mod profiles;

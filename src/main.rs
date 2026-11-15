@@ -1,38 +1,43 @@
-use clap::Parser;
-use std::path::Path;
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 mod parser;
 mod engine;
-mod checkers;
 mod generators;
+mod profiles;
 
-use engine::runner;
-use engine::reporter;
-use parser::Rule;
+use engine::{reporter, runner};
 use generators::bootstrap;
+use parser::Rule;
+use profiles::Profile;
 
 #[derive(Parser)]
-#[command(name = "alpharust")]
-#[command(about = "AlphaRust — Fondation intégrale")]
+#[command(name = "alpharust", version, about = "AlphaRust — Fondation intégrale")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(clap::Subcommand)]
+#[derive(Subcommand)]
 enum Commands {
-    /// Lint un projet
+    /// Lint un chemin contre les règles (ou un profil)
     Lint {
         #[arg(default_value = ".")]
-        path: String,
+        path: PathBuf,
+        #[arg(short, long)]
+        profile: Option<String>,
     },
-    /// Lister les règles
-    List,
-    /// Initialiser un projet
+    /// Lister les règles ou les profils
+    List {
+        #[arg(long)]
+        profiles: bool,
+    },
+    /// Initialiser un nouveau projet
     Init {
         name: String,
         #[arg(default_value = ".")]
-        path: String,
+        path: PathBuf,
     },
     /// Générer un README
     Readme {
@@ -40,50 +45,41 @@ enum Commands {
     },
 }
 
-fn load_rules() -> Vec<Rule> {
-    let mut rules = Vec::new();
-    let rules_dir = Path::new("rules");
-    if rules_dir.exists() {
-        for entry in walkdir::WalkDir::new(rules_dir).into_iter().filter_map(|e| e.ok()) {
-            if entry.path().extension().map(|s| s == "md").unwrap_or(false) {
-                if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                    if let Ok(rule) = Rule::from_markdown(entry.path(), &content) {
-                        rules.push(rule);
-                    }
-                }
-            }
-        }
-    }
-    rules
-}
-
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Lint { path } => {
-            let rules = load_rules();
-            let violations = runner::run(&rules, Path::new(&path));
+        Commands::Lint { path, profile } => {
+            let rules = if let Some(p) = profile {
+                Profile::load(&p)?.resolve_rules()?
+            } else {
+                Rule::load_all()?
+            };
+            let violations = runner::run(&rules, &path)?;
             reporter::report(&violations);
             if !violations.is_empty() {
                 std::process::exit(1);
             }
         }
-        Commands::List => {
-            let rules = load_rules();
-            println!("{} règles chargées", rules.len());
-            for r in rules {
-                println!("  {} [{}] ({})", r.name, r.severity, r.apply);
+        Commands::List { profiles } => {
+            if profiles {
+                for p in Profile::list()? {
+                    println!("{}", p);
+                }
+            } else {
+                let rules = Rule::load_all()?;
+                println!("{} règles", rules.len());
+                for r in rules {
+                    println!("  {:<30} [{}] {}", r.name, r.severity, r.apply);
+                }
             }
         }
         Commands::Init { name, path } => {
-            if let Err(e) = bootstrap::bootstrap(Path::new(&path), &name) {
-                eprintln!("Erreur: {}", e);
-                std::process::exit(1);
-            }
+            bootstrap::bootstrap(&path, &name)?;
         }
         Commands::Readme { name } => {
             println!("{}", generators::readme::generate(&name));
         }
     }
+    Ok(())
 }
