@@ -7,7 +7,8 @@ mod engine;
 mod generators;
 mod profiles;
 
-use engine::{reporter, runner};
+use engine::runner;
+use engine::reporter;
 use generators::bootstrap;
 use parser::Rule;
 use profiles::Profile;
@@ -21,25 +22,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Lint un chemin contre les règles (ou un profil)
     Lint {
         #[arg(default_value = ".")]
         path: PathBuf,
         #[arg(short, long)]
         profile: Option<String>,
     },
-    /// Lister les règles ou les profils
     List {
         #[arg(long)]
         profiles: bool,
     },
-    /// Initialiser un nouveau projet
     Init {
         name: String,
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Générer un README
     Readme {
         name: String,
     },
@@ -69,7 +66,7 @@ fn main() -> Result<()> {
             } else {
                 let rules = Rule::load_all()?;
                 println!("{} règles", rules.len());
-                for r in rules {
+                for r in &rules {
                     println!("  {:<30} [{}] {}", r.name, r.severity, r.apply);
                 }
             }
