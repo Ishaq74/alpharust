@@ -12,6 +12,7 @@ use ratatui::{
     Terminal,
 };
 use std::io;
+use std::path::PathBuf;
 
 pub fn run() -> Result<()> {
     enable_raw_mode()?;
@@ -21,6 +22,7 @@ pub fn run() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut selected = 0usize;
+    let mut status = String::from("Prêt");
     let menu = [
         "Lint current directory",
         "Generate Wagtail",
@@ -63,7 +65,7 @@ pub fn run() -> Result<()> {
             let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Menu"));
             f.render_widget(list, chunks[1]);
 
-            let footer = Paragraph::new("↑↓ move | Enter select | q quit")
+            let footer = Paragraph::new(format!("↑↓ move | Enter select | q quit | {}", status))
                 .block(Block::default().borders(Borders::ALL));
             f.render_widget(footer, chunks[2]);
         })?;
@@ -81,10 +83,35 @@ pub fn run() -> Result<()> {
                         }
                     }
                     KeyCode::Enter => {
-                        if selected == menu.len() - 1 {
-                            break;
+                        match selected {
+                            0 => {
+                                let rules = crate::parser::Rule::load_all().unwrap_or_default();
+                                let v = crate::engine::runner::run(&rules, std::path::Path::new("."))
+                                    .unwrap_or_default();
+                                status = format!("Lint: {} violations", v.len());
+                            }
+                            1 => {
+                                let p = PathBuf::from("sites/wagtail-site");
+                                let _ = crate::generators::wagtail::generate(&p, "wagtail-site");
+                                status = "Wagtail généré dans sites/".into();
+                            }
+                            2 => {
+                                let p = PathBuf::from("sites/astro-site");
+                                let _ = crate::generators::astro::generate(&p, "astro-site");
+                                status = "Astro généré dans sites/".into();
+                            }
+                            3 => {
+                                let p = PathBuf::from("sites/laravel-site");
+                                let _ = crate::generators::laravel::generate(&p, "laravel-site");
+                                status = "Laravel généré dans sites/".into();
+                            }
+                            4 => {
+                                let rules = crate::parser::Rule::load_all().unwrap_or_default();
+                                status = format!("{} règles chargées", rules.len());
+                            }
+                            5 => break,
+                            _ => {}
                         }
-                        // Actions réelles peuvent être branchées ici
                     }
                     _ => {}
                 }

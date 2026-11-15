@@ -14,6 +14,12 @@ struct GenerateForm {
     name: String,
 }
 
+#[derive(Deserialize)]
+struct LintForm {
+    path: String,
+    profile: Option<String>,
+}
+
 pub async fn run() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", get(index))
@@ -33,7 +39,10 @@ async fn index() -> Html<&'static str> {
     Html(
         r#"<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>AlphaRust</title>
-<style>body{font-family:system-ui;background:#111;color:#eee;padding:2rem}a{color:#4af}</style>
+<style>
+body{font-family:system-ui;background:#111;color:#eee;padding:2rem;max-width:800px;margin:auto}
+a{color:#4af} form{margin:1rem 0} input,select,button{padding:.4rem;margin:.2rem}
+</style>
 </head><body>
 <h1>AlphaRust</h1>
 <p><a href="/rules">Règles</a> · <a href="/generate">Générer</a> · <a href="/lint">Lint</a></p>
@@ -47,7 +56,7 @@ async fn rules_handler() -> Html<String> {
             let mut html = String::from("<h1>Règles</h1><ul>");
             for r in rules {
                 html.push_str(&format!(
-                    "<li><strong>{}</strong> <em>[{}]</em> {}</li>",
+                    "<li><strong>{}</strong> <em>[{}]</em> — apply: {}</li>",
                     r.name, r.severity, r.apply
                 ));
             }
@@ -84,7 +93,7 @@ async fn generate_handler(Form(form): Form<GenerateForm>) -> Html<String> {
     };
 
     let message = match result {
-        Ok(_) => format!("Projet '{}' créé dans sites/{}", form.name, form.name),
+        Ok(_) => format!("✓ Projet '{}' créé dans sites/{}", form.name, form.name),
         Err(e) => format!("Erreur: {}", e),
     };
 
@@ -96,8 +105,10 @@ async fn lint_form() -> Html<&'static str> {
         r#"<h1>Lint</h1>
 <form method="post" action="/lint">
   <input type="text" name="path" value="." placeholder="chemin">
+  <input type="text" name="profile" placeholder="profil (optionnel)">
   <button type="submit">Lancer le lint</button>
-</form>"#,
+</form>
+<p><a href="/">Retour</a></p>"#,
     )
 }
 
@@ -107,13 +118,19 @@ async fn lint_handler(Form(params): Form<HashMap<String, String>>) -> Html<Strin
     let violations = crate::engine::runner::run(&rules, std::path::Path::new(&path))
         .unwrap_or_default();
 
-    let mut html = format!("<h1>Résultats ({} violation(s))</h1><ul>", violations.len());
-    for v in &violations {
-        html.push_str(&format!(
-            "<li>{}:{} — <strong>{}</strong></li>",
-            v.file, v.line, v.rule
-        ));
+    let mut html = format!("<h1>Résultats — {} violation(s)</h1>", violations.len());
+    if violations.is_empty() {
+        html.push_str("<p>✓ Aucune violation</p>");
+    } else {
+        html.push_str("<ul>");
+        for v in &violations {
+            html.push_str(&format!(
+                "<li><code>{}:{}</code> — <strong>{}</strong> [{}]</li>",
+                v.file, v.line, v.rule, v.severity
+            ));
+        }
+        html.push_str("</ul>");
     }
-    html.push_str("</ul><p><a href='/'>Retour</a></p>");
+    html.push_str("<p><a href='/'>Retour</a></p>");
     Html(html)
 }
