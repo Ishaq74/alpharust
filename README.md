@@ -2,26 +2,44 @@
 
 Fondation intégrale pour les primitives, les règles, la génération et l’orchestration de plateformes.
 
-Prêt-à-porter sur mesure. Zéro dépendance runtime hors le binaire. Source de vérité unique.
+Prêt-à-porter sur mesure. Source de vérité unique. Binaire Rust autonome.
 
-## Objectif
+## Installation
 
-Encoder ce qui ne change jamais (sécurité, structure, conventions, domaines) dans des règles Markdown. Le binaire Rust les applique, génère, et orchestre. Tout le reste en découle.
+```bash
+git clone https://github.com/Ishaq74/alpharust.git
+cd alpharust
+cargo build --release
+```
+
+## Usage
+
+```bash
+# Lister toutes les règles
+./target/release/alpharust list
+
+# Linter un projet
+./target/release/alpharust lint .
+
+# Initialiser un projet
+./target/release/alpharust init mon-projet
+
+# Générer un README
+./target/release/alpharust readme mon-projet
+```
 
 ## Structure
 
-Voir l’arborescence définitive validée dans `docs/arborescence.md`.
-
-## Démarrage
-
-```bash
-cargo build --release
-./target/release/alpharust --help
-```
+Voir `docs/arborescence.md` pour l’arborescence définitive intégrale.
 
 ## Principes
 
-- Les règles sont la source de vérité.
-- Les profils orchestrent les combinaisons.
-- Les générateurs produisent le prêt-à-porter.
-- Aucune dette technique dès le départ.
+- `rules/` = source de vérité
+- `profiles/` = orchestration
+- `generators/` = prêt-à-porter
+- Domaines complets (database, smtp, payments, styles, design, auth, docs, readme, checks, tests) avec third-parties
+- Aucune dette technique
+
+## Licence
+
+MIT
