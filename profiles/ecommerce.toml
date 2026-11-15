@@ -1,0 +1,8 @@
+name = "ecommerce"
+rules = [
+  "core/*",
+  "domains/database/*",
+  "domains/payments/*",
+  "domains/auth/*",
+  "domains/smtp/*",
+]

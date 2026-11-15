@@ -1,22 +1,21 @@
 # TODO AlphaRust
 
 ## Fait
-- [x] Repo créé
-- [x] Arborescence définitive documentée
-- [x] ADR 0001
-- [x] Parser de règles Markdown
-- [x] Engine + runner + reporter
-- [x] CLI lint / list
-- [x] Règles core + domaines principaux + third-parties exemples
-- [x] Profils core et strict
+- [x] Repo + arborescence définitive
+- [x] Parser + Engine + Runner + Reporter
+- [x] CLI : lint, list, init, readme
+- [x] Générateurs : bootstrap, readme, tests (squelettes)
+- [x] Règles core + domains (database, smtp, payments, styles, design, readme, checks, tests)
+- [x] Third-parties exemples (postgres, resend, stripe)
+- [x] Profils (core, strict, web, ecommerce)
+- [x] Fixtures de base
+- [x] ADR + docs
+- [x] CI
 
-## En cours / Suite
-- [ ] Composer avec priorités réelles
-- [ ] Générateurs fonctionnels (readme, tests, bootstrap)
-- [ ] Fixtures de tests complètes
-- [ ] CI GitHub Actions
-- [ ] Documentation détaillée des règles
-- [ ] Self-validation des règles (markdown)
+## Reste optionnel (extensions)
+- [ ] Composer avec priorités fines
+- [ ] Plus de third-parties
+- [ ] Générateurs de frameworks complets
+- [ ] Self-lint des règles
 
-## Règles
-Aucune facilité. Chaque ajout = règle + test.
+La fondation intégrale est opérationnelle.
