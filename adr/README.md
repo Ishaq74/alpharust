@@ -6,3 +6,4 @@
 | 0002 | Format des règles et validité YAML | Accepté |
 | 0003 | Résolution des profils | Accepté |
 | 0004 | CI et qualité minimale | Accepté |
+| 0005 | Complétion de la fondation | Accepté |
