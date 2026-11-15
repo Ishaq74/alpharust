@@ -1,6 +1,6 @@
 ---
 name: smtp-tls-required
-apply: *
+apply: "*"
 severity: error
 pattern: "smtp.*ssl\\s*=\\s*false|starttls\\s*=\\s*false"
 ---

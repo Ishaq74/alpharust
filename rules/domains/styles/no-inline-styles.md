@@ -1,6 +1,6 @@
 ---
 name: no-inline-styles
-apply: *
+apply: "*"
 severity: warning
 pattern: "style\\s*="
 ---

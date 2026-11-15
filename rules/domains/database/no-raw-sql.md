@@ -1,6 +1,6 @@
 ---
 name: no-raw-sql
-apply: *
+apply: "*"
 severity: warning
 pattern: "(SELECT|INSERT|UPDATE|DELETE).*FROM"
 ---

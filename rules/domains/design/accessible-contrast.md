@@ -1,6 +1,6 @@
 ---
 name: accessible-contrast
-apply: *
+apply: "*"
 severity: warning
 pattern: ""
 ---
