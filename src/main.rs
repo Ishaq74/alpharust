@@ -8,6 +8,8 @@ mod generators;
 mod profiles;
 mod config;
 mod sarif;
+mod tui;
+mod gui;
 
 use config::Config;
 use engine::{composer, reporter, runner};
@@ -50,6 +52,10 @@ enum Commands {
     },
     Readme { name: String },
     Docs { name: String },
+    /// Mode TUI
+    Tui,
+    /// Mode GUI web
+    Gui,
 }
 
 #[derive(clap::ValueEnum, Clone)]
@@ -63,7 +69,8 @@ fn default_sites_path(name: &str) -> PathBuf {
     PathBuf::from("sites").join(name)
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cli = Cli::parse();
     let config = Config::load().unwrap_or_default();
 
@@ -113,6 +120,8 @@ fn main() -> Result<()> {
         }
         Commands::Readme { name } => println!("{}", readme::generate(&name)),
         Commands::Docs { name } => println!("{}", docs::generate(&name)),
+        Commands::Tui => tui::run()?,
+        Commands::Gui => gui::run().await?,
     }
     Ok(())
 }
