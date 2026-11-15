@@ -2,9 +2,8 @@
 name = "alpharust"
 version = "0.1.0"
 edition = "2021"
-description = "AlphaRust — Fondation intégrale pour primitives, règles et génération de plateformes"
+description = "AlphaRust"
 license = "MIT"
-authors = ["Ishaq74"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -15,7 +14,4 @@ regex = "1.10"
 walkdir = "2.5"
 anyhow = "1.0"
 toml = "0.8"
-ratatui = "0.28"
-crossterm = "0.28"
-axum = "0.7"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt", "macros"] }
