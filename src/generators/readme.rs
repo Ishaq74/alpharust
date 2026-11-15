@@ -1,7 +1,17 @@
-/// Génère un README de base à partir des métadonnées
 pub fn generate(project_name: &str) -> String {
     format!(
-        "# {}\n\nProjet généré par AlphaRust.\n\n## Installation\n\n## Usage\n\n## License\n\nMIT\n",
-        project_name
+        r#"# {name}
+
+Projet généré et gouverné par [AlphaRust](https://github.com/Ishaq74/alpharust).
+
+## Installation
+
+## Usage
+
+## License
+
+MIT
+"#,
+        name = project_name
     )
 }
