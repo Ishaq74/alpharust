@@ -70,15 +70,7 @@ mod tests {
 
     #[test]
     fn parse_simple_rule() {
-        let md = r#"---
-name: test-rule
-apply: *
-severity: error
-pattern: "foo"
----
-
-Description here.
-"#;
+        let md = "---\nname: test-rule\napply: *\nseverity: error\npattern: \"foo\"\n---\n\nDescription here.\n";
         let rule = Rule::from_markdown(Path::new("test.md"), md).unwrap();
         assert_eq!(rule.name, "test-rule");
         assert_eq!(rule.severity, "error");

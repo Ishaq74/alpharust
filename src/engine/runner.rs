@@ -21,7 +21,6 @@ pub fn run(rules: &[Rule], target: &Path) -> Result<Vec<Violation>> {
         if !path.is_file() {
             continue;
         }
-        // Skip binary and target dirs roughly
         if path.components().any(|c| c.as_os_str() == "target") {
             continue;
         }
@@ -45,7 +44,7 @@ pub fn run(rules: &[Rule], target: &Path) -> Result<Vec<Violation>> {
                         file: path.display().to_string(),
                         line: i + 1,
                         rule: rule.name.clone(),
-                        message: format!("{}", rule.name),
+                        message: rule.name.clone(),
                         severity: rule.severity.clone(),
                     });
                 }
