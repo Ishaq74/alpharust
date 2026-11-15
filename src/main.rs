@@ -11,7 +11,7 @@ mod sarif;
 
 use config::Config;
 use engine::{composer, reporter, runner};
-use generators::{bootstrap, docs, readme};
+use generators::{astro, bootstrap, docs, laravel, readme, wagtail};
 use parser::Rule;
 use profiles::Profile;
 
@@ -41,8 +41,22 @@ enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
+    Generate {
+        #[arg(value_enum)]
+        kind: GeneratorKind,
+        name: String,
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
     Readme { name: String },
     Docs { name: String },
+}
+
+#[derive(clap::ValueEnum, Clone)]
+enum GeneratorKind {
+    Wagtail,
+    Astro,
+    Laravel,
 }
 
 fn main() -> Result<()> {
@@ -82,6 +96,11 @@ fn main() -> Result<()> {
             }
         }
         Commands::Init { name, path } => bootstrap::bootstrap(&path, &name)?,
+        Commands::Generate { kind, name, path } => match kind {
+            GeneratorKind::Wagtail => wagtail::generate(&path, &name)?,
+            GeneratorKind::Astro => astro::generate(&path, &name)?,
+            GeneratorKind::Laravel => laravel::generate(&path, &name)?,
+        },
         Commands::Readme { name } => println!("{}", readme::generate(&name)),
         Commands::Docs { name } => println!("{}", docs::generate(&name)),
     }

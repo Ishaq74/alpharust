@@ -2,8 +2,6 @@
 
 Fondation intégrale pour les primitives, les règles, la génération et l’orchestration de plateformes.
 
-Prêt-à-porter sur mesure. Source de vérité unique. Binaire Rust.
-
 ## Installation
 
 ```bash
@@ -15,37 +13,35 @@ cargo build --release
 ## Usage
 
 ```bash
-# Lister les règles
-./target/release/alpharust list
-
-# Lister les profils
-./target/release/alpharust list --profiles
-
-# Linter
+# Lint
 ./target/release/alpharust lint
 ./target/release/alpharust lint --profile strict
+./target/release/alpharust lint --sarif
 
-# Initialiser un projet
+# Lister
+./target/release/alpharust list
+./target/release/alpharust list --profiles
+
+# Initialiser
 ./target/release/alpharust init mon-projet
 
-# Générer un README
-./target/release/alpharust readme mon-projet
+# Générer un projet framework
+./target/release/alpharust generate wagtail mon-site
+./target/release/alpharust generate astro mon-site
+./target/release/alpharust generate laravel mon-site
 
-# Générer de la documentation
+# Générer README / Docs
+./target/release/alpharust readme mon-projet
 ./target/release/alpharust docs mon-projet
 ```
 
-## Structure
+## Configuration
 
-Voir [docs/arborescence.md](docs/arborescence.md).
+Créer un `.alpharust.toml` :
 
-## Principes
-
-- `rules/` = source de vérité
-- Profils pour l’orchestration
-- Générateurs intégrés
-- Domaines complets avec third-parties
-- CI obligatoire
+```toml
+profile = "strict"
+```
 
 ## Licence
 
