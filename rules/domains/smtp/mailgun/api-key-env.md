@@ -5,4 +5,4 @@ severity: error
 pattern: "MAILGUN_API_KEY\\s*=\\s*['\"]"
 ---
 
-# Clé Mailgun via env uniquement
+# Clé Mailgun via variable d’environnement

@@ -5,4 +5,4 @@ severity: error
 pattern: "PAYPAL_CLIENT_SECRET\\s*=\\s*['\"]"
 ---
 
-# Secret PayPal via env uniquement
+# Secret PayPal via variable d’environnement
