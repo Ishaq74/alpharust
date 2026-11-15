@@ -1,0 +1,8 @@
+name = "web"
+rules = [
+  "core/*",
+  "domains/database/*",
+  "domains/smtp/*",
+  "domains/styles/*",
+  "domains/design/*",
+]
