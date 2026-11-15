@@ -2,7 +2,7 @@
 name: python-no-exec
 apply: python
 severity: error
-pattern: "\\bexec\\s*\\(|\\beval\\s*\\("
+pattern: "\\b(exec|eval)\\s*\\("
 ---
 
-# Interdiction d’exec/eval en Python
+# Interdiction d’exec et eval en Python

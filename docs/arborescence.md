@@ -1,13 +1,14 @@
 # Arborescence définitive AlphaRust
 
+Validée et réalisée.
+
 ```text
 alpharust/
 ├── Cargo.toml
 ├── README.md
 ├── LICENSE
 ├── .gitignore
-│
-├── rules/                                          # Source de vérité absolue
+├── rules/
 │   ├── core/
 │   ├── languages/
 │   ├── frameworks/
@@ -24,27 +25,10 @@ alpharust/
 │   │   └── tests/
 │   ├── markdown/
 │   └── _template.md
-│
 ├── profiles/
 ├── templates/
 ├── generators/
-│   ├── base/
-│   ├── bootstrap/
-│   ├── readme/
-│   ├── docs/
-│   ├── tests/
-│   └── checks/
-│
 ├── src/
-│   ├── main.rs
-│   ├── lib.rs
-│   ├── parser/
-│   ├── engine/
-│   ├── checkers/
-│   ├── generators/
-│   ├── templates/
-│   └── cli/
-│
 ├── tests/
 ├── examples/
 ├── docs/
@@ -52,5 +36,3 @@ alpharust/
 ├── todos/
 └── .github/
 ```
-
-Validée. Définitive. Intégrale.

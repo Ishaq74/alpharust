@@ -1,0 +1,6 @@
+name = "starter"
+rules = [
+  "core/*",
+  "domains/readme/*",
+  "domains/docs/*",
+]
