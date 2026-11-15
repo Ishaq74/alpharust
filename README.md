@@ -1,8 +1,8 @@
 # AlphaRust
 
-Fondation intégrale pour les primitives, les règles, la génération et l’orchestration de plateformes.
+**Fondation intégrale production-ready** pour les primitives, les règles, la génération et l’orchestration de plateformes.
 
-Prêt-à-porter sur mesure. Source de vérité unique. Binaire Rust autonome.
+Prêt-à-porter sur mesure. Source de vérité unique. Binaire Rust autonome et robuste.
 
 ## Installation
 
@@ -12,33 +12,42 @@ cd alpharust
 cargo build --release
 ```
 
+Le binaire se trouve dans `target/release/alpharust`.
+
 ## Usage
 
 ```bash
 # Lister toutes les règles
-./target/release/alpharust list
+alpharust list
 
-# Linter un projet
-./target/release/alpharust lint .
+# Lister les profils
+alpharust list --profiles
+
+# Linter le répertoire courant
+alpharust lint
+
+# Linter avec un profil
+alpharust lint --profile strict
 
 # Initialiser un projet
-./target/release/alpharust init mon-projet
+alpharust init mon-projet
 
 # Générer un README
-./target/release/alpharust readme mon-projet
+alpharust readme mon-projet
 ```
 
 ## Structure
 
-Voir `docs/arborescence.md` pour l’arborescence définitive intégrale.
+L’arborescence définitive intégrale est documentée dans [`docs/arborescence.md`](docs/arborescence.md).
 
 ## Principes
 
-- `rules/` = source de vérité
-- `profiles/` = orchestration
-- `generators/` = prêt-à-porter
-- Domaines complets (database, smtp, payments, styles, design, auth, docs, readme, checks, tests) avec third-parties
-- Aucune dette technique
+- `rules/` est la seule source de vérité
+- Profils pour l’orchestration
+- Générateurs intégrés
+- Domaines complets avec third-parties
+- Gestion d’erreurs robuste
+- Tests unitaires
 
 ## Licence
 

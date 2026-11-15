@@ -63,3 +63,25 @@ fn split_frontmatter(content: &str) -> Result<(String, String)> {
     let body = rest[end + 4..].to_string();
     Ok((front, body))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_simple_rule() {
+        let md = r#"---
+name: test-rule
+apply: *
+severity: error
+pattern: "foo"
+---
+
+Description here.
+"#;
+        let rule = Rule::from_markdown(Path::new("test.md"), md).unwrap();
+        assert_eq!(rule.name, "test-rule");
+        assert_eq!(rule.severity, "error");
+        assert!(rule.pattern.is_some());
+    }
+}
