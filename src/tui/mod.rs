@@ -1,5 +1,8 @@
 use anyhow::Result;
-use crossterm::{event::{self, Event, KeyCode}, terminal};
+use crossterm::{
+    event::{self, Event, KeyCode},
+    terminal,
+};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
@@ -7,7 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Terminal,
 };
-use std::io::{self, Stdout};
+use std::io;
 
 pub fn run() -> Result<()> {
     terminal::enable_raw_mode()?;
@@ -16,7 +19,7 @@ pub fn run() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut selected = 0;
+    let mut selected = 0usize;
     let menu = [
         "Lint current directory",
         "Generate Wagtail site",
@@ -30,7 +33,11 @@ pub fn run() -> Result<()> {
         terminal.draw(|f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(3)])
+                .constraints([
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                    Constraint::Length(3),
+                ])
                 .split(f.size());
 
             let title = Paragraph::new(" AlphaRust TUI ")
@@ -43,7 +50,7 @@ pub fn run() -> Result<()> {
                 .enumerate()
                 .map(|(i, m)| {
                     let style = if i == selected {
-                        Style::default().fg(Color::Yellow).bg(Color::DarkGray)
+                        Style::default().fg(Color::Yellow)
                     } else {
                         Style::default()
                     };
@@ -54,7 +61,7 @@ pub fn run() -> Result<()> {
             let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Menu "));
             f.render_widget(list, chunks[1]);
 
-            let help = Paragraph::new(" ↑↓ navigate | Enter select | q quit ")
+            let help = Paragraph::new(" Up/Down | Enter | q quit ")
                 .block(Block::default().borders(Borders::ALL));
             f.render_widget(help, chunks[2]);
         })?;
@@ -69,21 +76,41 @@ pub fn run() -> Result<()> {
                         }
                     }
                     KeyCode::Down => {
-                        if selected < menu.len() - 1 {
+                        if selected + 1 < menu.len() {
                             selected += 1;
                         }
                     }
-                    KeyCode::Enter => {
-                        match selected {
-                            0 => { let _ = crate::engine::runner::run(&crate::parser::Rule::load_all().unwrap_or_default(), std::path::Path::new(".")); }
-                            1 => { let _ = crate::generators::wagtail::generate(&std::path::PathBuf::from("sites/wagtail-site"), "wagtail-site"); }
-                            2 => { let _ = crate::generators::astro::generate(&std::path::PathBuf::from("sites/astro-site"), "astro-site"); }
-                            3 => { let _ = crate::generators::laravel::generate(&std::path::PathBuf::from("sites/laravel-site"), "laravel-site"); }
-                            4 => { let _ = crate::parser::Rule::load_all(); }
-                            5 => break,
-                            _ => {}
+                    KeyCode::Enter => match selected {
+                        0 => {
+                            let _ = crate::engine::runner::run(
+                                &crate::parser::Rule::load_all().unwrap_or_default(),
+                                std::path::Path::new("."),
+                            );
                         }
-                    }
+                        1 => {
+                            let _ = crate::generators::wagtail::generate(
+                                &std::path::PathBuf::from("sites/wagtail-site"),
+                                "wagtail-site",
+                            );
+                        }
+                        2 => {
+                            let _ = crate::generators::astro::generate(
+                                &std::path::PathBuf::from("sites/astro-site"),
+                                "astro-site",
+                            );
+                        }
+                        3 => {
+                            let _ = crate::generators::laravel::generate(
+                                &std::path::PathBuf::from("sites/laravel-site"),
+                                "laravel-site",
+                            );
+                        }
+                        4 => {
+                            let _ = crate::parser::Rule::load_all();
+                        }
+                        5 => break,
+                        _ => {}
+                    },
                     _ => {}
                 }
             }

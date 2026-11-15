@@ -4,5 +4,3 @@ pub mod generators;
 pub mod profiles;
 pub mod config;
 pub mod sarif;
-pub mod tui;
-pub mod gui;
