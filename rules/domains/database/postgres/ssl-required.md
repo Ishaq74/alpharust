@@ -2,7 +2,10 @@
 name: postgres-ssl-required
 apply: postgres
 severity: error
-pattern: "sslmode=disable"
+pattern: "sslmode=disable|ssl=false"
 ---
 
-# SSL requis pour PostgreSQL
+# SSL obligatoire pour PostgreSQL
+
+Toute connexion PostgreSQL doit utiliser SSL (`sslmode=require` ou équivalent).
+Les connexions non chiffrées sont interdites.

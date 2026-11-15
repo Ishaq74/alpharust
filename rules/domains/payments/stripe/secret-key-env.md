@@ -1,8 +1,10 @@
 ---
 name: stripe-secret-key-env
-apply: *
+apply: stripe
 severity: error
-pattern: "sk_live_|sk_test_"
+pattern: "sk_(live|test)_"
 ---
 
-# Clés Stripe jamais en dur
+# Clé secrète Stripe via environnement uniquement
+
+Les clés secrètes Stripe (`sk_live_`, `sk_test_`) ne doivent jamais être committées.
