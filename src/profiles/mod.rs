@@ -1,12 +1,10 @@
 use anyhow::{Context, Result};
-use serde::de::IgnoredAny;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Default, deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 struct ProfileFile {
     #[serde(default)]
     name: String,
@@ -14,8 +12,6 @@ struct ProfileFile {
     description: String,
     #[serde(default)]
     rules: Vec<String>,
-    #[serde(flatten)]
-    _extra: HashMap<String, IgnoredAny>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,9 +43,9 @@ impl Profile {
     pub fn load(name: &str) -> Result<Self> {
         let path = Path::new("profiles").join(format!("{}.toml", name));
         let content = fs::read_to_string(&path)
-            .with_context(|| format!("profil {} introuvable", name));
-        let pf: ProfileFile = toml::from_str(&content?)
-            .with_context(|| format!("parsing du profil {})", name));
+            .with_context(|| format!("profil {} introuvable", name))?;
+        let pf: ProfileFile = toml::from_str(&content)
+            .with_context(|| format!("parsing du profil {}", name))?;
         Ok(Profile {
             name: if pf.name.is_empty() {
                 name.to_string()
@@ -62,8 +58,7 @@ impl Profile {
     }
 
     pub fn resolve_rules(&self) -> Result<Vec<crate::parser::Rule>> {
-        let all = crate::parser::Rule::load_all?;
-        let all = all?;
+        let all = crate::parser::Rule::load_all()?;
         let wanted: HashSet<String> = self.rule_names.iter().cloned().collect();
         if wanted.is_empty() {
             return Ok(all);
