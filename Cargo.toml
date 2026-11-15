@@ -14,4 +14,7 @@ regex = "1.10"
 walkdir = "2.5"
 anyhow = "1.0"
 toml = "0.8"
-tokio = { version = "1", features = ["rt", "macros"] }
+ratatui = "0.28"
+crossterm = "0.28"
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
