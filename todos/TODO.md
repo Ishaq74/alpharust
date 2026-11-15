@@ -2,20 +2,21 @@
 
 ## Terminé
 - [x] Structure intégrale
-- [x] Parser, Engine, Composer, CLI
-- [x] Toutes les règles (core, languages, frameworks, domains + third-parties)
-- [x] Profils
-- [x] Générateurs (bootstrap, readme, docs, tests)
-- [x] Templates de frameworks
-- [x] Support `.alpharust.toml`
+- [x] Parser + Engine + Composer + CLI
+- [x] TUI fonctionnelle avec actions réelles
+- [x] GUI web fonctionnelle
+- [x] Profils + config .alpharust.toml
 - [x] Sortie SARIF
-- [x] Fixtures
-- [x] Docs + ADR 0001-0006
-- [x] CI
+- [x] Générateurs (bootstrap, wagtail, astro, laravel)
+- [x] Dossier sites/
+- [x] Tests d’intégration
+- [x] CI verte
+- [x] ADR + docs
 
-## Extensions possibles
-- [ ] Checkers sémantiques avancés
-- [ ] Générateurs de projets complets (fichiers sources)
-- [ ] Plus de third-parties
+## Améliorations possibles
+- [ ] Plus de third-parties concrets
+- [ ] Checkers sémantiques (au-delà du regex)
+- [ ] Générateurs de projets plus complets
+- [ ] Cache des règles compilées
 
-Fondation terminée et utilisable en production.
+Fondation utilisable.

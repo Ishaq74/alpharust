@@ -11,17 +11,14 @@ pub fn bootstrap(path: &Path, name: &str) -> Result<()> {
 
     fs::write(
         path.join(".gitignore"),
-        "/target\n.DS_Store\n*.swp\n.env\n",
+        "/target\n.DS_Store\n*.swp\n.env\nnode_modules/\n",
     )?;
 
     fs::write(
         path.join("src/main.rs"),
-        "fn main() {\n    println!(\"Hello from {}\");\n}\n",
+        format!("fn main() {{\n    println!(\"Hello from {}\");\n}}\n", name),
     )?;
 
     println!("✓ Projet '{}' initialisé dans {}", name, path.display());
-    println!("  - README.md");
-    println!("  - .gitignore");
-    println!("  - src/main.rs");
     Ok(())
 }

@@ -38,7 +38,10 @@ pub fn run(rules: &[Rule], target: &Path) -> anyhow::Result<Vec<Violation>> {
         if !path.is_file() {
             continue;
         }
-        if path.components().any(|c| c.as_os_str() == "target" || c.as_os_str() == ".git") {
+        if path.components().any(|c| {
+            let s = c.as_os_str();
+            s == "target" || s == ".git" || s == "node_modules"
+        }) {
             continue;
         }
 
@@ -57,7 +60,10 @@ pub fn run(rules: &[Rule], target: &Path) -> anyhow::Result<Vec<Violation>> {
             }
             let re = match Regex::new(pat) {
                 Ok(r) => r,
-                Err(_) => continue,
+                Err(e) => {
+                    eprintln!("warning: invalid regex in rule '{}': {}", rule.name, e);
+                    continue;
+                }
             };
             for (i, line) in content.lines().enumerate() {
                 if re.is_match(line) {
@@ -65,7 +71,7 @@ pub fn run(rules: &[Rule], target: &Path) -> anyhow::Result<Vec<Violation>> {
                         file: path.display().to_string(),
                         line: i + 1,
                         rule: rule.name.clone(),
-                        message: rule.name.clone(),
+                        message: format!("matched pattern for {}", rule.name),
                         severity: rule.severity.clone(),
                     });
                 }

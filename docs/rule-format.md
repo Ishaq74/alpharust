@@ -13,10 +13,14 @@ pattern: "regex optionnelle"
 
 ## Corps
 
-Description claire de la règle, pourquoi elle existe, et comment la respecter.
+Description claire de la règle.
 
-## Bonnes pratiques
+## Validation
 
-- Toujours quoter `apply` si la valeur contient des caractères spéciaux
-- Pattern vide = règle informative ou future checker sémantique
-- Une règle = un fichier
+- `apply` doit être quoté si spécial (`"*"`)
+- `pattern` vide = règle informative (non exécutée par le runner regex)
+- Une regex invalide est ignorée avec un warning sur stderr
+
+## Test
+
+Ajouter une fixture dans `tests/fixtures/violations/` pour vérifier la détection.
