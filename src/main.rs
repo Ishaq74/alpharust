@@ -18,7 +18,7 @@ use parser::Rule;
 use profiles::Profile;
 
 #[derive(Parser)]
-#[command(name = "alpharust", version, about = "AlphaRust")]
+#[command(name = "alpharust", version, about = "AlphaRust — Fondation intégrale pour règles et génération", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -26,33 +26,41 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Lint un chemin avec les règles AlphaRust
     Lint {
         #[arg(default_value = ".")]
         path: PathBuf,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Profil à utiliser")]
         profile: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = "Sortie au format SARIF")]
         sarif: bool,
     },
+    /// Lister les règles ou les profils
     List {
-        #[arg(long)]
+        #[arg(long, help = "Lister les profils au lieu des règles")]
         profiles: bool,
     },
+    /// Initialiser un projet minimal dans sites/
     Init {
         name: String,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Chemin de destination (défaut: sites/<name>)")]
         path: Option<PathBuf>,
     },
+    /// Générer un projet framework dans sites/
     Generate {
         #[arg(value_enum)]
         kind: GeneratorKind,
         name: String,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Chemin de destination (défaut: sites/<name>)")]
         path: Option<PathBuf>,
     },
+    /// Générer un README
     Readme { name: String },
+    /// Générer de la documentation
     Docs { name: String },
+    /// Mode TUI interactif
     Tui,
+    /// Mode GUI web (port 3000)
     Gui,
 }
 
