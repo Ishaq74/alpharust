@@ -1,3 +1,7 @@
 # Tests
 
-Génération et validation des tests unitaires et d’intégration.
+- Tests unitaires requis
+- Couverture minimale
+- Tests d’intégration
+
+Les fixtures sont dans `tests/fixtures/`.

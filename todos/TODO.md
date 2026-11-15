@@ -1,19 +1,20 @@
 # TODO AlphaRust
 
 ## Terminé
-- [x] Structure intégrale
-- [x] Parser + Engine + CLI fonctionnels
-- [x] Règles core, languages, frameworks, tous domaines + third-parties
+- [x] Structure complète
+- [x] Toutes les règles principales + third-parties
+- [x] Languages et frameworks
 - [x] Profils
-- [x] Générateurs de base
-- [x] Docs, ADR 0001-0005, CI
-- [x] YAML valide partout
+- [x] Générateurs et templates
+- [x] Docs complètes
+- [x] ADR
+- [x] Composer de base
+- [x] CI fonctionnelle
 
-## Extensions futures
-- [ ] Composer avec priorités fines
-- [ ] Checkers sémantiques
-- [ ] Générateurs de frameworks complets
-- [ ] Sortie SARIF/JSON
-- [ ] Self-validation avancée
+## Extensions possibles
+- [ ] Checkers sémantiques avancés
+- [ ] Générateurs de projets complets
+- [ ] Intégration SARIF
+- [ ] Plus de third-parties
 
-Fondation complète et opérationnelle.
+La fondation est complète.
