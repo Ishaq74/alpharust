@@ -1,29 +1,22 @@
 # TODO AlphaRust
 
-Suivi strict. Aucune régression. Aucune facilité. Aucun oubli.
+## Fait
+- [x] Repo créé
+- [x] Arborescence définitive documentée
+- [x] ADR 0001
+- [x] Parser de règles Markdown
+- [x] Engine + runner + reporter
+- [x] CLI lint / list
+- [x] Règles core + domaines principaux + third-parties exemples
+- [x] Profils core et strict
 
-## Immédiat
-- [ ] Cargo.toml minimal fonctionnel
-- [ ] src/main.rs + cli de base (help, lint)
-- [ ] Parser de règles Markdown (frontmatter + pattern)
-- [ ] Première règle core : no-eval.md + checker générique
-- [ ] Tests fixtures clean/violations pour no-eval
-
-## Court terme
-- [ ] Engine + composer (priorités)
-- [ ] Profils de base (core.toml, strict.toml)
-- [ ] Générateur bootstrap minimal
-- [ ] Générateur README
-- [ ] Domaines database / smtp / payments (règles générales + 1 third-party chacun)
-
-## Moyen terme
-- [ ] Tous les domaines complets
-- [ ] Générateurs de tests unitaires
-- [ ] Frameworks et languages complets
+## En cours / Suite
+- [ ] Composer avec priorités réelles
+- [ ] Générateurs fonctionnels (readme, tests, bootstrap)
+- [ ] Fixtures de tests complètes
 - [ ] CI GitHub Actions
-- [ ] Documentation complète
+- [ ] Documentation détaillée des règles
+- [ ] Self-validation des règles (markdown)
 
-## Règles de travail
-- Chaque changement passe par une règle + fixture.
-- Aucun code sans test.
-- ADR pour toute décision structurelle.
+## Règles
+Aucune facilité. Chaque ajout = règle + test.

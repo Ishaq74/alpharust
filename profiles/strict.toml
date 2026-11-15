@@ -1,0 +1,7 @@
+name = "strict"
+rules = [
+  "core/*",
+  "domains/database/*",
+  "domains/smtp/*",
+  "domains/payments/*",
+]
