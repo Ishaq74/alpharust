@@ -6,3 +6,5 @@ pattern: "\\beval\\s*\\("
 ---
 
 # Interdiction d’eval en PHP
+
+`eval()` est interdit. Utiliser des alternatives sûres (templates, configuration, etc.).

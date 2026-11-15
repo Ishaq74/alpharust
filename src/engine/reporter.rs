@@ -1,23 +1,26 @@
-use crate::engine::Violation;
+use super::runner::Violation;
 
-pub fn report(violations: &Vec<Violation>) {
+pub fn report(violations: &[Violation]) {
     if violations.is_empty() {
-        println!("✓ aucune violation");
+        println!("✓ No violations");
         return;
     }
-    let mut errors = 0u32;
-    let mut warnings = 0u32;
+
+    let mut errors = 0;
+    let mut warnings = 0;
+
     for v in violations {
         match v.severity.as_str() {
-            "error" => errors += 1,
-            _ => warnings += 1,
-        }
-        if v.line == 0 {
-            println!("{}: {} [{}] {}", v.file, v.rule, v.severity, v.message);
-        } else {
-            println!("{}:{}: {} [{}] {}", v.file, v.line, v.rule, v.severity, v.message);
+            "error" => {
+                errors += 1;
+                println!("✗ {}:{}:{}: {}", v.file, v.line, v.rule, v.message);
+            }
+            _ => {
+                warnings += 1;
+                println!("! {}:{}:{}: {}", v.file, v.line, v.rule, v.message);
+            }
         }
     }
-    println!();
-    println!("{} erreur(s), {} avertissement(s)", errors, warnings);
+
+    println!("\n{} error(s), {} warning(s)", errors, warnings);
 }

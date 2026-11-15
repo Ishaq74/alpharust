@@ -1,20 +1,22 @@
 # Format des règles
 
-Chaque règle est un fichier `.md` avec frontmatter YAML.
+Chaque règle est un fichier Markdown avec frontmatter YAML.
 
 ```yaml
 ---
 name: nom-de-la-regle
-apply: "*"          # ou powershell, php, laravel, etc. Toujours quoté si spécial
-severity: error     # error | warning | info
-pattern: "regex"    # optionnel
+apply: "*"                 # "*" | powershell | php | laravel | postgres | ...
+severity: error            # error | warning | info
+pattern: "regex optionnelle"
 ---
 ```
 
-Le corps Markdown contient la description humaine.
+## Corps
 
-## Règles
+Description claire de la règle, pourquoi elle existe, et comment la respecter.
 
-- `apply: "*"` pour universel
-- Pattern vide = règle informative ou sémantique future
-- Toujours YAML valide
+## Bonnes pratiques
+
+- Toujours quoter `apply` si la valeur contient des caractères spéciaux
+- Pattern vide = règle informative ou future checker sémantique
+- Une règle = un fichier
