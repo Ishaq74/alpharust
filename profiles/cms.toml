@@ -1,0 +1,9 @@
+name = "cms"
+rules = [
+  "core/*",
+  "domains/database/*",
+  "domains/docs/*",
+  "domains/readme/*",
+  "frameworks/wagtail/*",
+  "frameworks/django/*",
+]
