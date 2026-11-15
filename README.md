@@ -1,6 +1,6 @@
 # AlphaRust
 
-Fondation intégrale : CLI + TUI + GUI web.
+Fondation intégrale production-ready : **CLI + TUI + GUI web**.
 
 ## Installation
 
@@ -15,8 +15,10 @@ cargo build --release
 ### CLI
 ```bash
 ./target/release/alpharust lint
+./target/release/alpharust lint --profile strict --sarif
 ./target/release/alpharust generate wagtail mon-site
 ./target/release/alpharust init mon-projet
+./target/release/alpharust list
 ```
 
 ### TUI
@@ -24,13 +26,14 @@ cargo build --release
 ./target/release/alpharust tui
 ```
 
-### GUI Web (style forge)
+### GUI Web
 ```bash
 ./target/release/alpharust gui
-# → http://127.0.0.1:3000
 ```
+Ouvre http://127.0.0.1:3000  
+Interface complète : consultation des règles, génération de projets, lint.
 
-Les projets générés vont dans `sites/`.
+Tous les projets générés vont dans `sites/`.
 
 ## Licence
 
