@@ -16,82 +16,46 @@ struct GenerateForm {
 
 pub async fn run() -> anyhow::Result<()> {
     let app = Router::new()
-        .route("/", get(index))
-        .route("/rules", get(rules_page))
-        .route("/generate", get(generate_form).post(generate_action))
-        .route("/lint", get(lint_form).post(lint_action));
+        .route("/", get(|| async { Html(INDEX) }))
+        .route("/rules", get(rules))
+        .route("/generate", get(|| async { Html(GENERATE) }).post(do_generate))
+        .route("/lint", get(|| async { Html(LINT) }).post(do_lint));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("AlphaRust GUI → http://{}", addr);
+    println!("GUI: http://{}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
 
-async fn index() -> Html<&'static str> {
-    Html(
-        r#"<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>AlphaRust</title>
-<style>body{font-family:system-ui;background:#111;color:#eee;padding:2rem}a{color:#6cf}</style>
-</head><body>
-<h1>AlphaRust</h1>
-<p><a href="/rules">Règles</a> | <a href="/generate">Générer</a> | <a href="/lint">Lint</a></p>
-</body></html>"#,
-    )
-}
+const INDEX: &str = r#"<h1>AlphaRust</h1><p><a href='/rules'>Rules</a> | <a href='/generate'>Generate</a> | <a href='/lint'>Lint</a></p>"#;
+const GENERATE: &str = r#"<form method='post'><select name='kind'><option value='wagtail'>Wagtail</option><option value='astro'>Astro</option><option value='laravel'>Laravel</option></select><input name='name' required><button>Go</button></form>"#;
+const LINT: &str = r#"<form method='post'><input name='path' value='.'><button>Lint</button></form>"#;
 
-async fn rules_page() -> Html<String> {
+async fn rules() -> Html<String> {
     let rules = crate::parser::Rule::load_all().unwrap_or_default();
-    let mut html = String::from("<h1>Règles</h1><ul>");
+    let mut s = String::from("<ul>");
     for r in rules {
-        html.push_str(&format!(
-            "<li><b>{}</b> [{}] {}</li>",
-            r.name, r.severity, r.apply
-        ));
+        s.push_str(&format!("<li>{} [{}]</li>", r.name, r.severity));
     }
-    html.push_str("</ul><a href='/'>Retour</a>");
-    Html(html)
+    s.push_str("</ul>");
+    Html(s)
 }
 
-async fn generate_form() -> Html<&'static str> {
-    Html(
-        r#"<h1>Générer</h1>
-<form method="post">
-<select name="kind"><option value="wagtail">Wagtail</option><option value="astro">Astro</option><option value="laravel">Laravel</option></select>
-<input name="name" placeholder="nom" required>
-<button>Générer dans sites/</button>
-</form><a href="/">Retour</a>"#,
-    )
-}
-
-async fn generate_action(Form(form): Form<GenerateForm>) -> Html<String> {
-    let path = std::path::PathBuf::from("sites").join(&form.name);
-    let res = match form.kind.as_str() {
-        "wagtail" => crate::generators::wagtail::generate(&path, &form.name),
-        "astro" => crate::generators::astro::generate(&path, &form.name),
-        "laravel" => crate::generators::laravel::generate(&path, &form.name),
-        _ => Err(anyhow::anyhow!("unknown")),
+async fn do_generate(Form(f): Form<GenerateForm>) -> Html<String> {
+    let p = std::path::PathBuf::from("sites").join(&f.name);
+    let r = match f.kind.as_str() {
+        "wagtail" => crate::generators::wagtail::generate(&p, &f.name),
+        "astro" => crate::generators::astro::generate(&p, &f.name),
+        "laravel" => crate::generators::laravel::generate(&p, &f.name),
+        _ => Err(anyhow::anyhow!("bad kind")),
     };
-    let msg = match res {
-        Ok(_) => format!("OK: sites/{}", form.name),
-        Err(e) => format!("Erreur: {}", e),
-    };
-    Html(format!("<p>{}</p><a href='/'>Retour</a>", msg))
+    Html(format!("<p>{:?}</p>", r.map(|_| "ok")))
 }
 
-async fn lint_form() -> Html<&'static str> {
-    Html("<h1>Lint</h1><form method='post'><input name='path' value='.'><button>Go</button></form>")
-}
-
-async fn lint_action(Form(form): Form<HashMap<String, String>>) -> Html<String> {
-    let path = form.get("path").cloned().unwrap_or_else(|| ".".into());
+async fn do_lint(Form(f): Form<HashMap<String, String>>) -> Html<String> {
+    let path = f.get("path").map(|s| s.as_str()).unwrap_or(".");
     let rules = crate::parser::Rule::load_all().unwrap_or_default();
-    let violations =
-        crate::engine::runner::run(&rules, std::path::Path::new(&path)).unwrap_or_default();
-    let mut html = format!("<h1>{} violations</h1><ul>", violations.len());
-    for v in &violations {
-        html.push_str(&format!("<li>{}:{} {}</li>", v.file, v.line, v.rule));
-    }
-    html.push_str("</ul><a href='/'>Retour</a>");
-    Html(html)
+    let v = crate::engine::runner::run(&rules, std::path::Path::new(path)).unwrap_or_default();
+    Html(format!("<p>{} violations</p>", v.len()))
 }

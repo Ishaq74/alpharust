@@ -18,7 +18,7 @@ use parser::Rule;
 use profiles::Profile;
 
 #[derive(Parser)]
-#[command(name = "alpharust", version, about = "AlphaRust — Fondation intégrale")]
+#[command(name = "alpharust", version, about = "AlphaRust")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -52,9 +52,7 @@ enum Commands {
     },
     Readme { name: String },
     Docs { name: String },
-    /// Mode TUI
     Tui,
-    /// Mode GUI web
     Gui,
 }
 

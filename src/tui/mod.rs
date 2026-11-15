@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode},
-    terminal,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -10,37 +10,27 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, Paragraph},
     Terminal,
 };
-use std::io;
+use std::io::{self, Stdout};
 
 pub fn run() -> Result<()> {
-    terminal::enable_raw_mode()?;
+    enable_raw_mode()?;
     let mut stdout = io::stdout();
-    crossterm::execute!(stdout, terminal::EnterAlternateScreen)?;
+    crossterm::execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     let mut selected = 0usize;
-    let menu = [
-        "Lint current directory",
-        "Generate Wagtail site",
-        "Generate Astro site",
-        "Generate Laravel site",
-        "List rules",
-        "Quit",
-    ];
+    let menu = ["Lint", "Generate Wagtail", "Generate Astro", "Generate Laravel", "List rules", "Quit"];
 
     loop {
         terminal.draw(|f| {
+            let size = f.size();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(3),
-                    Constraint::Min(0),
-                    Constraint::Length(3),
-                ])
-                .split(f.size());
+                .constraints([Constraint::Length(3), Constraint::Min(0), Constraint::Length(3)])
+                .split(size);
 
-            let title = Paragraph::new(" AlphaRust TUI ")
+            let title = Paragraph::new("AlphaRust TUI")
                 .style(Style::default().fg(Color::Cyan))
                 .block(Block::default().borders(Borders::ALL));
             f.render_widget(title, chunks[0]);
@@ -48,76 +38,42 @@ pub fn run() -> Result<()> {
             let items: Vec<ListItem> = menu
                 .iter()
                 .enumerate()
-                .map(|(i, m)| {
+                .map(|(i, item)| {
                     let style = if i == selected {
                         Style::default().fg(Color::Yellow)
                     } else {
                         Style::default()
                     };
-                    ListItem::new(*m).style(style)
+                    ListItem::new(*item).style(style)
                 })
                 .collect();
 
-            let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Menu "));
+            let list = List::new(items).block(Block::default().borders(Borders::ALL).title("Menu"));
             f.render_widget(list, chunks[1]);
 
-            let help = Paragraph::new(" Up/Down | Enter | q quit ")
+            let footer = Paragraph::new("q: quit | arrows: navigate | enter: select")
                 .block(Block::default().borders(Borders::ALL));
-            f.render_widget(help, chunks[2]);
+            f.render_widget(footer, chunks[2]);
         })?;
 
-        if event::poll(std::time::Duration::from_millis(50))? {
+        if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Up => {
-                        if selected > 0 {
-                            selected -= 1;
+                    KeyCode::Up if selected > 0 => selected -= 1,
+                    KeyCode::Down if selected + 1 < menu.len() => selected += 1,
+                    KeyCode::Enter => {
+                        if selected == 5 {
+                            break;
                         }
                     }
-                    KeyCode::Down => {
-                        if selected + 1 < menu.len() {
-                            selected += 1;
-                        }
-                    }
-                    KeyCode::Enter => match selected {
-                        0 => {
-                            let _ = crate::engine::runner::run(
-                                &crate::parser::Rule::load_all().unwrap_or_default(),
-                                std::path::Path::new("."),
-                            );
-                        }
-                        1 => {
-                            let _ = crate::generators::wagtail::generate(
-                                &std::path::PathBuf::from("sites/wagtail-site"),
-                                "wagtail-site",
-                            );
-                        }
-                        2 => {
-                            let _ = crate::generators::astro::generate(
-                                &std::path::PathBuf::from("sites/astro-site"),
-                                "astro-site",
-                            );
-                        }
-                        3 => {
-                            let _ = crate::generators::laravel::generate(
-                                &std::path::PathBuf::from("sites/laravel-site"),
-                                "laravel-site",
-                            );
-                        }
-                        4 => {
-                            let _ = crate::parser::Rule::load_all();
-                        }
-                        5 => break,
-                        _ => {}
-                    },
                     _ => {}
                 }
             }
         }
     }
 
-    terminal::disable_raw_mode()?;
-    crossterm::execute!(terminal.backend_mut(), terminal::LeaveAlternateScreen)?;
+    disable_raw_mode()?;
+    crossterm::execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     Ok(())
 }
