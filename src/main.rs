@@ -7,8 +7,8 @@ mod engine;
 mod generators;
 mod profiles;
 
-use engine::{reporter, runner, composer};
-use generators::bootstrap;
+use engine::{composer, reporter, runner};
+use generators::{bootstrap, docs, readme};
 use parser::Rule;
 use profiles::Profile;
 
@@ -21,27 +21,28 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Lint un chemin
     Lint {
         #[arg(default_value = ".")]
         path: PathBuf,
         #[arg(short, long)]
         profile: Option<String>,
     },
+    /// Lister règles ou profils
     List {
         #[arg(long)]
         profiles: bool,
     },
+    /// Initialiser un projet
     Init {
         name: String,
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    Readme {
-        name: String,
-    },
-    Docs {
-        name: String,
-    },
+    /// Générer un README
+    Readme { name: String },
+    /// Générer de la documentation
+    Docs { name: String },
 }
 
 fn main() -> Result<()> {
@@ -70,19 +71,13 @@ fn main() -> Result<()> {
                 let rules = Rule::load_all()?;
                 println!("{} règles", rules.len());
                 for r in &rules {
-                    println!("  {:<32} [{}] {}", r.name, r.severity, r.apply);
+                    println!("  {:<36} [{}] {}", r.name, r.severity, r.apply);
                 }
             }
         }
-        Commands::Init { name, path } => {
-            bootstrap::bootstrap(&path, &name)?;
-        }
-        Commands::Readme { name } => {
-            println!("{}", generators::readme::generate(&name));
-        }
-        Commands::Docs { name } => {
-            println!("{}", generators::docs::generate(&name));
-        }
+        Commands::Init { name, path } => bootstrap::bootstrap(&path, &name)?,
+        Commands::Readme { name } => println!("{}", readme::generate(&name)),
+        Commands::Docs { name } => println!("{}", docs::generate(&name)),
     }
     Ok(())
 }

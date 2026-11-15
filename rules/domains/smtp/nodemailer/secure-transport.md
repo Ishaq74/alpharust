@@ -5,4 +5,6 @@ severity: error
 pattern: "secure:\s*false"
 ---
 
-# Nodemailer doit utiliser un transport sécurisé
+# Transport Nodemailer sécurisé
+
+Nodemailer doit être configuré avec `secure: true` ou un équivalent TLS.

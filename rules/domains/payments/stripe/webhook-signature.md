@@ -5,4 +5,6 @@ severity: error
 pattern: ""
 ---
 
-# Vérification de signature Stripe requise
+# Signature webhook Stripe
+
+Toute route webhook Stripe doit vérifier la signature avec `stripe.webhooks.constructEvent`.

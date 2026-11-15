@@ -1,7 +1,9 @@
 # Tests
 
-- Tests unitaires requis
-- Couverture minimale
-- Tests d’intégration
+Règles relatives aux tests :
 
-Les fixtures sont dans `tests/fixtures/`.
+- Tests unitaires requis sur le code métier
+- Couverture minimale recommandée
+- Tests d’intégration pour les parcours critiques
+
+Les fixtures de validation se trouvent dans `tests/fixtures/`.

@@ -1,12 +1,18 @@
 # Profils
 
-Les profils définissent des combinaisons de règles :
+Les profils permettent de sélectionner des ensembles de règles selon le type de projet.
 
-- `core` : règles universelles minimales
-- `strict` : core + domaines critiques
-- `web` : orienté frontend
-- `ecommerce` : paiements + auth + database
-- `cms` : Wagtail / Django
-- `starter` : minimal pour démarrer
+| Profil     | Usage                          |
+|------------|--------------------------------|
+| core       | Règles universelles minimales    |
+| strict     | Core + domaines critiques      |
+| web        | Frontend + styles + design     |
+| ecommerce  | Paiements + auth + database    |
+| cms        | Wagtail / Django               |
+| starter    | Minimal pour démarrer           |
 
-Utilisation : `alpharust lint --profile strict`
+Utilisation :
+
+```bash
+alpharust lint --profile strict
+```

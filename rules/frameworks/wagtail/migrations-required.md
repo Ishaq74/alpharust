@@ -6,3 +6,5 @@ pattern: ""
 ---
 
 # Migrations Wagtail requises
+
+Toute modification de modèle Wagtail doit être accompagnée d’une migration.
