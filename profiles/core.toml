@@ -1,0 +1,5 @@
+name = "core"
+rules = [
+  "core/no-eval",
+  "core/no-plaintext-secrets",
+]
