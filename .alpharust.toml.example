@@ -1,0 +1,2 @@
+profile = "strict"
+# rules = ["core/*", "domains/database/*"]

@@ -1,20 +1,21 @@
 # TODO AlphaRust
 
 ## Terminé
-- [x] Structure complète
-- [x] Toutes les règles principales + third-parties
-- [x] Languages et frameworks
+- [x] Structure intégrale
+- [x] Parser, Engine, Composer, CLI
+- [x] Toutes les règles (core, languages, frameworks, domains + third-parties)
 - [x] Profils
-- [x] Générateurs et templates
-- [x] Docs complètes
-- [x] ADR
-- [x] Composer de base
-- [x] CI fonctionnelle
+- [x] Générateurs (bootstrap, readme, docs, tests)
+- [x] Templates de frameworks
+- [x] Support `.alpharust.toml`
+- [x] Sortie SARIF
+- [x] Fixtures
+- [x] Docs + ADR 0001-0006
+- [x] CI
 
 ## Extensions possibles
 - [ ] Checkers sémantiques avancés
-- [ ] Générateurs de projets complets
-- [ ] Intégration SARIF
+- [ ] Générateurs de projets complets (fichiers sources)
 - [ ] Plus de third-parties
 
-La fondation est complète.
+Fondation terminée et utilisable en production.

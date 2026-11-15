@@ -6,7 +6,10 @@ mod parser;
 mod engine;
 mod generators;
 mod profiles;
+mod config;
+mod sarif;
 
+use config::Config;
 use engine::{composer, reporter, runner};
 use generators::{bootstrap, docs, readme};
 use parser::Rule;
@@ -21,43 +24,46 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Lint un chemin
     Lint {
         #[arg(default_value = ".")]
         path: PathBuf,
         #[arg(short, long)]
         profile: Option<String>,
+        #[arg(long)]
+        sarif: bool,
     },
-    /// Lister règles ou profils
     List {
         #[arg(long)]
         profiles: bool,
     },
-    /// Initialiser un projet
     Init {
         name: String,
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Générer un README
     Readme { name: String },
-    /// Générer de la documentation
     Docs { name: String },
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let config = Config::load().unwrap_or_default();
 
     match cli.command {
-        Commands::Lint { path, profile } => {
-            let mut rules = if let Some(p) = profile {
+        Commands::Lint { path, profile, sarif } => {
+            let profile_name = profile.or(config.profile);
+            let mut rules = if let Some(p) = profile_name {
                 Profile::load(&p)?.resolve_rules()?
             } else {
                 Rule::load_all()?
             };
             rules = composer::compose(rules);
             let violations = runner::run(&rules, &path)?;
-            reporter::report(&violations);
+            if sarif {
+                println!("{}", sarif::to_sarif(&violations));
+            } else {
+                reporter::report(&violations);
+            }
             if violations.iter().any(|v| v.severity == "error") {
                 std::process::exit(1);
             }
