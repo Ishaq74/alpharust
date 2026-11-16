@@ -108,8 +108,15 @@ fn read_manifest(dir: &Path) -> Option<Value> {
         .and_then(|t| serde_json::from_str(&t).ok())
 }
 
+/// Options du framework : le manifeste aplatit la requête (`request.ui`…) ; l'ancien
+/// format les imbriquait sous `request.options`.
 fn options(manifest: &Value) -> &Value {
-    &manifest["request"]["options"]
+    let nested = &manifest["request"]["options"];
+    if nested.is_object() {
+        nested
+    } else {
+        &manifest["request"]
+    }
 }
 
 /// Résumé lisible des options du manifeste.
@@ -557,7 +564,7 @@ mod tests {
             serde_json::json!({
                 "framework": framework,
                 "created_at": "2026-11-16T10:00:00Z",
-                "request": { "options": options }
+                "request": options
             })
             .to_string(),
         )

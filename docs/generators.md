@@ -44,6 +44,14 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `-i/--integration` | `tailwind`, `mdx`, `sitemap`, `react`, `vue`, `svelte` (via `astro add`) |
 | `--site` | URL publique (exigée par `sitemap`, écrite dans `astro.config.mjs`) |
 | `--no-typecheck` | n'installe pas `@astrojs/check` |
+| `--preset` | `vitrine`, `blog-i18n`, `app-auth`, `saas-pg`, `concordia` (voir `alpharust presets`) |
+| `--ui` | `none`, `starwind` (+ `--ui-component button,card,…`), `concordia` (+ `--css-variant`, `--theme-primary/-secondary/-accent`) |
+| `--db`, `--db-url` | `none`, `sqlite`, `postgres` (+ URL de développement : migrations appliquées) |
+| `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` |
+| `--i18n` | `fr,en,es,ar` (au moins deux, la première est la langue par défaut) |
+| `--docker`, `--ci` | Dockerfile + compose ; workflow GitHub Actions |
+
+Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
 
 | Laravel | Valeurs |
 |---------|---------|

@@ -40,6 +40,21 @@ jobs:
   generated-projects:
     name: projets générés pour de vrai (Astro · Laravel · Wagtail · Rust)
     runs-on: ubuntu-latest
+    env:
+      PGPW: postgres
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -62,7 +77,12 @@ jobs:
           tools: composer
       - name: Outils détectés
         run: cargo run --release -- doctor
-      - name: Générations réelles (create-astro, composer + Breeze, wagtail, cargo new)
+      - name: Base de test PostgreSQL de la plateforme Astro
+        env:
+          PGPASSWORD: ${{ env.PGPW }}
+        run: psql -h localhost -U postgres -c 'CREATE DATABASE ci_e2e_test'
+      - name: Générations réelles (create-astro, plateforme Astro, composer + Breeze, wagtail, cargo new)
         env:
           ALPHARUST_E2E: "1"
+          ALPHARUST_E2E_PG_URL: postgresql://postgres:${{ env.PGPW }}@localhost:5432/ci_e2e
         run: cargo test --release --test generators e2e -- --test-threads=1 --nocapture

@@ -28,8 +28,16 @@
 - [x] GUI SPA : assistant + aperçu, SSE, lint filtrable, recherche de règles, thème clair/sombre, responsive, accessible
 - [x] Tests hermétiques (faux outils) + tests réels `ALPHARUST_E2E=1`
 
+## Plateforme Astro (ADR 0012)
+- [x] Starwind (outil officiel), Concordia (tous les composants), thème WCAG (themecsutomizer)
+- [x] Drizzle PostgreSQL/SQLite, Better Auth + plugins + audit, i18n fr/en/es/ar (RTL), Docker, CI
+- [x] Préréglages, `projects`, `run`, GUI (projets, historique, thème en direct), TUI
+- [x] Tests e2e réels (SQLite, Concordia, PostgreSQL)
+
 ## Idées pour la suite
-- [ ] Options Astro avancées : i18n, shadcn/ui, base de données + ORM (idées de `nkboot-codex`)
+- [ ] Générateur WordPress (wp-cli) — reporté, voir ADR 0012
+- [ ] Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
+- [ ] Vérification `docker build` en CI (le Dockerfile généré n'est pas construit aujourd'hui)
 - [ ] Export zip d'un projet généré depuis la GUI
 - [ ] Générateur Next.js (les règles `frameworks/nextjs` existent déjà)
 - [ ] Checkers JS/TS basés sur un vrai parseur (tree-sitter)

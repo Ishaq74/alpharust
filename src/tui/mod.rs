@@ -31,13 +31,14 @@ pub enum Action {
     Lint,
     Generate(Framework),
     Doctor,
+    Projects,
     ListRules,
     ListProfiles,
     ListCheckers,
     Quit,
 }
 
-pub const MENU: [(&str, Action); 10] = [
+pub const MENU: [(&str, Action); 11] = [
     ("Lint du répertoire courant", Action::Lint),
     (
         "Générer un projet Astro",
@@ -52,6 +53,7 @@ pub const MENU: [(&str, Action); 10] = [
         Action::Generate(Framework::Wagtail),
     ),
     ("Générer un projet Rust", Action::Generate(Framework::Rust)),
+    ("Projets générés (état, tâches)", Action::Projects),
     ("Vérifier les outils (doctor)", Action::Doctor),
     ("Lister les règles", Action::ListRules),
     ("Lister les profils", Action::ListProfiles),
@@ -240,6 +242,7 @@ impl App {
                 self.status = "Nom du projet (Entrée : valider, Échap : annuler)".into();
             }
             Action::Doctor => self.doctor(),
+            Action::Projects => self.projects(),
             Action::ListRules => self.list_rules(),
             Action::ListProfiles => self.list_profiles(),
             Action::ListCheckers => {
@@ -295,6 +298,58 @@ impl App {
                 self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]);
             }
         }
+    }
+
+    fn projects(&mut self) {
+        let root = crate::paths::sites_dir();
+        let list = scaffold::projects::list(&root);
+        let mut out = vec![line(
+            format!("Projets dans {}", root.display()),
+            Level::Title,
+        )];
+        if list.is_empty() {
+            out.push(line(
+                "Aucun projet : choisissez « Générer un projet… »",
+                Level::Info,
+            ));
+        }
+        for p in &list {
+            let git = p.git.as_ref().map_or(String::new(), |g| {
+                format!(" · {}{}", g.branch, if g.dirty { " (modifié)" } else { "" })
+            });
+            out.push(line(
+                format!(
+                    "{} — {}{}{}",
+                    p.name,
+                    p.framework.label(),
+                    p.package_manager
+                        .as_deref()
+                        .map_or(String::new(), |pm| format!(" · {pm}")),
+                    git
+                ),
+                if p.installed {
+                    Level::Ok
+                } else {
+                    Level::Warning
+                },
+            ));
+            if !p.features.is_empty() {
+                out.push(line(
+                    format!("    briques : {}", p.features.join(", ")),
+                    Level::Normal,
+                ));
+            }
+            out.push(line(
+                format!(
+                    "    alpharust run {} <{}>",
+                    p.name,
+                    p.tasks.iter().map(|t| t.id).collect::<Vec<_>>().join("|")
+                ),
+                Level::Info,
+            ));
+        }
+        self.status = format!("{} projet(s)", list.len());
+        self.set_output(out);
     }
 
     fn doctor(&mut self) {
@@ -784,6 +839,13 @@ mod tests {
         assert!(text.iter().any(|l| l.contains("✘ boum")));
         let screen = render_to_string(&app, 100, 24);
         assert!(screen.contains("boum"), "{screen}");
+    }
+
+    #[test]
+    fn projects_action_lists_generated_projects() {
+        let mut app = App::new();
+        app.activate(Action::Projects);
+        assert!(app.status.ends_with("projet(s)"), "{}", app.status);
     }
 
     #[test]

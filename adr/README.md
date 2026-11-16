@@ -13,3 +13,4 @@
 | 0009 | Interfaces production-ready | Accepté |
 | 0010 | Checkers sémantiques, cache des règles et générateurs complets | Accepté |
 | 0011 | Génération par outils officiels et GUI web en application d'une page | Accepté |
+| 0012 | Plateforme Astro composable et orchestration des projets | Accepté |

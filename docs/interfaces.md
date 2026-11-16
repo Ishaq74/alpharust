@@ -10,7 +10,7 @@ Menu à gauche, résultat à droite, barre d'aide en bas. Nécessite un terminal
 | Touche | Action |
 |--------|--------|
 | ↑ ↓ / j k | Naviguer |
-| Entrée | Lancer : lint, générer Astro / Laravel / Wagtail / Rust, vérifier les outils (doctor), lister règles / profils / checkers |
+| Entrée | Lancer : lint, générer Astro / Laravel / Wagtail / Rust, lister les projets, vérifier les outils (doctor), lister règles / profils / checkers |
 | p | Changer de profil (cycle, puis « toutes les règles ») |
 | x | Annuler la génération en cours |
 | PgUp / PgDn | Défiler (désactive le suivi automatique du journal) |
@@ -29,9 +29,10 @@ lien d'évitement, régions ARIA, `prefers-reduced-motion`.
 | Page | Contenu |
 |------|---------|
 | Tableau de bord | Compteurs (règles, profils, checkers, projets), état des chaînes d'outils, générations récentes, profils |
-| Générer un projet | Choix du framework, formulaire complet (toutes les options du générateur, incompatibilités appliquées en direct), **aperçu à droite** : commandes officielles exactes, outils détectés, équivalent en ligne de commande ; état mémorisé |
+| Générer un projet | Préréglages, choix du framework, briques plateforme (UI Starwind/Concordia, thème WCAG avec contraste **en direct**, base, auth, langues, Docker/CI), formulaire complet (toutes les options du générateur, incompatibilités appliquées en direct), **aperçu à droite** : commandes officielles exactes, outils détectés, équivalent en ligne de commande ; état mémorisé |
 | Génération (`#/jobs/<id>`) | **Progression en direct** (SSE) : barre, liste d'étapes avec durées, journal filtrable par étape, annulation, rapport final (fichiers, lint, commandes suivantes) |
-| Projets | Projets de `sites/` (framework, outil officiel, date) → lien vers le lint |
+| Projets | Une carte par projet de `sites/` : framework, gestionnaire, git, briques, dépendances ; actions **Installer / Construire / Vérifier / Tester / Mettre à jour / Lint** (job en direct) |
+| Historique | Exécutions de la session (génération et tâches) avec statut et durée, journal rejouable |
 | Lint | Dossier + profil ; résultats avec filtres par sévérité, texte et règle, regroupement par fichier, export JSON / SARIF |
 | Règles | Recherche instantanée (`/` focalise), filtres sévérité/catégorie/type, détail d'une règle (description, motif, exemples) |
 | Checkers / Outils | Catalogue des checkers ; détection des outils par framework avec conseils d'installation |
@@ -45,7 +46,9 @@ lien d'évitement, régions ARIA, `prefers-reduced-motion`.
 | `POST /api/plan` | Valide une demande et renvoie les étapes/commandes, les outils et la destination (422 si invalide) |
 | `POST /api/jobs` · `GET /api/jobs[/:id]` · `POST /api/jobs/:id/cancel` | Lance / liste / annule une génération (un seul job à la fois, 409 sinon) |
 | `GET /api/jobs/:id/events[?from=N]` | Flux **SSE** rejouable (`Last-Event-ID`), se termine par `event: end` |
-| `GET /api/projects` | Projets générés |
+| `GET /api/projects` | Projets générés (briques, git, tâches) |
+| `POST /api/projects/:nom/tasks/:tâche` | Lance une tâche sur un projet de `sites/` (job ; `dev` refusé) |
+| `POST /api/theme/check` | Contraste WCAG d'un thème (`primary`, `secondary`, `accent`) |
 | `GET /api/lint?path=&profile=` · `/api/sarif` | Résultats du lint (JSON / SARIF 2.1.0) |
 | `GET /api/rules` · `/api/rule?id=` · `/api/checkers` | Règles et checkers |
 

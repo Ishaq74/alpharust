@@ -22,6 +22,10 @@ alpharust [--no-cache] <commande>
 | `generate … --dry-run` / `--json` / `-v` | Aperçu des commandes sans rien écrire / événements JSON / journal complet |
 | `generate … --path <dir>` / `--force` | Destination personnalisée / remplace un projet *généré par AlphaRust* (jamais un dossier étranger) |
 | `generate … --no-install --no-verify --no-git` | Sans installation / sans vérification / sans dépôt Git |
+| `generate astro … --preset <id>` | Préréglage de briques plateforme (`presets` les liste) |
+| `presets [--json]` | Préréglages Astro disponibles et options équivalentes |
+| `projects [--dir d] [--json]` | Projets générés : briques, dépendances installées, git, tâches |
+| `run <projet> <tâche>` | `install`, `dev`, `build`, `check`, `test`, `lint`, `update` d'un projet (nom dans `sites/` ou chemin ; `--json`, `-v`) |
 | `init <name>` | Alias de `generate rust <name>` |
 | `doctor [-f framework]` | Outils détectés (node, npm/pnpm/yarn/bun, php, composer, python, cargo, git), versions minimales, conseils |
 | `readme <name>` / `docs <name>` | Affiche un README / une documentation de départ |
