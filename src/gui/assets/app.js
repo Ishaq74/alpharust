@@ -174,6 +174,7 @@ const NAV = [
   ['dashboard', 'Tableau de bord', 'dashboard'],
   ['generate', 'Générer un projet', 'generate'],
   ['projects', 'Projets', 'projects'],
+  ['history', 'Historique', 'generate'],
   ['lint', 'Lint', 'lint'],
   ['rules', 'Règles', 'rules'],
   ['checkers', 'Checkers', 'checkers'],
@@ -203,6 +204,7 @@ const VIEWS = {
   generate: ['Générer un projet', 'generate', viewGenerate],
   jobs: ['Génération', 'generate', viewJob],
   projects: ['Projets générés', 'projects', viewProjects],
+  history: ['Historique', 'history', viewHistory],
   lint: ['Lint', 'lint', viewLint],
   rules: ['Règles', 'rules', viewRules],
   checkers: ['Checkers sémantiques', 'checkers', viewCheckers],
@@ -370,7 +372,11 @@ const GEN_DEFAULT = () => ({
   verify: true,
   git: true,
   force: false,
-  astro: { package_manager: 'npm', template: 'alpharust', typescript: 'strict', integrations: [], site: '', typecheck: true },
+  astro: {
+    package_manager: 'npm', template: 'alpharust', typescript: 'strict', integrations: [], site: '', typecheck: true,
+    ui: 'none', ui_components: [], database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [],
+    theme_on: false, theme: { primary: '#4f46e5', secondary: '#7c3aed', accent: '#ec4899' }, css_variants: [], docker: false, ci: false,
+  },
   laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false },
   wagtail: { packages: '', migrate: true },
   rust: { kind: 'bin', edition: '', deps: [] },
@@ -395,7 +401,18 @@ function buildRequest(G) {
   const base = { name: G.name.trim(), force: G.force, git: G.git, install: G.install, verify: G.verify, framework: G.framework };
   if (G.framework === 'astro') {
     const a = G.astro;
-    return { ...base, package_manager: a.package_manager, template: a.template, typescript: a.typescript, integrations: G.install ? a.integrations : [], site: a.site.trim() || null, typecheck: a.typecheck };
+    const platform = a.template === 'alpharust';
+    const withUi = platform ? a.ui : 'none';
+    return {
+      ...base, package_manager: a.package_manager, template: a.template, typescript: a.typescript,
+      integrations: G.install ? a.integrations : [], site: a.site.trim() || null, typecheck: a.typecheck,
+      ui: withUi, ui_components: withUi === 'starwind' ? a.ui_components : [],
+      database: platform ? a.database : 'none', db_url: platform && a.database === 'postgres' ? a.db_url.trim() || null : null,
+      auth: platform && a.auth, auth_plugins: platform && a.auth ? a.auth_plugins : [],
+      i18n: platform ? a.i18n : [],
+      theme: withUi === 'concordia' && a.theme_on ? a.theme : null, css_variants: withUi === 'concordia' ? a.css_variants : [],
+      docker: platform && a.docker, ci: platform && a.ci,
+    };
   }
   if (G.framework === 'laravel') return { ...base, ...G.laravel };
   if (G.framework === 'wagtail') return { ...base, packages: G.wagtail.packages.split(/[\s,]+/).filter(Boolean), migrate: G.wagtail.migrate };
@@ -417,6 +434,19 @@ function cliFor(G) {
     if (a.integrations.length && G.install) add('--integration', a.integrations.join(','));
     if (a.site.trim()) add('--site', shellQuote(a.site.trim()));
     if (!a.typecheck) add('--no-typecheck');
+    if (a.template === 'alpharust') {
+      if (a.ui !== 'none') add('--ui', a.ui);
+      if (a.ui === 'starwind' && a.ui_components.length) add('--ui-component', a.ui_components.join(','));
+      if (a.ui === 'concordia' && a.theme_on) add('--theme-primary', a.theme.primary, '--theme-secondary', a.theme.secondary, '--theme-accent', a.theme.accent);
+      if (a.ui === 'concordia' && a.css_variants.length) add('--css-variant', a.css_variants.join(','));
+      if (a.database !== 'none') add('--db', a.database);
+      if (a.database === 'postgres' && a.db_url.trim()) add('--db-url', shellQuote(a.db_url.trim()));
+      if (a.auth) add('--auth');
+      if (a.auth && a.auth_plugins.length) add('--auth-plugin', a.auth_plugins.join(','));
+      if (a.i18n.length) add('--i18n', a.i18n.join(','));
+      if (a.docker) add('--docker');
+      if (a.ci) add('--ci');
+    }
   } else if (G.framework === 'laravel') {
     const l = G.laravel;
     if (l.starter !== 'none') add('--starter', l.starter);
@@ -646,6 +676,149 @@ async function viewGenerate(main, route) {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Briques plateforme (Astro) : préréglages, UI, base de données, authentification, i18n, thème
+// ---------------------------------------------------------------------------
+function applyPreset(a, p) {
+  const o = p.options;
+  a.template = 'alpharust';
+  a.ui = o.ui || 'none';
+  a.database = o.database || 'none';
+  a.auth = !!o.auth;
+  a.auth_plugins = [...(o.auth_plugins || [])];
+  a.i18n = [...(o.i18n || [])];
+  a.docker = !!o.docker;
+  a.ci = !!o.ci;
+  a.theme_on = !!o.theme;
+  if (o.theme) a.theme = { ...o.theme };
+  for (const i of o.integrations || []) if (!a.integrations.includes(i)) a.integrations.push(i);
+}
+
+function presetBar(G, o, change) {
+  if (!o.presets || !o.presets.length) return null;
+  return h('fieldset', {}, h('legend', {}, 'Préréglages'),
+    h('div', { class: 'preset-grid' }, o.presets.map((p) =>
+      h('button', { type: 'button', class: 'preset', 'data-k': `preset:${p.id}`, title: p.flags, onclick: () => { G.install = true; change(() => applyPreset(G.astro, p), { rebuild: true }); } },
+        h('strong', {}, p.label), h('span', { class: 'desc' }, p.description)))),
+    h('p', { class: 'hint' }, 'Un préréglage remplit les briques ci-dessous ; vous pouvez ensuite les ajuster. Équivalent CLI : ', h('code', {}, 'alpharust generate astro <nom> --preset <id>'), '.'));
+}
+
+function multiCheck(items, selected, onToggle, keyPrefix, disabled) {
+  return h('div', { class: 'options' }, items.map((i) => {
+    const id = typeof i === 'string' ? i : i.id;
+    const label = typeof i === 'string' ? i : (i.label || i.id);
+    const desc = typeof i === 'string' ? null : (i.description || null);
+    return checkbox(label, desc, selected.includes(id), (v) => onToggle(id, v), { key: `${keyPrefix}:${id}`, disabled });
+  }));
+}
+
+function toggleIn(list, id, on) {
+  const rest = list.filter((x) => x !== id);
+  return on ? [...rest, id] : rest;
+}
+
+function platformOptions(G, o, change) {
+  const a = G.astro;
+  const platform = a.template === 'alpharust';
+  const blocked = !platform || !G.install;
+  const why = !platform ? 'Les briques plateforme exigent le template « AlphaRust ».' : !G.install ? 'Les briques plateforme exigent l’installation des dépendances.' : null;
+  return h('div', { class: 'platform' },
+    h('h3', { class: 'subhead' }, 'Plateforme'),
+    why ? h('div', { class: 'callout warn' }, why) : null,
+    h('fieldset', { disabled: blocked }, h('legend', {}, 'Interface'),
+      radioGroup('ui', a.ui, o.ui, (v) => change(() => {
+        a.ui = v;
+        if (v === 'concordia') a.integrations = a.integrations.filter((x) => x !== 'tailwind');
+      }, { rebuild: true }), 'ui'),
+      a.ui === 'starwind' ? h('div', {},
+        h('p', { class: 'hint' }, 'Installé avec l’outil officiel : ', h('code', {}, 'starwind init'), ' puis ', h('code', {}, 'starwind add'), '.'),
+        h('details', {}, h('summary', {}, `Composants Starwind (${a.ui_components.length || o.starwind_default.length})`),
+          multiCheck(o.starwind_components, a.ui_components.length ? a.ui_components : o.starwind_default, (id, v) => change(() => {
+            const cur = a.ui_components.length ? a.ui_components : [...o.starwind_default];
+            a.ui_components = toggleIn(cur, id, v);
+          }), 'swc', blocked))) : null,
+      a.ui === 'concordia' ? concordiaOptions(a, o, change, blocked) : null),
+    h('fieldset', { disabled: blocked }, h('legend', {}, 'Base de données (Drizzle ORM)'),
+      radioGroup('db', a.database, o.database, (v) => change(() => {
+        a.database = v;
+        if (v === 'none') { a.auth = false; a.auth_plugins = []; }
+      }, { rebuild: true }), 'dbx'),
+      a.database === 'postgres' ? h('div', { class: 'field' },
+        h('label', { for: 'f-dburl' }, 'URL PostgreSQL de développement (optionnelle)'),
+        h('input', { id: 'f-dburl', type: 'text', value: a.db_url, placeholder: 'postgresql://…:5432/ma_base', autocomplete: 'off', spellcheck: 'false', oninput: (e) => change(() => (a.db_url = e.target.value)) }),
+        h('p', { class: 'hint' }, 'Si renseignée, les migrations sont appliquées ; la base `<nom>_test` sert aux tests. Les identifiants sont masqués dans le manifeste.')) : null,
+      a.database === 'sqlite' ? h('p', { class: 'hint' }, 'Fichier ', h('code', {}, 'data/<nom>.db'), ' ; migrations générées par drizzle-kit et appliquées.') : null),
+    h('fieldset', { disabled: blocked }, h('legend', {}, 'Authentification (Better Auth)'),
+      checkbox('Comptes utilisateurs', 'Inscription, connexion, session, journal d’audit — schéma généré par `auth generate`', a.auth, (v) => change(() => {
+        a.auth = v;
+        if (v && a.database === 'none') a.database = 'sqlite';
+        if (!v) a.auth_plugins = [];
+      }, { rebuild: true }), { key: 'auth' }),
+      a.auth ? multiCheck(o.auth_plugins, a.auth_plugins, (id, v) => change(() => (a.auth_plugins = toggleIn(a.auth_plugins, id, v))), 'plg', blocked) : null),
+    h('fieldset', { disabled: blocked }, h('legend', {}, 'Langues (i18n)'),
+      multiCheck(o.locales, a.i18n, (id, v) => change(() => (a.i18n = toggleIn(a.i18n, id, v)), { rebuild: true }), 'loc', blocked),
+      a.i18n.length === 1 ? h('p', { class: 'hint warn' }, 'Choisissez au moins deux langues (la première est la langue par défaut).') : h('p', { class: 'hint' }, 'Messages fr/en/es/ar, routage Astro, arabe en RTL, sélecteur de langue.')),
+    h('fieldset', { disabled: blocked }, h('legend', {}, 'Déploiement'),
+      h('div', { class: 'options' },
+        checkbox('Dockerfile + docker-compose', 'Adaptateur Node, image node:24, sonde /api/health', a.docker, (v) => change(() => (a.docker = v)), { key: 'docker' }),
+        checkbox('Workflow GitHub Actions', 'install, check, tests, build', a.ci, (v) => change(() => (a.ci = v)), { key: 'ci' }))),
+  );
+}
+
+function concordiaOptions(a, o, change, blocked) {
+  // « initial » (base) est toujours chargée ; seules les variantes optionnelles se choisissent.
+  const variants = o.css_variants.filter((v) => v !== 'initial');
+  return h('div', { class: 'concordia-box' },
+    h('p', { class: 'hint' }, 'Reprend fidèlement les jetons, variantes et ', h('strong', {}, 'tous'), ' les composants du dépôt Concordia.'),
+    h('div', { class: 'options' },
+      variants.map((v) => checkbox(`Variante ${v}`, null, a.css_variants.length === 0 || a.css_variants.includes(v), (on) => change(() => {
+        const cur = a.css_variants.length ? a.css_variants : [...variants];
+        const next = toggleIn(cur, v, on);
+        a.css_variants = next.length === variants.length ? [] : next.length ? next : ['initial'];
+      }), { key: `cv:${v}`, disabled: blocked }))),
+    checkbox('Générer un thème (contrôle WCAG)', 'Couleurs de marque + textes lisibles calculés comme dans themecsutomizer', a.theme_on, (v) => change(() => (a.theme_on = v), { rebuild: true }), { key: 'theme', disabled: blocked }),
+    a.theme_on ? themePanel(a, change) : null);
+}
+
+// La CSP interdit les attributs `style` : les couleurs passent par le CSSOM.
+function swatch(bg, fg, text) {
+  const el = h('span', { class: 'swatch-btn' }, text);
+  el.style.background = bg;
+  el.style.color = fg;
+  return el;
+}
+
+function themePanel(a, change) {
+  const out = h('div', { class: 'theme-report', 'aria-live': 'polite' });
+  let seq = 0;
+  let timer = null;
+  const refresh = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const mine = ++seq;
+      try {
+        const r = await api('/api/theme/check', { method: 'POST', body: a.theme });
+        if (mine !== seq) return;
+        clear(out).append(h('table', { class: 'contrast' },
+          h('thead', {}, h('tr', {}, h('th', {}, 'Couleur'), h('th', {}, 'Aperçu'), h('th', {}, 'Contraste'), h('th', {}, 'Mode sombre'))),
+          h('tbody', {}, r.colors.map((c) => h('tr', {},
+            h('td', {}, c.name),
+            h('td', {}, swatch(c.hex, c.text, 'Bouton')),
+            h('td', {}, `${c.ratio.toFixed(2)} : 1 `, h('span', { class: `badge ${c.rating === 'FAIL' ? 'error' : c.rating === 'AAA' ? 'ok' : 'warning'}` }, c.rating === 'FAIL' ? 'insuffisant' : c.rating)),
+            h('td', {}, swatch('#0f172a', c.dark_hex, c.dark_hex), ` ${c.dark_ratio.toFixed(1)} : 1`))))));
+      } catch (e) {
+        if (mine === seq) clear(out).append(h('p', { class: 'hint warn' }, e.message));
+      }
+    }, 150);
+  };
+  refresh();
+  const input = (key, label) => h('label', { class: 'color-field' }, label,
+    h('input', { type: 'color', value: a.theme[key], 'data-k': `th:${key}`, oninput: (e) => { change(() => (a.theme[key] = e.target.value)); refresh(); } }),
+    h('code', {}, a.theme[key]));
+  return h('div', { class: 'theme-panel' }, h('div', { class: 'color-row' }, input('primary', 'Primaire'), input('secondary', 'Secondaire'), input('accent', 'Accent')), out);
+}
+
 function frameworkOptions(G, o, change) {
   if (G.framework === 'astro') {
     const a = G.astro;
@@ -653,6 +826,7 @@ function frameworkOptions(G, o, change) {
     return h(
       'div',
       {},
+      presetBar(G, o, change),
       h('fieldset', {}, h('legend', {}, 'Gestionnaire de paquets'), radioGroup('pm', a.package_manager, o.package_manager, (v) => change(() => (a.package_manager = v)), 'pm')),
       h('fieldset', {}, h('legend', {}, 'Template'), radioGroup('template', a.template, o.template, (v) => change(() => (a.template = v), { rebuild: true }), 'tpl'),
         h('p', { class: 'hint' }, a.template === 'alpharust' ? 'Template officiel « minimal » + layout, SEO, thème clair/sombre, collection blog typée, 404.' : 'Template officiel inchangé ; AlphaRust ajoute seulement la config qualité, la doc et le thème.')),
@@ -676,6 +850,7 @@ function frameworkOptions(G, o, change) {
         ),
         !G.install ? h('p', { class: 'hint' }, 'Les intégrations exigent l’installation des dépendances.') : h('p', { class: 'hint' }, 'Un seul framework d’îlots à la fois (react, vue ou svelte).'),
       ),
+      platformOptions(G, o, change),
       h(
         'div',
         { class: 'field' },
@@ -822,18 +997,22 @@ async function viewJob(main, route) {
 
   const renderResult = () => {
     clear(result);
-    if (st.failure) result.append(h('div', { class: 'callout err', role: 'alert' }, h('strong', {}, 'Échec de la génération'), h('pre', {}, st.failure), h('p', { class: 'hint' }, 'Le projet partiel est conservé dans ', h('code', {}, st.target), ' pour analyse ; relancer avec « Remplacer si existant ».'), h('div', { class: 'row' }, h('a', { class: 'btn', href: '#/generate' }, 'Retour au formulaire'))));
+    const isTask = String(summary.kind || '').startsWith('task:');
+    if (st.failure) result.append(h('div', { class: 'callout err', role: 'alert' }, h('strong', {}, isTask ? 'Échec de la tâche' : 'Échec de la génération'), h('pre', {}, st.failure),
+      isTask ? h('div', { class: 'row' }, h('a', { class: 'btn', href: '#/projects' }, 'Retour aux projets'))
+        : h('p', { class: 'hint' }, 'Le projet partiel est conservé dans ', h('code', {}, st.target), ' pour analyse ; relancer avec « Remplacer si existant ».'),
+      isTask ? null : h('div', { class: 'row' }, h('a', { class: 'btn', href: '#/generate' }, 'Retour au formulaire'))));
     const r = st.report;
     if (r) {
       const failed = r.steps.filter((s) => !s.ok);
       result.append(h('section', { class: 'card', 'aria-labelledby': 'h-res' },
-        h('div', { class: 'card-head' }, h('h2', { id: 'h-res' }, 'Projet prêt'), h('span', { class: 'badge ok' }, `${r.files.length} fichiers · ${fmtMs(r.elapsed_ms)}`)),
+        h('div', { class: 'card-head' }, h('h2', { id: 'h-res' }, isTask ? 'Tâche terminée' : 'Projet prêt'), h('span', { class: 'badge ok' }, isTask ? fmtMs(r.elapsed_ms) : `${r.files.length} fichiers · ${fmtMs(r.elapsed_ms)}`)),
         h('div', { class: 'card-body stack' },
-          failed.length ? h('div', { class: 'callout warn' }, h('strong', {}, `${plural(failed.length, 'étape')} non bloquante${failed.length > 1 ? 's' : ''} en échec`), failed.map((f) => h('div', {}, '• ', f.label, f.note ? h('span', { class: 'muted' }, ' — ', String(f.note).split('\n')[0]) : null))) : h('div', { class: 'callout ok' }, h('strong', {}, 'Toutes les vérifications sont passées'), 'Installation, types/build/tests et lint AlphaRust.'),
+          failed.length && !isTask ? h('div', { class: 'callout warn' }, h('strong', {}, `${plural(failed.length, 'étape')} non bloquante${failed.length > 1 ? 's' : ''} en échec`), failed.map((f) => h('div', {}, '• ', f.label, f.note ? h('span', { class: 'muted' }, ' — ', String(f.note).split('\n')[0]) : null))) : h('div', { class: 'callout ok' }, h('strong', {}, 'Toutes les vérifications sont passées'), isTask ? 'La commande s’est terminée avec le code 0.' : 'Installation, types/build/tests et lint AlphaRust.'),
           r.lint ? h('div', { class: 'row' }, h('span', {}, 'Lint AlphaRust :'), h('span', { class: `badge ${r.lint.errors ? 'error' : 'ok'}` }, plural(r.lint.errors, 'erreur')), h('span', { class: `badge ${r.lint.warnings ? 'warning' : 'ok'}` }, plural(r.lint.warnings, 'avertissement')), h('span', { class: 'muted small' }, `${r.lint.files} fichiers · ${r.lint.rules} règles`)) : null,
-          h('div', {}, h('div', { class: 'label' }, 'Pour continuer'), h('pre', {}, h('code', {}, r.next_steps.join('\n')))),
-          h('div', { class: 'row' }, h('a', { class: 'btn primary', href: `#/lint?path=${encodeURIComponent(r.target)}` }, 'Analyser avec AlphaRust'), h('a', { class: 'btn', href: '#/projects' }, 'Voir les projets'), h('a', { class: 'btn', href: '#/generate' }, 'Générer un autre projet'),
-            h('button', { type: 'button', class: 'btn ghost', onclick: () => copyText(r.next_steps.join('\n')) }, 'Copier les commandes')),
+          isTask ? null : h('div', {}, h('div', { class: 'label' }, 'Pour continuer'), h('pre', {}, h('code', {}, r.next_steps.join('\n')))),
+          h('div', { class: 'row' }, h('a', { class: 'btn primary', href: `#/lint?path=${encodeURIComponent(r.target)}` }, 'Analyser avec AlphaRust'), h('a', { class: 'btn', href: '#/projects' }, 'Voir les projets'), h('a', { class: 'btn', href: isTask ? '#/history' : '#/generate' }, isTask ? 'Historique' : 'Générer un autre projet'),
+            isTask ? null : h('button', { type: 'button', class: 'btn ghost', onclick: () => copyText(r.next_steps.join('\n')) }, 'Copier les commandes')),
         )));
     }
   };
@@ -909,6 +1088,22 @@ async function viewJob(main, route) {
 // ---------------------------------------------------------------------------
 // Projets
 // ---------------------------------------------------------------------------
+async function startTask(project, task, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const j = await api(`/api/projects/${encodeURIComponent(project)}/tasks/${task}`, { method: 'POST' });
+    location.hash = `#/jobs/${j.id}`;
+  } catch (e) {
+    toast(e.message, 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function gitBadge(g) {
+  if (!g) return h('span', { class: 'muted small' }, 'pas de dépôt');
+  return h('span', { class: `badge ${g.dirty ? 'warning' : 'ok'}`, title: g.dirty ? 'Modifications non validées' : 'Arbre propre' }, `${g.branch}${g.dirty ? ' · modifié' : ''}`);
+}
+
 async function viewProjects(main) {
   await refreshProjects();
   renderNav('projects');
@@ -917,18 +1112,53 @@ async function viewProjects(main) {
     clear(main).append(h('div', { class: 'card empty' }, h('p', {}, h('strong', {}, 'Aucun projet dans '), h('code', {}, S.projectsDir)), h('a', { class: 'btn primary', href: '#/generate' }, 'Générer un premier projet')));
     return;
   }
+  const cards = S.projects.map((p) => {
+    if (!p.generated) {
+      return h('article', { class: 'card project' }, h('div', { class: 'card-body' }, h('strong', {}, p.name), ' ', h('span', { class: 'badge outline' }, 'non généré par AlphaRust'), h('div', { class: 'muted small mono' }, p.path)));
+    }
+    const tasks = (p.tasks || []).filter((t) => t.interactive && t.id !== 'lint');
+    return h('article', { class: 'card project', 'aria-label': p.name },
+      h('div', { class: 'card-head' },
+        h('div', {}, h('h2', {}, p.name), h('div', { class: 'muted small mono' }, p.path)),
+        h('div', { class: 'row' }, frameworkBadge(p.framework), p.package_manager ? h('span', { class: 'badge outline' }, p.package_manager) : null, gitBadge(p.git))),
+      h('div', { class: 'card-body stack' },
+        h('div', { class: 'chips' }, (p.features || []).length ? p.features.map((f) => h('span', { class: 'chip' }, f)) : h('span', { class: 'muted small' }, 'aucune brique optionnelle')),
+        h('div', { class: 'row between' },
+          h('span', { class: 'muted small' }, p.installed ? '● dépendances installées' : '○ dépendances non installées', ' · créé le ', p.created ? String(p.created).replace('T', ' ').replace('Z', ' UTC') : '—'),
+          h('div', { class: 'row' },
+            tasks.map((t) => { const b = h('button', { type: 'button', class: 'btn small', title: t.command, onclick: () => startTask(p.name, t.id, b) }, t.label.split(' ')[0] === 'Installer' ? 'Installer' : t.id === 'update' ? 'Mettre à jour' : t.id === 'build' ? 'Construire' : t.id === 'check' ? 'Vérifier' : t.id === 'test' ? 'Tester' : t.label); return b; }),
+            h('button', { type: 'button', class: 'btn small primary', title: 'alpharust lint', onclick: (e) => startTask(p.name, 'lint', e.currentTarget) }, 'Lint'),
+            h('a', { class: 'btn small', href: `#/lint?path=${encodeURIComponent(p.path)}` }, 'Rapport lint'))),
+        h('details', {}, h('summary', {}, 'Commandes exécutées'), h('ul', { class: 'cmds' }, (p.tasks || []).map((t) => h('li', {}, h('strong', {}, t.id), ' ', h('code', {}, t.command)))))));
+  });
   clear(main).append(
-    h('p', { class: 'page-intro' }, 'Dossiers de ', h('code', {}, S.projectsDir), '.'),
-    h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, h('th', {}, 'Projet'), h('th', {}, 'Framework'), h('th', {}, 'Outil officiel'), h('th', {}, 'Créé le'), h('th', {}, ''))),
-      h('tbody', {}, S.projects.map((p) => h('tr', {},
-        h('td', {}, h('strong', {}, p.name), h('div', { class: 'muted small mono' }, p.path)),
-        h('td', {}, p.generated ? frameworkBadge(p.framework) : h('span', { class: 'badge outline' }, 'non généré par AlphaRust')),
-        h('td', {}, p.official_tool || '—'),
-        h('td', { class: 'nowrap' }, p.created ? String(p.created).replace('T', ' ').replace('Z', ' UTC') : '—'),
-        h('td', { class: 'nowrap' }, h('a', { class: 'btn small', href: `#/lint?path=${encodeURIComponent(p.path)}` }, 'Lint')),
-      ))))),
+    h('p', { class: 'page-intro' }, 'Projets de ', h('code', {}, S.projectsDir), '. Chaque action lance la commande native du projet (gestionnaire de paquets, composer, cargo…) et diffuse sa sortie ; le serveur de développement se lance en CLI : ', h('code', {}, 'alpharust run <projet> dev'), '.'),
+    h('div', { class: 'stack' }, cards),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Historique des tâches de la session
+// ---------------------------------------------------------------------------
+async function viewHistory(main) {
+  renderNav('history');
+  const jobs = await api('/api/jobs');
+  if (jobs.length === 0) {
+    clear(main).append(h('div', { class: 'card empty' }, h('p', {}, 'Aucune génération ni tâche lancée pendant cette session.'), h('a', { class: 'btn primary', href: '#/generate' }, 'Générer un projet')));
+    return;
+  }
+  const kindLabel = (k) => (k === 'generate' ? 'Génération' : `Tâche · ${k.replace('task:', '')}`);
+  clear(main).append(
+    h('p', { class: 'page-intro' }, 'Les 20 dernières exécutions de cette session (génération et tâches de projet). Ouvrez-en une pour rejouer son journal.'),
+    h('div', { class: 'table-wrap' }, h('table', {},
+      h('thead', {}, h('tr', {}, h('th', {}, 'Projet'), h('th', {}, 'Type'), h('th', {}, 'Statut'), h('th', {}, 'Durée'), h('th', {}, 'Début'), h('th', {}, ''))),
+      h('tbody', {}, jobs.map((j) => h('tr', {},
+        h('td', {}, h('strong', {}, j.name), ' ', frameworkBadge(j.framework)),
+        h('td', {}, kindLabel(j.kind || 'generate')),
+        h('td', {}, statusBadge(j.status)),
+        h('td', { class: 'nowrap' }, j.elapsed_ms != null ? `${(j.elapsed_ms / 1000).toFixed(1)} s` : '…'),
+        h('td', { class: 'nowrap' }, new Date(j.started_at * 1000).toLocaleTimeString('fr-FR')),
+        h('td', {}, h('a', { class: 'btn small', href: `#/jobs/${j.id}` }, 'Ouvrir'))))))));
 }
 
 // ---------------------------------------------------------------------------

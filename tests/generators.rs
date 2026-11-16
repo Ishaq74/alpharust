@@ -11,6 +11,8 @@
 use alpharust::engine;
 use alpharust::scaffold::astro::{AstroOptions, PackageManager, Template, TsLevel};
 use alpharust::scaffold::laravel::{LaravelOptions, Starter};
+use alpharust::scaffold::platform::{Db, UiKit};
+use alpharust::scaffold::theme::ThemeColors;
 use alpharust::scaffold::wagtail::WagtailOptions;
 use alpharust::scaffold::{self, Event, Framework, Options, Report, Request};
 use std::os::unix::fs::PermissionsExt;
@@ -636,4 +638,134 @@ fn e2e_wagtail_in_a_venv() {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
     }
     assert_lint_clean(&t);
+}
+
+fn step_ok(report: &Report, id: &str) {
+    let s = report
+        .steps
+        .iter()
+        .find(|s| s.id == id)
+        .unwrap_or_else(|| panic!("étape {id} absente"));
+    assert!(s.ok, "étape {id} en échec : {:?}", s.note);
+}
+
+#[test]
+fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Astro, "e2e-platform");
+    req.options = Options::Astro(AstroOptions {
+        ui: UiKit::Starwind,
+        database: Db::Sqlite,
+        auth: true,
+        auth_plugins: vec!["admin".into(), "username".into()],
+        i18n: vec!["fr".into(), "en".into()],
+        docker: true,
+        ci: true,
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    for id in [
+        "starwind-init",
+        "starwind-add",
+        "auth-schema",
+        "db-generate",
+        "db-migrate",
+        "check",
+        "build",
+        "test",
+    ] {
+        step_ok(&report, id);
+    }
+    for f in [
+        "src/components/starwind/button",
+        "src/lib/auth.ts",
+        "src/database/schemas/auth.schema.ts",
+        "src/pages/[lang]/auth/sign-in.astro",
+        "src/i18n/messages/en.json",
+        "Dockerfile",
+        ".github/workflows/ci.yml",
+        "dist/server/entry.mjs",
+    ] {
+        assert!(t.join(f).exists(), "{f} attendu");
+    }
+    let schema = read(&t.join("src/database/schemas/auth.schema.ts"));
+    assert!(
+        schema.contains("sqliteTable") && schema.contains("username"),
+        "schéma généré par `auth generate`"
+    );
+    assert!(!read(&t.join(".alpharust-project.json")).contains("BETTER_AUTH_SECRET"));
+    assert_lint_clean(&t);
+}
+
+#[test]
+fn e2e_astro_platform_concordia_theme_all_components() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Astro, "e2e-concordia");
+    req.options = Options::Astro(AstroOptions {
+        ui: UiKit::Concordia,
+        theme: Some(ThemeColors {
+            primary: "#0ea5e9".into(),
+            secondary: "#7c3aed".into(),
+            accent: "#f59e0b".into(),
+        }),
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    for id in ["icons-deps", "theme", "check", "build"] {
+        step_ok(&report, id);
+    }
+    // tous les composants du dépôt Concordia sont présents
+    let count = walk(&t.join("src/components/ui"));
+    assert!(count >= 80, "{count} fichiers de composants Concordia");
+    let theme = read(&t.join("src/styles/theme.css"));
+    assert!(theme.contains("--color-primary: #0ea5e9;") && theme.contains("--on-primary"));
+    for v in ["retro", "modern", "futuristic"] {
+        assert!(t.join(format!("src/styles/components/{v}.css")).is_file());
+    }
+    assert_lint_clean(&t);
+}
+
+fn walk(dir: &Path) -> usize {
+    std::fs::read_dir(dir)
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| {
+                    if e.path().is_dir() {
+                        walk(&e.path())
+                    } else {
+                        1
+                    }
+                })
+                .sum()
+        })
+        .unwrap_or(0)
+}
+
+/// PostgreSQL réel : `ALPHARUST_E2E_PG_URL=postgresql://…/base` (la base `<base>_test` doit exister aussi).
+#[test]
+fn e2e_astro_platform_postgres() {
+    let _g = lock();
+    let Ok(url) = std::env::var("ALPHARUST_E2E_PG_URL") else {
+        eprintln!("ALPHARUST_E2E_PG_URL absent : test PostgreSQL ignoré");
+        return;
+    };
+    let mut req = Request::new(Framework::Astro, "e2e-postgres");
+    req.options = Options::Astro(AstroOptions {
+        database: Db::Postgres,
+        db_url: Some(url),
+        auth: true,
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    for id in ["auth-schema", "db-generate", "db-migrate", "test", "build"] {
+        step_ok(&report, id);
+    }
+    assert!(read(&t.join("src/database/schemas/auth.schema.ts")).contains("pgTable"));
+    assert!(!read(&t.join(".alpharust-project.json")).contains("://postgres:"));
 }

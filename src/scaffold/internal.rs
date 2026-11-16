@@ -987,4 +987,56 @@ mod tests {
         req.force = false;
         prepare(&req, &target, &mut |_| {}).unwrap();
     }
+    #[test]
+    fn database_urls_are_masked_in_the_manifest() {
+        let creds = format!("{}:{}", "admin", "secret");
+        let url = format!("postgresql://{creds}@db.example:5432/app");
+        assert_eq!(
+            mask_url_credentials(&url),
+            "postgresql://***@db.example:5432/app"
+        );
+        assert_eq!(mask_url_credentials("./data/app.db"), "./data/app.db");
+        let mut v = json!({"options": {"db_url": url, "other": "x"}});
+        redact_secrets(&mut v);
+        assert_eq!(
+            v["options"]["db_url"],
+            "postgresql://***@db.example:5432/app"
+        );
+        assert_eq!(v["options"]["other"], "x");
+    }
+
+    #[test]
+    fn tsconfig_paths_and_astro_config_are_patched() {
+        let d = tempfile::tempdir().unwrap();
+        fs::write(
+            d.path().join("tsconfig.json"),
+            r#"{"extends":"astro/tsconfigs/strict"}"#,
+        )
+        .unwrap();
+        patch_tsconfig_paths(d.path()).unwrap();
+        let t: Value =
+            serde_json::from_str(&fs::read_to_string(d.path().join("tsconfig.json")).unwrap())
+                .unwrap();
+        assert_eq!(t["compilerOptions"]["paths"]["@lib/*"][0], "src/lib/*");
+        assert_eq!(
+            t["compilerOptions"]["paths"]["@database/*"][0],
+            "src/database/*"
+        );
+        assert_eq!(t["extends"], "astro/tsconfigs/strict");
+    }
+
+    #[test]
+    fn css_theme_file_is_written_and_validated() {
+        let d = tempfile::tempdir().unwrap();
+        let summary =
+            write_css_theme(d.path(), &super::super::theme::ThemeColors::default()).unwrap();
+        assert!(summary.contains("primary"));
+        let css = fs::read_to_string(d.path().join("src/styles/theme.css")).unwrap();
+        assert!(css.contains("--color-primary") && css.contains(":root[data-theme='dark']"));
+        let bad = super::super::theme::ThemeColors {
+            primary: "pas-une-couleur".into(),
+            ..Default::default()
+        };
+        assert!(write_css_theme(d.path(), &bad).is_err());
+    }
 }

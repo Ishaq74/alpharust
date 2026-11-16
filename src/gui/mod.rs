@@ -13,7 +13,10 @@ use crate::parser::Rule;
 use crate::profiles::Profile;
 use crate::scaffold::astro::{self, PackageManager, Template, TsLevel};
 use crate::scaffold::laravel::{Database, Starter};
+use crate::scaffold::platform;
+use crate::scaffold::projects;
 use crate::scaffold::rust as rust_gen;
+use crate::scaffold::theme;
 use crate::scaffold::{self, Event, Framework, Request};
 use axum::{
     extract::{Path as UrlPath, Query, State},
@@ -91,6 +94,8 @@ impl JobStatus {
 
 struct Job {
     id: String,
+    /// `generate` ou `task:<tâche>` (install, build, check, test, lint, update).
+    kind: String,
     framework: Framework,
     name: String,
     target: String,
@@ -129,6 +134,7 @@ impl Job {
     fn summary(&self) -> Value {
         json!({
             "id": self.id,
+            "kind": self.kind,
             "framework": self.framework.id(),
             "name": self.name,
             "target": self.target,
@@ -320,6 +326,27 @@ fn framework_schema() -> Value {
                 })).collect::<Vec<_>>(),
                 "typescript": TsLevel::ALL.iter().map(|t| t.id()).collect::<Vec<_>>(),
                 "integrations": astro::INTEGRATIONS.iter().map(|(n, d)| json!({"id": n, "description": d})).collect::<Vec<_>>(),
+                "ui": [
+                    {"id": "none", "label": "Aucun (CSS du template)"},
+                    {"id": "starwind", "label": "Tailwind + Starwind UI (outil officiel)"},
+                    {"id": "concordia", "label": "Concordia (CSS pur, tous les composants)"},
+                ],
+                "database": [
+                    {"id": "none", "label": "Aucune"},
+                    {"id": "sqlite", "label": "SQLite (better-sqlite3)"},
+                    {"id": "postgres", "label": "PostgreSQL (pg)"},
+                ],
+                "auth_plugins": platform::AUTH_PLUGINS.iter().map(|(n, d)| json!({"id": n, "description": d})).collect::<Vec<_>>(),
+                "locales": platform::LOCALES.iter().map(|(n, d)| json!({"id": n, "label": d})).collect::<Vec<_>>(),
+                "starwind_components": platform::STARWIND_COMPONENTS,
+                "starwind_default": platform::STARWIND_DEFAULT,
+                "css_variants": theme::VARIANTS,
+                "theme_defaults": {"primary": theme::DEFAULT_PRIMARY, "secondary": theme::DEFAULT_SECONDARY, "accent": theme::DEFAULT_ACCENT},
+                "presets": platform::PRESETS.iter().map(|p| {
+                    let mut o = astro::AstroOptions::default();
+                    p.apply(&mut o);
+                    json!({"id": p.id, "label": p.label, "description": p.description, "flags": p.flags, "options": o})
+                }).collect::<Vec<_>>(),
             }
         },
         {
@@ -471,6 +498,7 @@ async fn api_job_create(
     let (tick, _) = watch::channel(0usize);
     let job = Arc::new(Job {
         id: id.clone(),
+        kind: "generate".into(),
         framework: req.framework(),
         name: req.name.clone(),
         target: req.target().display().to_string(),
@@ -596,7 +624,7 @@ async fn api_projects() -> Json<Value> {
     Json(
         blocking(|| {
             let dir = crate::paths::sites_dir();
-            let mut out = Vec::new();
+            let mut out: Vec<Value> = Vec::new();
             if let Ok(rd) = std::fs::read_dir(&dir) {
                 for e in rd.flatten() {
                     let p = e.path();
@@ -604,17 +632,30 @@ async fn api_projects() -> Json<Value> {
                         continue;
                     }
                     let name = e.file_name().to_string_lossy().into_owned();
-                    let manifest = std::fs::read_to_string(p.join(scaffold::MANIFEST))
-                        .ok()
-                        .and_then(|t| serde_json::from_str::<Value>(&t).ok());
-                    out.push(json!({
-                        "name": name,
-                        "path": p.display().to_string(),
-                        "generated": manifest.is_some(),
-                        "framework": manifest.as_ref().and_then(|m| m.get("framework")).cloned(),
-                        "created": manifest.as_ref().and_then(|m| m.get("created_at")).cloned(),
-                        "official_tool": manifest.as_ref().and_then(|m| m.get("official_tool")).cloned(),
-                    }));
+                    match projects::inspect(&p) {
+                        Some(info) => {
+                            let manifest = std::fs::read_to_string(p.join(scaffold::MANIFEST))
+                                .ok()
+                                .and_then(|t| serde_json::from_str::<Value>(&t).ok());
+                            let mut v = serde_json::to_value(&info).unwrap_or(Value::Null);
+                            v["generated"] = json!(true);
+                            v["created"] = json!(info.created_at);
+                            v["official_tool"] = manifest
+                                .as_ref()
+                                .and_then(|m| m.get("official_tool"))
+                                .cloned()
+                                .unwrap_or(Value::Null);
+                            out.push(v);
+                        }
+                        None => out.push(json!({
+                            "name": name,
+                            "path": p.display().to_string(),
+                            "generated": false,
+                            "framework": null,
+                            "tasks": [],
+                            "features": [],
+                        })),
+                    }
                 }
             }
             out.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
@@ -622,6 +663,91 @@ async fn api_projects() -> Json<Value> {
         })
         .await,
     )
+}
+
+/// Lance une tâche (install, build, check, test, lint, update) sur un projet généré, sous forme de job.
+async fn api_project_task(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    UrlPath((name, task)): UrlPath<(String, String)>,
+) -> Response {
+    if !same_origin(&headers, st.port) {
+        return error(StatusCode::FORBIDDEN, "origine refusée");
+    }
+    let Some(task) = projects::Task::parse(&task) else {
+        return error(StatusCode::NOT_FOUND, format!("tâche inconnue `{task}`"));
+    };
+    if task.is_long_running() {
+        return error(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "le serveur de développement se lance en CLI : alpharust run <projet> dev",
+        );
+    }
+    // le nom est un dossier de sites/ : jamais un chemin
+    if name.contains('/') || name.contains('\\') || name.starts_with('.') {
+        return error(StatusCode::BAD_REQUEST, "nom de projet invalide");
+    }
+    let project = match projects::resolve(&crate::paths::sites_dir(), &name) {
+        Ok(p) => p,
+        Err(e) => return error(StatusCode::NOT_FOUND, format!("{e:#}")),
+    };
+    if let Err(e) = projects::command(&project, task) {
+        return error(StatusCode::UNPROCESSABLE_ENTITY, format!("{e:#}"));
+    }
+    if let Some(j) = st.jobs.running() {
+        return error(
+            StatusCode::CONFLICT,
+            format!("une tâche est déjà en cours ({} « {} »)", j.kind, j.name),
+        );
+    }
+    let id = format!("{:x}{:04x}", now_secs(), st.jobs.list.lock().unwrap().len());
+    let (tick, _) = watch::channel(0usize);
+    let job = Arc::new(Job {
+        id,
+        kind: format!("task:{}", task.id()),
+        framework: project.framework,
+        name: project.name.clone(),
+        target: project.path.clone(),
+        started_at: now_secs(),
+        started: Instant::now(),
+        cancel: Arc::new(AtomicBool::new(false)),
+        events: Mutex::new(Vec::new()),
+        status: Mutex::new(JobStatus::Running),
+        elapsed_ms: Mutex::new(None),
+        tick,
+    });
+    st.jobs.insert(job.clone());
+    let worker = job.clone();
+    std::thread::spawn(move || {
+        let result = projects::run(&project, task, &mut |ev| worker.push(&ev), &worker.cancel);
+        let status = match result {
+            Ok(_) => JobStatus::Succeeded,
+            Err(_) if worker.cancel.load(Ordering::Relaxed) => JobStatus::Cancelled,
+            Err(_) => JobStatus::Failed,
+        };
+        worker.finish(status);
+    });
+    (StatusCode::ACCEPTED, Json(job.summary())).into_response()
+}
+
+#[derive(Deserialize)]
+struct ThemeQuery {
+    primary: String,
+    secondary: String,
+    accent: String,
+}
+
+/// Contrôle WCAG d'un thème (aperçu en direct du formulaire de génération).
+async fn api_theme_check(Json(q): Json<ThemeQuery>) -> Response {
+    let t = theme::ThemeColors {
+        primary: q.primary,
+        secondary: q.secondary,
+        accent: q.accent,
+    };
+    match t.reports() {
+        Ok(r) => Json(json!({ "colors": r })).into_response(),
+        Err(e) => error(StatusCode::UNPROCESSABLE_ENTITY, format!("{e:#}")),
+    }
 }
 
 #[derive(Deserialize)]
@@ -759,6 +885,8 @@ pub fn router(port: u16) -> Router {
         .route("/api/jobs/:id/cancel", post(api_job_cancel))
         .route("/api/jobs/:id/events", get(api_job_events))
         .route("/api/projects", get(api_projects))
+        .route("/api/projects/:name/tasks/:task", post(api_project_task))
+        .route("/api/theme/check", post(api_theme_check))
         .route("/api/lint", get(api_lint))
         .route("/api/sarif", get(api_sarif))
         .route("/api/rules", get(api_rules))
@@ -820,6 +948,7 @@ mod unit {
             let (tick, _) = watch::channel(0);
             let job = Arc::new(Job {
                 id: i.to_string(),
+                kind: "generate".into(),
                 framework: Framework::Rust,
                 name: "x".into(),
                 target: "t".into(),

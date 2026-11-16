@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub const VARIANTS: &[&str] = &["initial", "retro", "modern", "futuristic"];
 
 pub const DEFAULT_PRIMARY: &str = "#4f46e5";
-pub const DEFAULT_SECONDARY: &str = "#8b5cf6";
+pub const DEFAULT_SECONDARY: &str = "#7c3aed";
 pub const DEFAULT_ACCENT: &str = "#ec4899";
 
 /// Couleurs de marque choisies (hexadécimal `#rrggbb`).

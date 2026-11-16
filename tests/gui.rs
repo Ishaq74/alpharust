@@ -470,3 +470,72 @@ async fn unknown_job_is_404() {
         StatusCode::NOT_FOUND
     );
 }
+
+#[tokio::test]
+async fn theme_check_returns_wcag_ratings_and_rejects_bad_colors() {
+    let ok = post(
+        "/api/theme/check",
+        &json!({"primary": "#4f46e5", "secondary": "#7c3aed", "accent": "#facc15"}),
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::OK, "{}", ok.body);
+    let colors = ok.json()["colors"].clone();
+    assert_eq!(colors.as_array().unwrap().len(), 3);
+    assert_eq!(colors[0]["name"], "primary");
+    assert!(colors[0]["ratio"].as_f64().unwrap() >= 4.5);
+    assert!(matches!(colors[2]["rating"].as_str(), Some("AAA" | "AA")));
+
+    let bad = post(
+        "/api/theme/check",
+        &json!({"primary": "rouge", "secondary": "#000", "accent": "#fff"}),
+    )
+    .await;
+    assert_eq!(bad.status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn project_tasks_are_validated_before_any_job_starts() {
+    // serveur de développement : réservé à la CLI
+    let dev = post("/api/projects/x/tasks/dev", &json!({})).await;
+    assert_eq!(dev.status, StatusCode::UNPROCESSABLE_ENTITY, "{}", dev.body);
+    let unknown_task = post("/api/projects/x/tasks/format", &json!({})).await;
+    assert_eq!(unknown_task.status, StatusCode::NOT_FOUND);
+    let missing = post("/api/projects/inexistant/tasks/build", &json!({})).await;
+    assert_eq!(missing.status, StatusCode::NOT_FOUND, "{}", missing.body);
+    let traversal = post("/api/projects/..%2Fetc/tasks/build", &json!({})).await;
+    assert!(traversal.status.is_client_error());
+    // origine étrangère refusée
+    let res = call(
+        app(),
+        post_req(
+            "/api/projects/x/tasks/build",
+            &json!({}),
+            Some("http://evil.example"),
+        ),
+    )
+    .await;
+    assert_eq!(res.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn meta_exposes_platform_options_and_presets() {
+    let meta = get("/api/meta").await.json();
+    let astro = meta["frameworks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["id"] == "astro")
+        .unwrap();
+    let o = &astro["options"];
+    assert_eq!(o["ui"].as_array().unwrap().len(), 3);
+    assert!(o["locales"].as_array().unwrap().len() >= 4);
+    assert!(o["starwind_components"].as_array().unwrap().len() > 30);
+    assert_eq!(
+        o["css_variants"],
+        json!(["initial", "retro", "modern", "futuristic"])
+    );
+    let presets = o["presets"].as_array().unwrap();
+    assert!(presets
+        .iter()
+        .any(|p| p["id"] == "saas-pg" && p["options"]["database"] == "postgres"));
+}

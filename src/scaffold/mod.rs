@@ -10,6 +10,7 @@ pub mod internal;
 pub mod laravel;
 pub mod layer;
 pub mod platform;
+pub mod projects;
 pub mod rust;
 pub mod theme;
 pub mod tools;

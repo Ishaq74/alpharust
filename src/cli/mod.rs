@@ -87,6 +87,31 @@ enum Commands {
         #[command(flatten)]
         opts: GenOpts,
     },
+    /// Lister les projets générés (état, briques, tâches disponibles)
+    Projects {
+        #[arg(long, help = "Dossier à parcourir (défaut : sites/)")]
+        dir: Option<PathBuf>,
+        #[arg(long, help = "Sortie JSON")]
+        json: bool,
+    },
+    /// Exécuter une tâche sur un projet généré : install, dev, build, check, test, lint, update
+    Run {
+        /// Nom (dans sites/) ou chemin du projet
+        project: String,
+        /// install | dev | build | check | test | lint | update
+        task: String,
+        #[arg(long, help = "Dossier des projets (défaut : sites/)")]
+        dir: Option<PathBuf>,
+        #[arg(long, help = "Événements en JSON (une ligne par événement)")]
+        json: bool,
+        #[arg(short, long, help = "Afficher toutes les lignes de journal")]
+        verbose: bool,
+    },
+    /// Lister les préréglages de génération (`generate astro <nom> --preset …`)
+    Presets {
+        #[arg(long, help = "Sortie JSON")]
+        json: bool,
+    },
     /// Initialiser un projet Rust (alias de `generate rust`)
     Init {
         name: String,
@@ -180,6 +205,12 @@ struct GenOpts {
     #[arg(short, long, help = "Afficher toutes les lignes de journal")]
     verbose: bool,
     // — Astro —
+    #[arg(
+        long,
+        value_name = "ID",
+        help = "[astro] préréglage de briques (voir `alpharust presets`)"
+    )]
+    preset: Option<String>,
     #[arg(
         long,
         value_name = "npm|pnpm|yarn|bun",
@@ -331,6 +362,7 @@ fn parse_opt<T>(
 fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request> {
     let mut foreign: Vec<&str> = Vec::new();
     let astro_set = o.pm.is_some()
+        || o.preset.is_some()
         || o.template.is_some()
         || o.typescript.is_some()
         || !o.integrations.is_empty()
@@ -434,6 +466,19 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             }
             a.docker = o.docker;
             a.ci = o.ci;
+            if let Some(id) = &o.preset {
+                let preset = scaffold::platform::Preset::find(id).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "préréglage inconnu `{id}` (disponibles : {})",
+                        scaffold::platform::PRESETS
+                            .iter()
+                            .map(|p| p.id)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                })?;
+                preset.apply(&mut a);
+            }
             Options::Astro(a)
         }
         Framework::Laravel => {
@@ -722,6 +767,21 @@ pub async fn run() -> Result<i32> {
             let req = request_from(Framework::Rust, &name, &opts)?;
             run_scaffold(&req, opts.dry_run, opts.json, opts.verbose)
         }
+        Commands::Projects { dir, json } => {
+            let root = dir.unwrap_or_else(crate::paths::sites_dir);
+            Ok(projects_command(&root, json))
+        }
+        Commands::Run {
+            project,
+            task,
+            dir,
+            json,
+            verbose,
+        } => {
+            let root = dir.unwrap_or_else(crate::paths::sites_dir);
+            run_project_task(&root, &project, &task, json, verbose)
+        }
+        Commands::Presets { json } => Ok(presets_command(json)),
         Commands::Doctor { framework } => Ok(doctor(framework.map(GeneratorKind::framework))),
         Commands::Readme { name } => {
             crate::generators::validate_name(&name)?;
@@ -783,4 +843,137 @@ pub async fn run() -> Result<i32> {
             Ok(0)
         }
     }
+}
+
+fn projects_command(root: &std::path::Path, json: bool) -> i32 {
+    let list = scaffold::projects::list(root);
+    if json {
+        emit(&format!(
+            "{}\n",
+            serde_json::to_string_pretty(&list).unwrap_or_default()
+        ));
+        return 0;
+    }
+    if list.is_empty() {
+        emit(&format!(
+            "Aucun projet AlphaRust dans {} (créez-en un : alpharust generate astro mon-site)\n",
+            root.display()
+        ));
+        return 0;
+    }
+    let mut out = format!("Projets dans {}\n\n", root.display());
+    for p in &list {
+        let git = p.git.as_ref().map_or(String::new(), |g| {
+            format!(
+                " · git {}{}",
+                g.branch,
+                if g.dirty { " (modifié)" } else { "" }
+            )
+        });
+        out.push_str(&format!(
+            "  {} — {}{}{}\n",
+            p.name,
+            p.framework.label(),
+            p.package_manager
+                .as_deref()
+                .map_or(String::new(), |pm| format!(" · {pm}")),
+            git
+        ));
+        out.push_str(&format!(
+            "      {}\n",
+            if p.installed {
+                "dépendances installées"
+            } else {
+                "dépendances non installées"
+            }
+        ));
+        if !p.features.is_empty() {
+            out.push_str(&format!("      briques : {}\n", p.features.join(", ")));
+        }
+        out.push_str(&format!(
+            "      tâches : {}\n",
+            p.tasks.iter().map(|t| t.id).collect::<Vec<_>>().join(", ")
+        ));
+    }
+    out.push_str("\nLancer une tâche : alpharust run <projet> <tâche>\n");
+    emit(&out);
+    0
+}
+
+fn run_project_task(
+    root: &std::path::Path,
+    project: &str,
+    task: &str,
+    json: bool,
+    verbose: bool,
+) -> Result<i32> {
+    let task = scaffold::projects::Task::parse(task).ok_or_else(|| {
+        anyhow::anyhow!(
+            "tâche inconnue `{task}` (disponibles : {})",
+            scaffold::projects::Task::ALL
+                .iter()
+                .map(|t| t.id())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })?;
+    let p = scaffold::projects::resolve(root, project)?;
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let result = if json {
+        scaffold::projects::run(
+            &p,
+            task,
+            &mut |ev: Event| {
+                if let Ok(line) = serde_json::to_string(&ev) {
+                    emit(&format!("{line}\n"));
+                }
+            },
+            &cancel,
+        )
+    } else {
+        let mut printer = progress::Printer::new(verbose || task.is_long_running());
+        scaffold::projects::run(&p, task, &mut |ev: Event| printer.handle(&ev), &cancel)
+    };
+    match result {
+        Ok(report) => {
+            if !json {
+                if let Some(l) = &report.lint {
+                    emit(&format!(
+                        "\nLint AlphaRust : {} erreur(s), {} avertissement(s), {} info(s) sur {} fichier(s)\n",
+                        l.errors, l.warnings, l.infos, l.files
+                    ));
+                }
+            }
+            Ok(0)
+        }
+        // l'échec a déjà été affiché (événement `Failed`)
+        Err(_) => Ok(1),
+    }
+}
+
+fn presets_command(json: bool) -> i32 {
+    let list = scaffold::platform::PRESETS;
+    if json {
+        let v: Vec<_> = list
+            .iter()
+            .map(|p| serde_json::json!({"id": p.id, "label": p.label, "description": p.description, "options": p.flags}))
+            .collect();
+        emit(&format!(
+            "{}\n",
+            serde_json::to_string_pretty(&v).unwrap_or_default()
+        ));
+        return 0;
+    }
+    let mut out =
+        String::from("Préréglages Astro (alpharust generate astro <nom> --preset <id>)\n\n");
+    for p in list {
+        out.push_str(&format!("  {:<12} {}\n", p.id, p.label));
+        out.push_str(&format!("               {}\n", p.description));
+        out.push_str(&format!("               équivaut à : {}\n\n", p.flags));
+    }
+    out.push_str(
+        "Les options explicites (--db, --ui, --i18n…) complètent ou remplacent le préréglage.\n",
+    );
+    emit(&out);
+    0
 }

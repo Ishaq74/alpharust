@@ -1041,4 +1041,132 @@ mod tests {
         assert_eq!(TsLevel::parse("relaxed"), Some(TsLevel::Base));
         assert_eq!(PackageManager::parse("PNPM"), Some(PackageManager::Pnpm));
     }
+    fn platform_req(f: impl FnOnce(&mut AstroOptions)) -> Request {
+        req(|o, _| {
+            o.template = Template::Alpharust;
+            f(o);
+        })
+    }
+
+    fn ids(r: &Request) -> Vec<&'static str> {
+        steps_for(r).iter().map(|s| s.id).collect()
+    }
+
+    #[test]
+    fn platform_plan_orders_official_tools_before_glue() {
+        let r = platform_req(|o| {
+            o.ui = UiKit::Starwind;
+            o.database = Db::Sqlite;
+            o.auth = true;
+        });
+        let order = ids(&r);
+        let pos = |id: &str| {
+            order
+                .iter()
+                .position(|x| *x == id)
+                .unwrap_or_else(|| panic!("{id}"))
+        };
+        assert!(pos("starwind-init") < pos("starwind-add"));
+        assert!(pos("starwind-add") < pos("platform-deps"));
+        assert!(pos("platform-dev-deps") < pos("layer"));
+        assert!(
+            pos("layer") < pos("auth-schema"),
+            "le schéma Better Auth lit auth.ts posé par la couche"
+        );
+        assert!(pos("auth-schema") < pos("db-generate"));
+        assert!(pos("db-generate") < pos("db-migrate"));
+        assert!(pos("db-migrate") < pos("check"));
+        let s = steps_for(&r);
+        assert!(cmd_of(&s, "starwind-init")
+            .display()
+            .contains("starwind@latest init --defaults"));
+        assert!(cmd_of(&s, "auth-schema")
+            .display()
+            .contains("auth@latest generate --adapter drizzle --dialect sqlite"));
+    }
+
+    #[test]
+    fn platform_flags_and_locales() {
+        let r = platform_req(|o| {
+            o.database = Db::Sqlite;
+            o.auth = true;
+        });
+        let Options::Astro(o) = &r.options else {
+            unreachable!()
+        };
+        assert_eq!(
+            o.locales(),
+            vec!["fr".to_string()],
+            "auth seule : catalogue français"
+        );
+        let flags: std::collections::HashMap<_, _> = o.flags(true).into_iter().collect();
+        assert!(
+            flags["messages"]
+                && flags["i18n_fr"]
+                && !flags["i18n"]
+                && flags["ssr"]
+                && flags["audit"]
+        );
+
+        let r = platform_req(|o| o.i18n = vec!["en".into(), "ar".into()]);
+        let Options::Astro(o) = &r.options else {
+            unreachable!()
+        };
+        assert_eq!(o.default_locale(), Some("en"));
+        let flags: std::collections::HashMap<_, _> = o.flags(true).into_iter().collect();
+        assert!(flags["i18n_en"] && flags["i18n_ar"] && !flags["i18n_fr"] && !flags["ssr"]);
+    }
+
+    #[test]
+    fn platform_validation_rejects_incoherent_choices() {
+        let err = |f: fn(&mut AstroOptions), install: bool| {
+            let r = platform_req(f);
+            match &r.options {
+                Options::Astro(o) => o.validate(install).unwrap_err().to_string(),
+                _ => unreachable!(),
+            }
+        };
+        assert!(err(|o| o.auth = true, true).contains("base de données"));
+        assert!(err(|o| o.database = Db::Sqlite, false).contains("installation"));
+        assert!(err(|o| o.ui = UiKit::Concordia, false).contains("installation"));
+        assert!(err(|o| o.i18n = vec!["fr".into()], true).contains("deux langues"));
+        assert!(err(|o| o.i18n = vec!["xx".into(), "fr".into()], true).contains("xx"));
+        assert!(err(
+            |o| {
+                o.ui = UiKit::Concordia;
+                o.integrations = vec!["tailwind".into()];
+            },
+            true
+        )
+        .contains("Tailwind"));
+        let r = req(|o, _| {
+            o.template = Template::Minimal;
+            o.auth = true;
+        });
+        let Options::Astro(o) = &r.options else {
+            unreachable!()
+        };
+        assert!(o
+            .validate(true)
+            .unwrap_err()
+            .to_string()
+            .contains("alpharust"));
+    }
+
+    #[test]
+    fn concordia_theme_step_and_layers() {
+        let r = platform_req(|o| {
+            o.ui = UiKit::Concordia;
+            o.theme = Some(ThemeColors::default());
+        });
+        let s = steps_for(&r);
+        assert!(s.iter().any(|x| x.id == "icons-deps"));
+        assert!(s.iter().any(|x| x.id == "theme"));
+        match &s.iter().find(|x| x.id == "layer").unwrap().action {
+            Action::Do(Internal::Layer(l)) => {
+                assert_eq!(l, &vec!["common", "astro", "platform", "ui-concordia"]);
+            }
+            _ => panic!("couche attendue"),
+        }
+    }
 }
