@@ -1,8 +1,18 @@
 ---
 name: has-license
-apply: readme
+apply: "/readme*"
 severity: warning
-pattern: ""
+checker: readme-sections
+args:
+  any: ["license", "licence"]
+  message: "section « License » manquante"
+examples:
+  file: "README.md"
+  bad:
+    - "# X\n## Usage\n"
+  good:
+    - "# X\n## License\n"
+    - "# X\n## Licence\n"
 ---
 
 # Licence requise

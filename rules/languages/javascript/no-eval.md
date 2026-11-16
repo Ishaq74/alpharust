@@ -1,8 +1,13 @@
 ---
 name: js-no-eval
-apply: javascript
+apply: "javascript"
 severity: error
 pattern: "\\beval\\s*\\("
+examples:
+  bad:
+    - "const r = eval(input);"
+  good:
+    - "const r = JSON.parse(input);"
 ---
 
 # Interdiction d’eval en JavaScript

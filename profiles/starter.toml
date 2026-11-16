@@ -1,4 +1,5 @@
 name = "starter"
+description = "Minimal pour démarrer : core, README, documentation"
 rules = [
   "core/*",
   "domains/readme/*",

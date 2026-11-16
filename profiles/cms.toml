@@ -1,9 +1,11 @@
 name = "cms"
+description = "Wagtail / Django : migrations, réglages, documentation, README"
 rules = [
   "core/*",
   "domains/database/*",
   "domains/docs/*",
   "domains/readme/*",
+  "domains/tests/*",
   "frameworks/wagtail/*",
   "frameworks/django/*",
 ]

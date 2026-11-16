@@ -1,8 +1,13 @@
 ---
 name: stripe-secret-key-env
-apply: stripe
+apply: "stripe"
 severity: error
-pattern: "sk_(live|test)_"
+pattern: "\\b(sk|rk)_(live|test)_[A-Za-z0-9]{6,}"
+examples:
+  bad:
+    - "Stripe(\"sk_¦test_ABCDEF123456\")"
+  good:
+    - "Stripe(process.env.STRIPE_SECRET_KEY)"
 ---
 
 # Clé secrète Stripe via environnement uniquement

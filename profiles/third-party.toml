@@ -1,0 +1,6 @@
+name = "third-party"
+description = "Règles dédiées aux services tiers (Stripe, SendGrid, MongoDB, Supabase…)"
+rules = [
+  "domains/*/*/*",
+  "domains/cloud/*",
+]

@@ -1,8 +1,15 @@
 ---
 name: astro-no-client-secrets
-apply: astro
+apply: "*.astro,*.ts,*.js,*.mjs,*.jsx,*.tsx,.env*"
 severity: error
-pattern: "PUBLIC_.*SECRET|import.meta.env\\.SECRET"
+pattern: "\\bPUBLIC_\\w*(SECRET|PRIVATE|PASSWORD|TOKEN)\\w*"
+examples:
+  bad:
+    - "PUBLIC_API_SECRET=abc"
+    - "import.meta.env.PUBLIC_DB_PASSWORD"
+  good:
+    - "PUBLIC_SITE_URL=https://x.org"
+    - "import.meta.env.API_SECRET"
 ---
 
 # Pas de secrets côté client Astro

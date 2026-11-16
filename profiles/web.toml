@@ -1,8 +1,12 @@
 name = "web"
+description = "Frontend : styles, accessibilité, design, base de données, e-mail"
 rules = [
   "core/*",
   "domains/database/*",
   "domains/smtp/*",
   "domains/styles/*",
   "domains/design/*",
+  "frameworks/astro/*",
+  "frameworks/nextjs/*",
+  "frameworks/laravel/*",
 ]

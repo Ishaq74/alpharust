@@ -1,7 +1,10 @@
 name = "strict"
+description = "Core + domaines critiques (base de données, e-mail, paiements, cloud, authentification)"
 rules = [
   "core/*",
   "domains/database/*",
   "domains/smtp/*",
   "domains/payments/*",
+  "domains/cloud/*",
+  "domains/auth/*",
 ]

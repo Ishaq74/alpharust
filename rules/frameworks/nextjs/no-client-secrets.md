@@ -1,8 +1,14 @@
 ---
 name: nextjs-no-client-secrets
-apply: nextjs
+apply: "*.js,*.jsx,*.ts,*.tsx,*.mjs,.env*"
 severity: error
-pattern: "NEXT_PUBLIC_.*SECRET|process\\.env\\.SECRET"
+pattern: "\\bNEXT_PUBLIC_\\w*(SECRET|PRIVATE|PASSWORD|TOKEN)\\w*"
+examples:
+  bad:
+    - "NEXT_PUBLIC_API_SECRET=abc"
+  good:
+    - "NEXT_PUBLIC_SITE_URL=https://x.org"
+    - "process.env.API_SECRET"
 ---
 
 # Pas de secrets côté client Next.js

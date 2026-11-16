@@ -1,8 +1,10 @@
 name = "ecommerce"
+description = "Paiements, authentification, base de données, e-mail et secrets cloud"
 rules = [
   "core/*",
   "domains/database/*",
   "domains/payments/*",
   "domains/auth/*",
   "domains/smtp/*",
+  "domains/cloud/*",
 ]

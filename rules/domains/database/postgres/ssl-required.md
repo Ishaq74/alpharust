@@ -1,8 +1,14 @@
 ---
 name: postgres-ssl-required
-apply: postgres
+apply: "postgres"
 severity: error
-pattern: "sslmode=disable|ssl=false"
+pattern: "(?i)sslmode\\s*=\\s*(disable|allow)|ssl\\s*=\\s*false"
+examples:
+  bad:
+    - "postgres://h/db?sslmode=disable"
+    - "ssl=false"
+  good:
+    - "postgres://h/db?sslmode=require"
 ---
 
 # SSL obligatoire pour PostgreSQL

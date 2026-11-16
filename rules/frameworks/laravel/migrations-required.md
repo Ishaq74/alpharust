@@ -1,8 +1,12 @@
 ---
 name: laravel-migrations-required
-apply: laravel
+apply: "*"
 severity: error
-pattern: ""
+checker: require-glob
+args:
+  any: ["database/migrations/*.php"]
+  when_any: ["artisan"]
+  message: "projet Laravel sans migration"
 ---
 
 # Migrations Laravel requises

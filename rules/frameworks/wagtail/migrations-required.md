@@ -1,8 +1,13 @@
 ---
 name: wagtail-migrations-required
-apply: wagtail
+apply: "*"
 severity: error
-pattern: ""
+checker: require-glob
+args:
+  any: ["**/migrations/0*.py"]
+  when_any: ["manage.py"]
+  when_contains: ["requirements.txt", "(?i)wagtail"]
+  message: "projet Wagtail sans migration versionnée"
 ---
 
 # Migrations Wagtail requises
