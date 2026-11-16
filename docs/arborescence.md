@@ -28,9 +28,9 @@ alpharust/
 │   └── _template.md
 ├── profiles/
 ├── sites/                   # projets générés (ignorés par git)
-├── templates/               # fichiers .tpl embarqués (bootstrap, wagtail, astro, laravel)
+├── templates/layers/        # couches de modèles (.tpl) posées après l'outil officiel : common, astro, laravel, wagtail, rust
 ├── generators/
-├── src/                     # parser, engine, checkers, generators, cli, tui, gui, sarif
+├── src/                     # parser, engine, checkers, scaffold (pipeline de génération), cli, tui, gui (+ assets/), sarif
 ├── tests/
 ├── examples/
 ├── docs/

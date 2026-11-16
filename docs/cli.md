@@ -17,10 +17,13 @@ alpharust [--no-cache] <commande>
 | `list --profiles` | Liste les profils et le nombre de règles sélectionnées |
 | `list --checkers` | Liste les checkers sémantiques |
 | `check-rules` | Valide toutes les règles (YAML, regex, checkers), leurs exemples et les profils |
-| `init <name>` | Projet Rust complet (lib + binaire + tests + CI) dans `sites/<name>` |
-| `generate wagtail\|astro\|laravel <name>` | Projet framework complet dans `sites/<name>` |
-| `generate … --path <dir>` | Destination personnalisée |
-| `generate … --force` | Écrase un dossier existant non vide (refusé par défaut) |
+| `new [name] [-f framework]` | Assistant interactif : questions guidées, aperçu des commandes, confirmation, génération (TTY requis) |
+| `generate astro\|laravel\|wagtail\|rust <name>` | Projet créé avec l'outil officiel, dépendances installées, couche de modèles, vérifications (`docs/generators.md`) |
+| `generate … --dry-run` / `--json` / `-v` | Aperçu des commandes sans rien écrire / événements JSON / journal complet |
+| `generate … --path <dir>` / `--force` | Destination personnalisée / remplace un projet *généré par AlphaRust* (jamais un dossier étranger) |
+| `generate … --no-install --no-verify --no-git` | Sans installation / sans vérification / sans dépôt Git |
+| `init <name>` | Alias de `generate rust <name>` |
+| `doctor [-f framework]` | Outils détectés (node, npm/pnpm/yarn/bun, php, composer, python, cargo, git), versions minimales, conseils |
 | `readme <name>` / `docs <name>` | Affiche un README / une documentation de départ |
 | `checks [--profile p]` | Checklist Markdown des règles actives |
 | `cache status\|clear` | Cache des règles parsées (`.alpharust-cache/`) |
@@ -32,8 +35,8 @@ alpharust [--no-cache] <commande>
 | Code | Signification |
 |------|---------------|
 | 0 | Succès (ou violations sous le seuil `fail_on`) |
-| 1 | Violations au-dessus du seuil, ou `check-rules` en échec |
-| 2 | Erreur d'utilisation ou d'exécution (chemin introuvable, profil inconnu, nom de projet invalide, dossier existant…) |
+| 1 | Violations au-dessus du seuil, `check-rules` en échec, ou génération en échec (outil manquant, commande en échec) |
+| 2 | Erreur d'utilisation (chemin introuvable, profil inconnu, nom invalide, option incompatible ou d'un autre framework…) |
 
 ## Résolution de la racine
 
@@ -54,7 +57,10 @@ Un commentaire `alpharust-ignore` sur la ligne (ou la ligne précédente) suppri
 ```bash
 alpharust lint --profile strict
 alpharust lint src --sarif > alpharust.sarif
-alpharust generate astro mon-site
-alpharust generate wagtail mon-cms --path /tmp/mon-cms
+alpharust new
+alpharust generate astro mon-site -i tailwind,mdx --pm pnpm --ts strictest
+alpharust generate laravel mon-app --starter breeze-blade --pest
+alpharust generate astro mon-site --dry-run
+alpharust doctor
 alpharust check-rules
 ```

@@ -1,38 +1,105 @@
 # Générateurs
 
-Les générateurs créent des projets **complets et testés** dans `sites/<nom>/` (ou `--path`).
-Les fichiers sont des templates `templates/<type>/**/*.tpl` embarqués dans le binaire ;
-les marqueurs `@@name@@`, `@@slug@@`, `@@pkg@@` (identifiant Python/Rust), `@@title@@` sont substitués
-dans les contenus **et** les chemins. Les dossiers préfixés `dot-` deviennent des dotfiles
-(`dot-gitignore.tpl` → `.gitignore`).
+AlphaRust ne **recopie plus de fichiers écrits à la main** : chaque projet est créé par l'**outil officiel**
+du framework, ses dépendances sont **réellement installées**, une **couche de modèles** propre est posée par-dessus,
+puis le résultat est **vérifié** (types, build, tests, lint). Le tout est le même pipeline pour la CLI, la TUI et la GUI.
 
-```bash
-alpharust init mon-projet                  # Rust : lib + binaire + tests + CI + .alpharust.toml
-alpharust generate wagtail mon-cms         # Django/Wagtail
-alpharust generate astro mon-site          # Astro
-alpharust generate laravel mon-app         # Laravel
-alpharust generate astro mon-site --path ./autre --force
+```text
+preflight ─► plan ─► exécution (événements en direct) ─► couche de modèles ─► vérification ─► rapport
+ outils?     commandes   create-astro, composer,           templates/layers     check, build,    fichiers,
+ versions    exactes     wagtail start, cargo new          (create/replace)     test, lint       durées, suite
 ```
 
-Le nom du projet est un seul segment de chemin (`[A-Za-z0-9._-]`, sans `..`) ; un dossier existant non vide
-est refusé sans `--force`.
+| Framework | Outil officiel | Installation | Vérification réelle |
+|-----------|----------------|--------------|---------------------|
+| `astro` | `<pm> create astro@latest` (+ `astro add <intégrations> --yes`) | npm · pnpm · yarn · bun | `astro check` (types), `astro build`, lint AlphaRust |
+| `laravel` | `composer create-project laravel/laravel` (+ `laravel/breeze` : blade, livewire, react, vue, api) | composer (+ npm pour un kit front) | `php artisan test` (PHPUnit ou Pest), migrations SQLite, lint |
+| `wagtail` | `python -m venv .venv` + `pip install wagtail` + `wagtail start` | pip dans le venv, `requirements-lock.txt` | `manage.py check`, `makemigrations --check`, `manage.py test`, lint |
+| `rust` | `cargo new` (+ `cargo add`) | cargo | `cargo test`, `cargo fmt --check`, `cargo clippy -D warnings`, lint |
 
-| Type | Contenu | Vérifié par |
-|------|---------|-------------|
-| `init` (Rust) | `Cargo.toml`, `src/lib.rs` + tests unitaires, `src/main.rs`, `tests/smoke.rs`, CI GitHub, LICENSE, README, `docs/` | `cargo test` dans les tests d'intégration |
-| `wagtail` | réglages `base/dev/production`, `HomePage` + migrations `0001`/`0002` (page d'accueil et site créés), templates, CSS, tests Django, `.env.example` | `manage.py check`, `makemigrations --check`, `manage.py test` (CI) |
-| `astro` | layout accessible, header, pages (accueil, à propos, blog), content collection typée + article, `tsconfig` strict | `npm run build` (CI) |
-| `laravel` | squelette 11+ (bootstrap, routes, contrôleur, modèle, migration, seeder, vues Blade, PHPUnit), `.env.example` | `php artisan test` (CI) |
+## Utilisation
 
-Tous les projets générés incluent `README.md` (Installation / Usage / License), `docs/index.md`,
-`.gitignore` et `.alpharust.toml` ; ils passent les profils `web` / `cms` / `strict` d'AlphaRust sans violation
-(testé dans `tests/generators.rs`).
+```bash
+alpharust new                                  # assistant interactif (questions, aperçu des commandes, confirmation)
+alpharust generate astro vitrine -i tailwind,mdx,sitemap,react --site https://exemple.com --pm pnpm --ts strictest
+alpharust generate astro blog --template blog --site https://blog.exemple.com
+alpharust generate laravel boutique --starter breeze-livewire --pest --dark
+alpharust generate wagtail cms --package django-debug-toolbar
+alpharust generate rust outil --kind bin --dep clap,anyhow --edition 2024
+alpharust generate astro demo --dry-run        # affiche les commandes exactes, n'écrit rien
+alpharust generate astro demo --json           # événements JSON (un par ligne) pour d'autres outils
+alpharust doctor                               # outils détectés, versions minimales, conseils d'installation
+```
+
+Options communes : `--path`, `--force`, `--no-install`, `--no-verify`, `--no-git`, `--dry-run`, `--json`, `-v/--verbose`.
+Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` → erreur claire).
+
+### Options par framework
+
+| Astro | Valeurs |
+|-------|---------|
+| `--pm` | `npm` (défaut), `pnpm`, `yarn`, `bun` |
+| `--template` | `alpharust` (défaut : `minimal` officiel + structure complète), `minimal`, `basics`, `blog` (officiels) |
+| `--ts` | `base`, `strict` (défaut), `strictest` — preset officiel `astro/tsconfigs/*` |
+| `-i/--integration` | `tailwind`, `mdx`, `sitemap`, `react`, `vue`, `svelte` (via `astro add`) |
+| `--site` | URL publique (exigée par `sitemap`, écrite dans `astro.config.mjs`) |
+| `--no-typecheck` | n'installe pas `@astrojs/check` |
+
+| Laravel | Valeurs |
+|---------|---------|
+| `--starter` | `none` (défaut), `breeze-blade`, `breeze-livewire`, `breeze-react`, `breeze-vue`, `breeze-api` |
+| `--dark`, `--pest` | mode sombre Breeze, Pest au lieu de PHPUnit (exigent un kit) |
+| `--db` | `sqlite` (défaut : migrations + données d'exemple exécutées), `mysql`, `pgsql` |
+| `--frontend` | `npm install && npm run build` même sans kit |
+
+Wagtail : `--package` (paquets pip en plus), `--no-migrate`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
+
+## Contrôles et garde-fous
+
+* **Pré-vérification** : chaque outil requis est détecté avec sa version minimale (Node ≥ 22.12, PHP ≥ 8.3 + extensions,
+  Composer, Python ≥ 3.10 avec `venv`, Cargo ≥ 1.85…). S'il manque quelque chose, rien n'est créé et l'erreur indique
+  comment l'installer.
+* **Compatibilités validées** avant tout travail : un seul framework d'îlots (react/vue/svelte), `sitemap` exige `--site`,
+  les intégrations exigent l'installation, `--dark/--pest` exigent un kit Breeze, Wagtail exige l'installation…
+* **Aucune surprise sur le disque** : `--force` ne supprime qu'un dossier portant le manifeste `.alpharust-project.json`
+  (un dossier étranger est refusé même avec `--force`) ; les noms sont validés (un seul segment, pas de `..`).
+* **Processus enfants maîtrisés** : `CI=1`, couleurs et télémétrie désactivées, stdin fermé, délai par étape
+  (`ALPHARUST_STEP_TIMEOUT`, 20 min par défaut), annulation propre (GUI : bouton « Annuler »).
+* **Sortie claire** : chaque étape est numérotée avec sa durée ; en cas d'échec la fin du journal de l'outil est reproduite.
+  Codes de sortie : `0` succès, `1` échec d'exécution (outil manquant, commande en échec), `2` erreur d'usage.
+
+## La couche de modèles (`templates/layers/`)
+
+Les fichiers sont embarqués dans le binaire (`include_dir!`) et s'appliquent **après** l'outil officiel :
+
+* `common/` (`.alpharust.toml`, `docs/`…) puis `<framework>/` ;
+* première ligne facultative `@@meta mode=create|replace when=<expr>@@` : `create` ne **n'écrase jamais** un fichier
+  officiel, `replace` le remplace ; `when` combine des drapeaux avec `|` (ou), `&` (et), `!` (non) ;
+* blocs `@@if expr@@ … @@else@@ … @@end@@` sur leurs propres lignes, ou en ligne (`@@if typecheck@@, check@@end@@`) ;
+* variables `@@name@@ @@slug@@ @@pkg@@ @@title@@ @@pm@@ @@run@@ @@typescript@@…` dans les contenus **et** les chemins ;
+  une variable inconnue est conservée (donc détectable) ; `dot-xxx` devient `.xxx`, `.tpl` est retiré.
+
+Contenu de la couche Astro `alpharust` : `BaseLayout` (SEO, lien d'évitement, thème clair/sombre sans flash),
+`Header`/`Footer`/`SEO`/`ThemeToggle`, pages (accueil, à propos, 404, blog + `[...slug]`), collection `blog` typée (Zod,
+loader `glob`), articles Markdown (+ MDX si `mdx`), îlot de démonstration React/Vue/Svelte, `tokens.css` + `global.css`
+(Tailwind importé en premier si choisi). Laravel : pages + modèle + migration + seeder + tests, branchés **sans conflit**
+avec Breeze (`routes/pages.php`, `components/site-layout`). Wagtail : `.alpharust.toml`, README, docs, `.gitignore`,
+`.env.example` et un test d'accueil par-dessus le projet créé par `wagtail start`.
+
+## Tests
+
+* `tests/generators.rs` — **hermétiques** : un faux `npm`/`node` simule `create-astro` ; ordre des étapes, correctifs
+  (tsconfig, scripts, `site`), couche, manifeste, lint, échec d'un outil, outil absent, annulation, `--force`.
+  `cargo new` est lui **réel**.
+* **Générations réelles** : `ALPHARUST_E2E=1 cargo test --test generators e2e -- --test-threads=1` lance create-astro
+  (npm et pnpm, intégrations, templates officiels), composer + Breeze + Pest, venv + wagtail ; chaque test s'ignore
+  avec un message si l'outil manque. La CI les exécute (job `generated-projects`).
 
 Autres générateurs de texte : `readme`, `docs`, `checks` (checklist Markdown d'un profil).
 
-## Ajouter un générateur
+## Ajouter un framework
 
-1. Déposer les fichiers dans `templates/<type>/` (suffixe `.tpl`).
-2. Créer `src/generators/<type>.rs` avec la liste `FILES` (un test vérifie qu'aucun fichier n'est oublié).
-3. Brancher `Kind::<Type>` dans `generators::generate`, la CLI, la TUI et la GUI.
-4. Ajouter un test dans `tests/generators.rs`.
+1. `src/scaffold/<fw>.rs` : options (serde), `validate`, `tools` (preflight) et `steps` (commandes officielles).
+2. `templates/layers/<fw>/` : couche de modèles.
+3. L'enregistrer dans `Framework`/`Options` (`src/scaffold/mod.rs`) : la CLI, la TUI et la GUI le proposent via `Options`.
+4. Tests hermétiques (shims) et un test `e2e_*`.

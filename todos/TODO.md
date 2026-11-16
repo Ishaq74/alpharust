@@ -7,7 +7,7 @@
 - [x] GUI web fonctionnelle (échappement HTML, contrôle `Origin`)
 - [x] Profils + config `.alpharust.toml`
 - [x] Sortie SARIF 2.1.0
-- [x] Générateurs (bootstrap, wagtail, astro, laravel) vérifiés avec les vrais outils
+- [x] Générateurs (astro, laravel, wagtail, rust) fondés sur les outils officiels, avec installation et vérification réelles (ADR 0011)
 - [x] Dossier `sites/`
 - [x] Tests unitaires, d'intégration, CLI, GUI, générateurs
 - [x] CI : `fmt --check`, `clippy -D warnings`, `cargo test --all-targets`, projets générés
@@ -19,7 +19,18 @@
 - [x] Générateurs de projets plus complets (Wagtail / Astro / Laravel exécutables, testés en CI)
 - [x] Cache des règles (`.alpharust-cache/`) et regex compilées une seule fois
 
+## Refonte ADR 0011
+- [x] Pipeline `scaffold` : preflight, plan, exécution en événements, couche de modèles, vérification, rapport
+- [x] Astro : npm/pnpm/yarn/bun, templates officiels, TypeScript base/strict/strictest, Tailwind/MDX/sitemap/React/Vue/Svelte
+- [x] Laravel : Breeze (blade/livewire/react/vue/api), Pest, mode sombre, base de données
+- [x] CLI `new` (assistant), `generate` (options, `--dry-run`, `--json`), `doctor`
+- [x] TUI : génération en arrière-plan avec journal en direct
+- [x] GUI SPA : assistant + aperçu, SSE, lint filtrable, recherche de règles, thème clair/sombre, responsive, accessible
+- [x] Tests hermétiques (faux outils) + tests réels `ALPHARUST_E2E=1`
+
 ## Idées pour la suite
+- [ ] Options Astro avancées : i18n, shadcn/ui, base de données + ORM (idées de `nkboot-codex`)
+- [ ] Export zip d'un projet généré depuis la GUI
 - [ ] Générateur Next.js (les règles `frameworks/nextjs` existent déjà)
 - [ ] Checkers JS/TS basés sur un vrai parseur (tree-sitter)
 - [ ] Mode `--fix` pour les règles à correction triviale
