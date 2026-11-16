@@ -16,6 +16,9 @@
   button?.addEventListener('click', () => {
     const next = current() === 'dark' ? 'light' : 'dark';
     root.dataset['theme'] = next;
+@@if starwind@@
+    root.classList.toggle('dark', next === 'dark');
+@@end@@
     try {
       localStorage.setItem('theme', next);
     } catch {}

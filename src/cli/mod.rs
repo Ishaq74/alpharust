@@ -6,7 +6,9 @@ use crate::parser::{cache, Rule};
 use crate::profiles::Profile;
 use crate::scaffold::astro::{AstroOptions, PackageManager, Template, TsLevel};
 use crate::scaffold::laravel::{Database, LaravelOptions, Starter};
+use crate::scaffold::platform::{Db, UiKit};
 use crate::scaffold::rust::{CrateKind, RustOptions};
+use crate::scaffold::theme::ThemeColors;
 use crate::scaffold::wagtail::WagtailOptions;
 use crate::scaffold::{self, Event, Framework, Options, Request};
 use crate::{gui, paths, sarif, tui};
@@ -210,6 +212,66 @@ struct GenOpts {
     site: Option<String>,
     #[arg(long, help = "[astro] ne pas installer @astrojs/check")]
     no_typecheck: bool,
+    #[arg(
+        long,
+        value_name = "none|starwind|concordia",
+        help = "[astro] kit d'interface : Starwind (Tailwind, officiel) ou CSS Concordia"
+    )]
+    ui: Option<String>,
+    #[arg(
+        long = "ui-component",
+        value_delimiter = ',',
+        help = "[astro] composants Starwind (défaut : button,card,input,label,alert)"
+    )]
+    ui_components: Vec<String>,
+    #[arg(
+        long,
+        value_name = "#rrggbb",
+        help = "[astro, ui concordia] couleur primaire (WCAG)"
+    )]
+    theme_primary: Option<String>,
+    #[arg(
+        long,
+        value_name = "#rrggbb",
+        help = "[astro, ui concordia] couleur secondaire"
+    )]
+    theme_secondary: Option<String>,
+    #[arg(
+        long,
+        value_name = "#rrggbb",
+        help = "[astro, ui concordia] couleur d'accent"
+    )]
+    theme_accent: Option<String>,
+    #[arg(
+        long = "css-variant",
+        value_delimiter = ',',
+        help = "[astro, ui concordia] variantes : initial, retro, modern, futuristic (défaut : toutes)"
+    )]
+    css_variants: Vec<String>,
+    #[arg(
+        long,
+        value_name = "URL",
+        help = "[astro, db postgres] URL PostgreSQL de développement (applique les migrations)"
+    )]
+    db_url: Option<String>,
+    #[arg(long, help = "[astro] authentification Better Auth (exige --db)")]
+    auth: bool,
+    #[arg(
+        long = "auth-plugin",
+        value_delimiter = ',',
+        help = "[astro] plugins Better Auth : username, admin, organization"
+    )]
+    auth_plugins: Vec<String>,
+    #[arg(
+        long,
+        value_delimiter = ',',
+        help = "[astro] langues (la première est par défaut) : fr, en, es, ar"
+    )]
+    i18n: Vec<String>,
+    #[arg(long, help = "[astro] Dockerfile + docker-compose")]
+    docker: bool,
+    #[arg(long, help = "[astro] workflow GitHub Actions")]
+    ci: bool,
     // — Laravel —
     #[arg(
         long,
@@ -223,8 +285,8 @@ struct GenOpts {
     pest: bool,
     #[arg(
         long,
-        value_name = "sqlite|mysql|pgsql",
-        help = "[laravel] base de données"
+        value_name = "sqlite|mysql|pgsql | none|postgres|sqlite",
+        help = "[laravel] base de données ; [astro] base Drizzle (none, postgres, sqlite)"
     )]
     db: Option<String>,
     #[arg(long, help = "[laravel] npm install && npm run build même sans kit")]
@@ -273,18 +335,33 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || o.typescript.is_some()
         || !o.integrations.is_empty()
         || o.site.is_some()
-        || o.no_typecheck;
-    let laravel_set = o.starter.is_some() || o.dark || o.pest || o.db.is_some() || o.frontend;
+        || o.no_typecheck
+        || o.ui.is_some()
+        || !o.ui_components.is_empty()
+        || o.theme_primary.is_some()
+        || o.theme_secondary.is_some()
+        || o.theme_accent.is_some()
+        || !o.css_variants.is_empty()
+        || o.db_url.is_some()
+        || o.auth
+        || !o.auth_plugins.is_empty()
+        || !o.i18n.is_empty()
+        || o.docker
+        || o.ci;
+    let laravel_set = o.starter.is_some() || o.dark || o.pest || o.frontend;
     let wagtail_set = !o.packages.is_empty() || o.no_migrate;
     let rust_set = o.kind.is_some() || o.edition.is_some() || !o.deps.is_empty();
     if astro_set && framework != Framework::Astro {
-        foreign.push("astro (--pm, --template, --ts, --integration, --site, --no-typecheck)");
+        foreign.push("astro (--pm, --template, --ts, --integration, --site, --ui, --auth, --i18n, --docker…)");
     }
     if laravel_set && framework != Framework::Laravel {
         foreign.push("laravel (--starter, --dark, --pest, --db, --frontend)");
     }
     if wagtail_set && framework != Framework::Wagtail {
         foreign.push("wagtail (--package, --no-migrate)");
+    }
+    if o.db.is_some() && !matches!(framework, Framework::Astro | Framework::Laravel) {
+        foreign.push("astro/laravel (--db)");
     }
     if rust_set && framework != Framework::Rust {
         foreign.push("rust (--kind, --edition, --dep)");
@@ -329,6 +406,34 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             a.integrations = o.integrations.clone();
             a.site = o.site.clone();
             a.typecheck = !o.no_typecheck;
+            if let Some(v) = parse_opt("--ui", &o.ui, UiKit::parse, "none, starwind, concordia")? {
+                a.ui = v;
+            }
+            a.ui_components = o.ui_components.clone();
+            if let Some(v) = parse_opt("--db", &o.db, Db::parse, "none, postgres, sqlite")? {
+                a.database = v;
+            }
+            a.db_url = o.db_url.clone();
+            a.auth = o.auth;
+            a.auth_plugins = o.auth_plugins.clone();
+            a.i18n = o.i18n.clone();
+            a.css_variants = o.css_variants.clone();
+            if o.theme_primary.is_some() || o.theme_secondary.is_some() || o.theme_accent.is_some()
+            {
+                let mut t = ThemeColors::default();
+                if let Some(c) = &o.theme_primary {
+                    t.primary = c.clone();
+                }
+                if let Some(c) = &o.theme_secondary {
+                    t.secondary = c.clone();
+                }
+                if let Some(c) = &o.theme_accent {
+                    t.accent = c.clone();
+                }
+                a.theme = Some(t);
+            }
+            a.docker = o.docker;
+            a.ci = o.ci;
             Options::Astro(a)
         }
         Framework::Laravel => {

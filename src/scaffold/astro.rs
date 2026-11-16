@@ -1,6 +1,8 @@
 //! Astro : `create-astro` officiel, `astro add` pour les intégrations, puis couche AlphaRust.
 
 use super::exec::{Cmd, Cwd};
+use super::platform::{self, Db, UiKit};
+use super::theme::{self, ThemeColors};
 use super::tools::{self, ToolStatus};
 use super::{Internal, Phase, Request, Step};
 use anyhow::{bail, Result};
@@ -104,6 +106,27 @@ impl PackageManager {
         Cmd::owned(self.id(), args, Cwd::Project)
     }
 
+    fn add_dep(self, pkgs: &[String]) -> Cmd {
+        let mut args: Vec<String> = match self {
+            PackageManager::Npm => vec!["install".into()],
+            _ => vec!["add".into()],
+        };
+        args.extend(pkgs.iter().cloned());
+        Cmd::owned(self.id(), args, Cwd::Project)
+    }
+
+    /// Exécute un paquet sans l'installer (`npx`, `pnpm dlx`, `yarn dlx`, `bunx`) dans le projet.
+    fn dlx(self, package: &str, args: &[String]) -> Cmd {
+        let mut a: Vec<String> = match self {
+            PackageManager::Npm => vec!["exec".into(), "--yes".into(), "--".into()],
+            PackageManager::Pnpm | PackageManager::Yarn => vec!["dlx".into()],
+            PackageManager::Bun => vec!["x".into()],
+        };
+        a.push(package.to_string());
+        a.extend(args.iter().cloned());
+        Cmd::owned(self.id(), a, Cwd::Project)
+    }
+
     fn script(self, name: &str) -> Cmd {
         Cmd::owned(self.id(), vec!["run".into(), name.into()], Cwd::Project)
     }
@@ -202,6 +225,28 @@ pub struct AstroOptions {
     pub site: Option<String>,
     /// Installe `@astrojs/check` + `typescript` et vérifie avec `astro check`.
     pub typecheck: bool,
+    /// Kit d'interface : Starwind (Tailwind) ou système CSS Concordia.
+    pub ui: UiKit,
+    /// Composants Starwind à ajouter (défaut : button, card, input, label, alert).
+    pub ui_components: Vec<String>,
+    /// Base de données Drizzle (PostgreSQL ou SQLite).
+    pub database: Db,
+    /// URL PostgreSQL de développement ; si elle est fournie, les migrations sont appliquées.
+    pub db_url: Option<String>,
+    /// Authentification Better Auth (exige une base de données).
+    pub auth: bool,
+    /// Plugins Better Auth : username, admin, organization.
+    pub auth_plugins: Vec<String>,
+    /// Langues (la première est la langue par défaut) : fr, en, es, ar.
+    pub i18n: Vec<String>,
+    /// Couleurs de marque du kit CSS (`concordia`), contrôlées WCAG.
+    pub theme: Option<ThemeColors>,
+    /// Variantes de composants CSS à inclure : initial (toujours), retro, modern, futuristic.
+    pub css_variants: Vec<String>,
+    /// Dockerfile + docker-compose.
+    pub docker: bool,
+    /// Workflow GitHub Actions (check, build, tests).
+    pub ci: bool,
 }
 
 impl Default for AstroOptions {
@@ -213,6 +258,17 @@ impl Default for AstroOptions {
             integrations: vec![],
             site: None,
             typecheck: true,
+            ui: UiKit::None,
+            ui_components: vec![],
+            database: Db::None,
+            db_url: None,
+            auth: false,
+            auth_plugins: vec![],
+            i18n: vec![],
+            theme: None,
+            css_variants: vec![],
+            docker: false,
+            ci: false,
         }
     }
 }
@@ -222,7 +278,84 @@ impl AstroOptions {
         self.integrations.iter().any(|i| i == name)
     }
 
+    /// Rendu côté serveur (adaptateur Node) : base de données ou authentification.
+    pub fn ssr(&self) -> bool {
+        self.database != Db::None || self.auth || self.docker
+    }
+
+    /// Une brique « plateforme » est demandée (exige le template `alpharust`).
+    pub fn platform(&self) -> bool {
+        self.ui != UiKit::None || self.database != Db::None || self.auth || !self.i18n.is_empty()
+    }
+
+    /// Le projet généré embarque des tests (vitest).
+    pub fn has_tests(&self) -> bool {
+        self.database != Db::None || !self.i18n.is_empty()
+    }
+
+    /// Variante CSS incluse ? (liste vide = les quatre variantes de Concordia).
+    pub fn css_variant(&self, name: &str) -> bool {
+        if self.css_variants.is_empty() {
+            true
+        } else {
+            name == "initial" || self.css_variants.iter().any(|v| v == name)
+        }
+    }
+
+    /// Le site embarque un catalogue de messages (authentification ou plusieurs langues).
+    pub fn has_messages(&self) -> bool {
+        self.auth || !self.i18n.is_empty()
+    }
+
+    /// Langues du catalogue : celles demandées, ou le français seul pour l'authentification.
+    pub fn locales(&self) -> Vec<String> {
+        if !self.i18n.is_empty() {
+            self.i18n.clone()
+        } else if self.auth {
+            vec!["fr".to_string()]
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn default_locale(&self) -> Option<&str> {
+        self.i18n
+            .first()
+            .map(String::as_str)
+            .or(if self.auth { Some("fr") } else { None })
+    }
+
+    /// Composants Starwind à installer.
+    pub fn starwind_components(&self) -> Vec<String> {
+        if self.ui_components.is_empty() {
+            platform::STARWIND_DEFAULT
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            self.ui_components.clone()
+        }
+    }
+
+    /// Intégrations passées à `astro add` : choix de l'utilisateur, Tailwind pour Starwind, adaptateur Node pour le SSR.
+    pub fn astro_add_list(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .integrations
+            .iter()
+            .filter(|i| !(self.template == Template::Blog && (*i == "mdx" || *i == "sitemap")))
+            .cloned()
+            .collect();
+        if self.ui == UiKit::Starwind && !v.iter().any(|i| i == "tailwind") {
+            v.insert(0, "tailwind".into());
+        }
+        if self.ssr() {
+            v.push("node".into());
+        }
+        v
+    }
+
     pub fn validate(&self, install: bool) -> Result<()> {
+        self.validate_platform(install)?;
         for i in &self.integrations {
             if !INTEGRATIONS.iter().any(|(n, _)| n == i) {
                 bail!(
@@ -286,10 +419,151 @@ impl AstroOptions {
         Ok(())
     }
 
+    fn validate_platform(&self, install: bool) -> Result<()> {
+        if self.platform() && self.template != Template::Alpharust {
+            bail!("les briques plateforme (--ui, --db, --auth, --i18n) exigent le template `alpharust` (structure complète)");
+        }
+        if (self.ui != UiKit::None || self.database != Db::None || self.auth) && !install {
+            bail!("l'interface, la base de données et l'authentification exigent l'installation des dépendances (retirer --no-install)");
+        }
+        if self.docker && (!install || self.package_manager == PackageManager::Bun) {
+            bail!("le Dockerfile généré cible npm, pnpm ou yarn avec installation des dépendances (image node:24)");
+        }
+        if self.ui == UiKit::Concordia && self.has("tailwind") {
+            bail!("le kit `concordia` est un système CSS sans Tailwind : retirer l'intégration tailwind ou choisir `--ui starwind`");
+        }
+        for c in &self.ui_components {
+            if !platform::STARWIND_COMPONENTS.contains(&c.as_str()) {
+                bail!("composant Starwind inconnu `{c}`");
+            }
+        }
+        if !self.ui_components.is_empty() && self.ui != UiKit::Starwind {
+            bail!("--ui-component n'a de sens qu'avec `--ui starwind`");
+        }
+        if (self.theme.is_some() || !self.css_variants.is_empty()) && self.ui != UiKit::Concordia {
+            bail!("--theme-* et --css-variant n'ont de sens qu'avec `--ui concordia`");
+        }
+        if let Some(t) = &self.theme {
+            t.validate()?;
+        }
+        for v in &self.css_variants {
+            if !theme::VARIANTS.contains(&v.as_str()) {
+                bail!(
+                    "variante CSS inconnue `{v}` (disponibles : {})",
+                    theme::VARIANTS.join(", ")
+                );
+            }
+        }
+        if self.auth && self.database == Db::None {
+            bail!(
+                "l'authentification (Better Auth) exige une base de données (--db postgres|sqlite)"
+            );
+        }
+        if !self.auth_plugins.is_empty() && !self.auth {
+            bail!("les plugins d'authentification exigent --auth");
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        for p in &self.auth_plugins {
+            if !platform::AUTH_PLUGINS.iter().any(|(n, _)| n == p) {
+                bail!(
+                    "plugin d'authentification inconnu `{p}` (disponibles : {})",
+                    platform::AUTH_PLUGINS
+                        .iter()
+                        .map(|(n, _)| *n)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            if !seen.insert(p) {
+                bail!("plugin `{p}` en double");
+            }
+        }
+        if !self.i18n.is_empty() {
+            if self.i18n.len() < 2 {
+                bail!("i18n demande au moins deux langues (ex. fr,en)");
+            }
+            let mut seen = std::collections::BTreeSet::new();
+            for l in &self.i18n {
+                if !platform::is_locale(l) {
+                    bail!(
+                        "langue inconnue `{l}` (disponibles : {})",
+                        platform::LOCALES
+                            .iter()
+                            .map(|(c, _)| *c)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                }
+                if !seen.insert(l) {
+                    bail!("langue `{l}` en double");
+                }
+            }
+        }
+        if let Some(u) = &self.db_url {
+            if self.database != Db::Postgres {
+                bail!("--db-url ne concerne que PostgreSQL");
+            }
+            let ok_scheme = u.starts_with("postgres://") || u.starts_with("postgresql://");
+            let bad = u.chars().any(|c| {
+                c.is_whitespace() || matches!(c, '\'' | '"' | '\\' | '$' | '`' | '#' | '\n')
+            });
+            if !ok_scheme || bad {
+                bail!("URL PostgreSQL invalide (attendu : schéma postgresql://, identifiants, hôte, port et base, sans espaces ni guillemets)");
+            }
+        }
+        Ok(())
+    }
+
     /// Drapeaux de rendu de la couche de templates.
     pub fn flags(&self, install: bool) -> Vec<(&'static str, bool)> {
-        vec![
-            ("tailwind", self.has("tailwind")),
+        let starwind = self.ui == UiKit::Starwind;
+        let mut v = vec![
+            ("starwind", starwind),
+            ("concordia", self.ui == UiKit::Concordia),
+            ("db", self.database != Db::None),
+            ("postgres", self.database == Db::Postgres),
+            ("sqlite", self.database == Db::Sqlite),
+            ("auth", self.auth),
+            ("audit", self.auth),
+            (
+                "plugin_username",
+                self.auth_plugins.iter().any(|p| p == "username"),
+            ),
+            (
+                "plugin_admin",
+                self.auth_plugins.iter().any(|p| p == "admin"),
+            ),
+            (
+                "plugin_organization",
+                self.auth_plugins.iter().any(|p| p == "organization"),
+            ),
+            ("i18n", !self.i18n.is_empty()),
+            ("platform", self.platform()),
+            ("ssr", self.ssr()),
+            ("docker", self.docker),
+            ("ci", self.ci),
+            ("theme", self.theme.is_some()),
+            ("css_retro", self.css_variant("retro")),
+            ("css_modern", self.css_variant("modern")),
+            ("css_futuristic", self.css_variant("futuristic")),
+            ("tests", self.has_tests() && install),
+        ];
+        let locales = self.locales();
+        v.push(("messages", self.has_messages()));
+        for (code, _) in platform::LOCALES {
+            let on = locales.iter().any(|l| l == code);
+            v.push((
+                match *code {
+                    "fr" => "i18n_fr",
+                    "en" => "i18n_en",
+                    "es" => "i18n_es",
+                    _ => "i18n_ar",
+                },
+                on,
+            ));
+        }
+        v.extend(vec![
+            ("tailwind", self.has("tailwind") || starwind),
             ("mdx", self.has("mdx")),
             ("sitemap", self.has("sitemap")),
             ("react", self.has("react")),
@@ -298,7 +572,8 @@ impl AstroOptions {
             ("official", self.template != Template::Alpharust),
             ("typecheck", self.typecheck && install),
             ("site", self.site.is_some()),
-        ]
+        ]);
+        v
     }
 }
 
@@ -354,12 +629,7 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         Internal::AstroTsconfig(o.typescript),
     ));
 
-    let to_add: Vec<String> = o
-        .integrations
-        .iter()
-        .filter(|i| !(o.template == Template::Blog && (*i == "mdx" || *i == "sitemap")))
-        .cloned()
-        .collect();
+    let to_add = o.astro_add_list();
     if !to_add.is_empty() && req.install {
         steps.push(Step::run(
             "integrations",
@@ -375,19 +645,111 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "Installer @astrojs/check et typescript 6",
             pm.add_dev(&["@astrojs/check", TYPESCRIPT_SPEC]),
         ));
-        steps.push(Step::internal(
-            "scripts",
-            Phase::Configure,
-            "Ajouter le script `check` (astro check)",
-            Internal::PackageScripts(vec![("check", "astro check")]),
+    }
+
+    // ── Briques plateforme : outils officiels d'abord (starwind, paquets), glue ensuite ──
+    if req.install && o.ui == UiKit::Starwind {
+        steps.push(Step::run(
+            "starwind-init",
+            Phase::Install,
+            "Initialiser Starwind UI (starwind init)",
+            pm.dlx("starwind@latest", &["init".into(), "--defaults".into()]),
+        ));
+        let mut args = vec!["add".to_string()];
+        args.extend(o.starwind_components());
+        args.extend(["--yes".into(), "-m".into(), pm.id().into()]);
+        steps.push(Step::run(
+            "starwind-add",
+            Phase::Install,
+            &format!(
+                "Ajouter les composants Starwind : {}",
+                o.starwind_components().join(", ")
+            ),
+            pm.dlx("starwind@latest", &args),
+        ));
+    }
+    if req.install && o.ui == UiKit::Concordia {
+        steps.push(Step::run(
+            "icons-deps",
+            Phase::Install,
+            "Installer astro-icon et les icônes MDI (composants Concordia)",
+            pm.add_dep(&["astro-icon".to_string(), "@iconify-json/mdi".to_string()]),
+        ));
+    }
+    if req.install && (o.database != Db::None || o.has_tests()) {
+        if o.database != Db::None {
+            let mut deps: Vec<String> = vec![
+                "dotenv".into(),
+                "drizzle-orm".into(),
+                o.database.driver().into(),
+            ];
+            if o.auth {
+                deps.push("better-auth".into());
+            }
+            steps.push(Step::run(
+                "platform-deps",
+                Phase::Install,
+                &format!("Installer {}", deps.join(", ")),
+                pm.add_dep(&deps),
+            ));
+        }
+        let mut dev: Vec<&str> = vec!["vitest"];
+        if o.database != Db::None {
+            dev.extend(["drizzle-kit", o.database.driver_types()]);
+        }
+        steps.push(Step::run(
+            "platform-dev-deps",
+            Phase::Install,
+            &format!("Installer (dev) {}", dev.join(", ")),
+            pm.add_dev(&dev),
         ));
     }
 
+    let mut scripts: Vec<(&'static str, &'static str)> = vec![];
+    if o.typecheck && req.install {
+        scripts.push(("check", "astro check"));
+    }
+    if o.database != Db::None {
+        scripts.extend([
+            ("db:generate", "drizzle-kit generate"),
+            ("db:migrate", "drizzle-kit migrate"),
+            ("db:studio", "drizzle-kit studio"),
+        ]);
+    }
+    if o.has_tests() {
+        scripts.extend([("test", "vitest run"), ("test:watch", "vitest")]);
+    }
+    if o.ui == UiKit::Concordia && o.theme.is_some() {
+        scripts.push(("theme:check", "node scripts/theme-check.mjs"));
+    }
+    if !scripts.is_empty() && req.install {
+        steps.push(Step::internal(
+            "scripts",
+            Phase::Configure,
+            &format!(
+                "Ajouter les scripts : {}",
+                scripts
+                    .iter()
+                    .map(|(k, _)| *k)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Internal::PackageScripts(scripts),
+        ));
+    }
+
+    let mut layers = vec!["common", "astro"];
+    if o.platform() || o.docker || o.ci {
+        layers.push("platform");
+    }
+    if o.ui == UiKit::Concordia {
+        layers.push("ui-concordia");
+    }
     steps.push(Step::internal(
         "layer",
         Phase::Layer,
         "Appliquer la couche AlphaRust (structure, thème, docs, config qualité)",
-        Internal::Layer(vec!["common", "astro"]),
+        Internal::Layer(layers),
     ));
     if let Some(site) = &o.site {
         steps.push(Step::internal(
@@ -396,6 +758,82 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "Renseigner `site` dans astro.config.mjs",
             Internal::AstroSite(site.clone()),
         ));
+    }
+    if o.platform() {
+        steps.push(Step::internal(
+            "paths",
+            Phase::Configure,
+            "Alias de chemins TypeScript (@lib, @database, @components…)",
+            Internal::AstroPaths,
+        ));
+        steps.push(Step::internal(
+            "astro-config",
+            Phase::Configure,
+            "Configurer astro.config (rendu serveur, i18n, sécurité)",
+            Internal::AstroConfig {
+                ssr: o.ssr(),
+                locales: o.i18n.clone(),
+                concordia_icons: o.ui == UiKit::Concordia,
+            },
+        ));
+    }
+    if o.ui == UiKit::Concordia {
+        if let Some(t) = &o.theme {
+            steps.push(Step::internal(
+                "theme",
+                Phase::Configure,
+                "Générer le thème CSS (contrôle WCAG)",
+                Internal::CssTheme(t.clone()),
+            ));
+        }
+    }
+    if req.install && o.auth {
+        steps.push(Step::run(
+            "auth-schema",
+            Phase::Install,
+            "Générer le schéma Better Auth (auth generate → Drizzle)",
+            pm.dlx(
+                "auth@latest",
+                &[
+                    "generate".into(),
+                    "--adapter".into(),
+                    "drizzle".into(),
+                    "--dialect".into(),
+                    o.database.dialect().into(),
+                    "--config".into(),
+                    "src/lib/auth.ts".into(),
+                    "--output".into(),
+                    "src/database/schemas/auth.schema.ts".into(),
+                    "--yes".into(),
+                ],
+            ),
+        ));
+    }
+    if req.install && o.database != Db::None {
+        steps.push(Step::run(
+            "db-generate",
+            Phase::Configure,
+            "Générer les migrations SQL (drizzle-kit generate)",
+            pm.script("db:generate"),
+        ));
+        if o.database == Db::Sqlite {
+            steps.push(Step::run(
+                "db-migrate",
+                Phase::Configure,
+                "Appliquer les migrations (drizzle-kit migrate)",
+                pm.script("db:migrate"),
+            ));
+        } else if o.db_url.is_some() {
+            steps.push(
+                Step::run(
+                    "db-migrate",
+                    Phase::Configure,
+                    "Appliquer les migrations sur PostgreSQL (drizzle-kit migrate)",
+                    pm.script("db:migrate"),
+                )
+                .soft(),
+            );
+        }
     }
     steps.push(Step::internal(
         "manifest",
@@ -419,6 +857,14 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "Construire le site (astro build)",
             pm.script("build"),
         ));
+        if o.has_tests() {
+            steps.push(Step::run(
+                "test",
+                Phase::Verify,
+                "Lancer les tests du projet (vitest)",
+                pm.script("test"),
+            ));
+        }
     }
     if req.verify {
         steps.push(

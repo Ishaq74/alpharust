@@ -1,0 +1,110 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  tag?: 'a' | 'button';
+  href?: string;
+  type?: 'button' | 'submit' | 'reset';
+  variant?: 'initial' | 'retro' | 'modern' | 'futuristic';
+  style?: 'link' | 'button';
+  color?: 'default' | 'primary' | 'secondary' | 'accent';
+  external?: boolean;
+  ariaLabel?: string;
+  text?: string;
+  icon?: {
+    name: string;
+    side?: 'left' | 'right';
+  };
+  className?: string;
+  [key: string]: any;
+}
+
+const {
+  tag = 'a',
+  href,
+  type = 'button',
+  variant = 'initial',
+  style = 'link',
+  color = 'default',
+  external = false,
+  ariaLabel,
+  text,
+  icon,
+  className = '',
+  ...htmlAttributes
+} = Astro.props as Props;
+
+const Tag = tag;
+
+// Classes CSS basées sur le style et le variant
+const linkClass = style === 'button' ? 'button' : 'link';
+const variantClass = variant !== 'initial' ? variant : '';
+const colorClass = color !== 'default' ? color : '';
+
+const classes = [
+  linkClass,
+  variantClass && (style === 'button' ? variantClass : `link-${variantClass}`),
+  colorClass,
+  className,
+].filter(Boolean).join(' ');
+
+// Attributs pour liens externes
+const target = external ? '_blank' : undefined;
+const rel = external ? 'noopener noreferrer' : undefined;
+---
+
+<Tag
+  class={classes}
+  href={tag === 'a' ? href : undefined}
+  type={tag === 'button' ? type : undefined}
+  target={target}
+  rel={rel}
+  aria-label={ariaLabel}
+  {...htmlAttributes}
+>
+  {icon?.side === 'left' && <Icon name={icon.name} />}
+  {text ? text : <slot />}
+  {icon?.side === 'right' && <Icon name={icon.name} />}
+</Tag>
+
+<style>
+/* LINK */
+.link, a.link {
+  color: var(--link-color); 
+  font-size: var(--link-font-size);
+  font-weight: var(--link-font-weight);
+  text-decoration: var(--link-text-decoration); 
+  text-decoration-thickness: var(--link-text-decoration-thickness);
+  text-decoration-style: var(--link-text-decoration-style);
+  text-decoration-color: var(--link-text-decoration-color); 
+  text-underline-offset: var(--link-text-underline-offset);
+  transition: var(--link-transition); 
+}
+.link:hover { color: var(--link-hover-color); text-decoration-color: currentColor; }
+.link:active { color: var(--link-color-active); }
+.link:visited { color: var(--link-color-visited); }
+
+/* LINK AS BUTTON */
+a.button {
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-family: inherit; 
+  font-size: var(--link-button-font-size); 
+  padding: var(--link-button-padding-y) var(--link-button-padding-x); 
+  border-width: var(--link-button-border-width); 
+  border-style: solid;
+  border-radius: var(--link-button-border-radius); 
+  cursor: pointer; 
+  background-color: var(--link-button-default-bg);
+  color: var(--link-button-default-color);
+  border-color: var(--link-button-default-border-color);
+  line-height: 1.5;
+  font-weight: 500;
+  text-decoration: none;
+}
+a.button:hover { background-color: var(--link-button-default-bg-hover); text-decoration: none; }
+a.button.primary { background-color: var(--button-primary-bg); color: var(--button-primary-color); border-color: transparent; }
+a.button.secondary { background-color: var(--button-secondary-bg); color: var(--button-secondary-color); border-color: transparent; }
+a.button.accent { background-color: var(--button-accent-bg); color: var(--button-accent-color); border-color: transparent; }
+</style>

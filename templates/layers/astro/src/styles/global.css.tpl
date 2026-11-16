@@ -1,6 +1,10 @@
 @@meta mode=replace when=!official@@
+@@if starwind@@
+@import "./starwind.css";
+@@else@@
 @@if tailwind@@
 @import "tailwindcss";
+@@end@@
 @@end@@
 @import "./tokens.css";
 

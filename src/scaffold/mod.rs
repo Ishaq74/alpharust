@@ -9,7 +9,9 @@ pub mod exec;
 pub mod internal;
 pub mod laravel;
 pub mod layer;
+pub mod platform;
 pub mod rust;
+pub mod theme;
 pub mod tools;
 pub mod wagtail;
 
@@ -227,6 +229,16 @@ pub enum Internal {
     Layer(Vec<&'static str>),
     AstroTsconfig(astro::TsLevel),
     AstroSite(String),
+    /// Alias de chemins `tsconfig.json` (`@lib/*`, `@database/*`, `@components/*`…).
+    AstroPaths,
+    /// Rendu serveur, i18n, sécurité et icônes dans `astro.config.*`.
+    AstroConfig {
+        ssr: bool,
+        locales: Vec<String>,
+        concordia_icons: bool,
+    },
+    /// Feuille de thème CSS (kit Concordia) avec contrôle WCAG.
+    CssTheme(theme::ThemeColors),
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,

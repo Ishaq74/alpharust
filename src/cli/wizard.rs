@@ -2,7 +2,9 @@
 
 use crate::scaffold::astro::{AstroOptions, PackageManager, Template, TsLevel, INTEGRATIONS};
 use crate::scaffold::laravel::{Database, LaravelOptions, Starter};
+use crate::scaffold::platform::{Db, UiKit, AUTH_PLUGINS, LOCALES};
 use crate::scaffold::rust::{CrateKind, RustOptions, DEPS};
+use crate::scaffold::theme::ThemeColors;
 use crate::scaffold::wagtail::{valid_pip_spec, WagtailOptions};
 use crate::scaffold::{Framework, Options, Request};
 use anyhow::{anyhow, Result};
@@ -131,14 +133,29 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 "Installer @astrojs/check et vérifier les types ?",
                 true,
             )?;
-            Options::Astro(AstroOptions {
+            let mut o = AstroOptions {
                 package_manager,
                 template,
                 typescript,
                 integrations,
                 site,
                 typecheck,
-            })
+                ..AstroOptions::default()
+            };
+            if template == Template::Alpharust {
+                platform_prompts(&theme, &mut o)?;
+            }
+            if confirm(&theme, "Dockerfile + docker-compose ?", false)? {
+                o.docker = true;
+            }
+            if confirm(
+                &theme,
+                "Workflow GitHub Actions (check, build, tests) ?",
+                false,
+            )? {
+                o.ci = true;
+            }
+            Options::Astro(o)
         }
         Framework::Laravel => {
             let starters: Vec<(Starter, String)> = Starter::ALL
@@ -248,4 +265,92 @@ pub fn confirm_plan(req: &Request) -> Result<bool> {
         .default(true)
         .interact()
         .map_err(err)
+}
+
+/// Questions « plateforme » : interface, base de données, authentification, langues.
+fn platform_prompts(theme: &ColorfulTheme, o: &mut AstroOptions) -> Result<()> {
+    let kits = vec![
+        (
+            UiKit::None,
+            "Thème AlphaRust par défaut (CSS simple)".to_string(),
+        ),
+        (
+            UiKit::Starwind,
+            "Tailwind 4 + Starwind UI (outil officiel `starwind`)".to_string(),
+        ),
+        (
+            UiKit::Concordia,
+            "CSS pur Concordia : jetons, 4 variantes, ~90 composants + thème WCAG".to_string(),
+        ),
+    ];
+    o.ui = select(theme, "Interface", &kits, 0)?;
+    if o.ui == UiKit::Concordia {
+        let custom = confirm(
+            theme,
+            "Personnaliser les couleurs de marque (contrôle WCAG) ?",
+            false,
+        )?;
+        if custom {
+            let ask = |label: &str, default: &str| -> Result<String> {
+                Input::with_theme(theme)
+                    .with_prompt(label)
+                    .default(default.to_string())
+                    .validate_with(|s: &String| {
+                        if crate::scaffold::theme::parse_hex(s).is_some() {
+                            Ok(())
+                        } else {
+                            Err("couleur hexadécimale attendue, ex. #4f46e5".to_string())
+                        }
+                    })
+                    .interact_text()
+                    .map_err(err)
+            };
+            o.theme = Some(ThemeColors {
+                primary: ask("Couleur primaire", crate::scaffold::theme::DEFAULT_PRIMARY)?,
+                secondary: ask(
+                    "Couleur secondaire",
+                    crate::scaffold::theme::DEFAULT_SECONDARY,
+                )?,
+                accent: ask("Couleur d'accent", crate::scaffold::theme::DEFAULT_ACCENT)?,
+            });
+        }
+    }
+    let dbs = vec![
+        (Db::None, "Aucune (site statique)".to_string()),
+        (Db::Sqlite, "SQLite local (zéro service)".to_string()),
+        (Db::Postgres, "PostgreSQL (comme atomic)".to_string()),
+    ];
+    o.database = select(theme, "Base de données (Drizzle ORM)", &dbs, 0)?;
+    if o.database != Db::None {
+        o.auth = confirm(
+            theme,
+            "Authentification Better Auth (inscription, connexion, audit) ?",
+            true,
+        )?;
+        if o.auth {
+            let labels: Vec<String> = AUTH_PLUGINS
+                .iter()
+                .map(|(n, d)| format!("{n:<13} {d}"))
+                .collect();
+            let chosen = MultiSelect::with_theme(theme)
+                .with_prompt("Plugins Better Auth")
+                .items(&labels)
+                .interact()
+                .map_err(err)?;
+            o.auth_plugins = chosen
+                .iter()
+                .map(|i| AUTH_PLUGINS[*i].0.to_string())
+                .collect();
+        }
+    }
+    let labels: Vec<String> = LOCALES.iter().map(|(c, n)| format!("{c}  {n}")).collect();
+    let chosen = MultiSelect::with_theme(theme)
+        .with_prompt("Langues (i18n) — aucune ou au moins deux ; la première cochée est la langue par défaut")
+        .items(&labels)
+        .interact()
+        .map_err(err)?;
+    if chosen.len() >= 2 {
+        o.i18n = chosen.iter().map(|i| LOCALES[*i].0.to_string()).collect();
+    }
+    Ok(())
 }

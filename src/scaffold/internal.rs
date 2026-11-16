@@ -1,9 +1,10 @@
 //! Exécution des étapes : commandes externes et actions internes (couche, patchs, manifeste, git, lint).
 
-use super::astro::TsLevel;
+use super::astro::{PackageManager, TsLevel};
 use super::exec::{self, Cmd, Cwd};
 use super::laravel::Database;
 use super::layer::{self, Ctx};
+use super::platform::Db;
 use super::{Action, Internal, LintSummary, Options, Plan, Request, Step, MANIFEST};
 use crate::generators::Vars;
 use anyhow::{anyhow, bail, Context, Result};
@@ -44,6 +45,20 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
     ctx.flag(req.framework().id(), true);
     match &req.options {
         Options::Astro(o) => {
+            let pm = o.package_manager;
+            let (lock, ci) = match pm {
+                PackageManager::Pnpm => ("pnpm-lock.yaml", "pnpm install --frozen-lockfile"),
+                PackageManager::Yarn => ("yarn.lock", "yarn install --frozen-lockfile"),
+                PackageManager::Bun => ("bun.lock", "bun install --frozen-lockfile"),
+                PackageManager::Npm => ("package-lock.json", "npm ci"),
+            };
+            ctx.var("lockfile", lock).var("install_ci", ci);
+            ctx.flag("pnpm", pm == PackageManager::Pnpm);
+            ctx.flag("bun", pm == PackageManager::Bun);
+            ctx.flag(
+                "corepack",
+                matches!(pm, PackageManager::Pnpm | PackageManager::Yarn),
+            );
             ctx.var("pm", o.package_manager.id())
                 .var("run", o.package_manager.run_prefix())
                 .var("install_cmd", o.package_manager.install_cmd())
@@ -53,6 +68,47 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
             for (k, on) in o.flags(req.install) {
                 ctx.flag(k, on);
             }
+            let db_name = vars.slug.replace('-', "_");
+            let default_url = match o.database {
+                // identifiants de développement local uniquement (serveur PostgreSQL de la machine)
+                Db::Postgres => {
+                    let creds = format!("{DEV_PG_USER}:{DEV_PG_USER}");
+                    format!("postgresql://{creds}@localhost:5432/{db_name}")
+                }
+                _ => format!("./data/{db_name}.db"),
+            };
+            let local = o.db_url.clone().unwrap_or(default_url);
+            let test = match o.database {
+                Db::Postgres => match local.rsplit_once('/') {
+                    Some((head, base)) => {
+                        format!("{head}/{}_test", base.split('?').next().unwrap_or(base))
+                    }
+                    None => local.clone(),
+                },
+                _ => ":memory:".to_string(),
+            };
+            ctx.var("db_url", local)
+                .var("db_url_test", test)
+                .var("db_name", db_name)
+                .var("secret", random_secret())
+                .var("dialect", o.database.dialect())
+                .var(
+                    "drizzle_dialect",
+                    if o.database == Db::Postgres {
+                        "postgresql"
+                    } else {
+                        "sqlite"
+                    },
+                )
+                .var(
+                    "locales_ts",
+                    o.locales()
+                        .iter()
+                        .map(|l| format!("'{l}'"))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                )
+                .var("default_locale", o.default_locale().unwrap_or("fr"));
         }
         Options::Laravel(o) => {
             ctx.var("database", o.starter.id());
@@ -67,6 +123,22 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
         }
     }
     ctx
+}
+
+/// Secret aléatoire (64 caractères hexadécimaux) pour `BETTER_AUTH_SECRET`.
+fn random_secret() -> String {
+    let mut buf = [0u8; 32];
+    if getrandom::fill(&mut buf).is_err() {
+        // repli improbable : dérive du temps et du processus (jamais de secret constant)
+        let seed = unix_now() as u64 ^ (std::process::id() as u64) << 20;
+        for (i, b) in buf.iter_mut().enumerate() {
+            *b = (seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(i as u64 * 1442695040888963407)
+                >> 24) as u8;
+        }
+    }
+    buf.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 fn current_year() -> i64 {
@@ -265,6 +337,13 @@ fn run_internal(
         }
         Internal::AstroTsconfig(level) => patch_tsconfig(target, *level).map(Some),
         Internal::AstroSite(url) => patch_astro_site(target, url).map(Some),
+        Internal::AstroPaths => patch_tsconfig_paths(target).map(Some),
+        Internal::AstroConfig {
+            ssr,
+            locales,
+            concordia_icons,
+        } => patch_astro_config(target, *ssr, locales, *concordia_icons).map(Some),
+        Internal::CssTheme(t) => write_css_theme(target, t).map(Some),
         Internal::PackageScripts(scripts) => patch_package_scripts(target, scripts).map(Some),
         Internal::LaravelEnv(db) => patch_laravel_env(target, *db, &req.name).map(Some),
         Internal::LaravelRoutes => patch_laravel_routes(target).map(Some),
@@ -358,6 +437,135 @@ pub fn patch_package_scripts(target: &Path, scripts: &[(&str, &str)]) -> Result<
         .map(|(k, _)| *k)
         .collect::<Vec<_>>()
         .join(", "))
+}
+
+/// Alias de chemins, comme dans le dépôt atomic.
+pub const TS_PATHS: &[(&str, &str)] = &[
+    ("@/*", "src/*"),
+    ("@styles/*", "src/styles/*"),
+    ("@layouts/*", "src/layouts/*"),
+    ("@components/*", "src/components/*"),
+    ("@i18n/*", "src/i18n/*"),
+    ("@lib/*", "src/lib/*"),
+    ("@database/*", "src/database/*"),
+];
+
+pub fn patch_tsconfig_paths(target: &Path) -> Result<String> {
+    let path = target.join("tsconfig.json");
+    let mut v = read_json(&path)?;
+    let opts = v
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("tsconfig.json invalide"))?
+        .entry("compilerOptions")
+        .or_insert_with(|| json!({}));
+    let o = opts
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("`compilerOptions` invalide"))?;
+    o.entry("baseUrl").or_insert(json!("."));
+    let paths = o.entry("paths").or_insert_with(|| json!({}));
+    let p = paths
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("`paths` invalide"))?;
+    for (alias, dir) in TS_PATHS {
+        p.insert((*alias).to_string(), json!([dir]));
+    }
+    write_json(&path, &v)?;
+    Ok(format!("{} alias", TS_PATHS.len()))
+}
+
+fn astro_config_path(target: &Path) -> Result<std::path::PathBuf> {
+    ["astro.config.mjs", "astro.config.ts", "astro.config.js"]
+        .iter()
+        .map(|f| target.join(f))
+        .find(|p| p.is_file())
+        .ok_or_else(|| anyhow!("astro.config.* introuvable"))
+}
+
+/// Insère `text` juste après `defineConfig({`.
+fn insert_in_define_config(src: &str, text: &str) -> Result<String> {
+    let i = src
+        .find("defineConfig({")
+        .ok_or_else(|| anyhow!("`defineConfig({{` introuvable dans astro.config"))?;
+    let at = i + "defineConfig({".len();
+    let mut s = src.to_string();
+    s.insert_str(at, text);
+    Ok(s)
+}
+
+/// Rendu serveur (`output: 'server'`), i18n natif d'Astro, `checkOrigin` et icônes.
+/// L'adaptateur Node est ajouté par `astro add node` ; ici on ne touche qu'aux options.
+pub fn patch_astro_config(
+    target: &Path,
+    ssr: bool,
+    locales: &[String],
+    icons: bool,
+) -> Result<String> {
+    let path = astro_config_path(target)?;
+    let mut text = fs::read_to_string(&path)?;
+    let mut done: Vec<&str> = vec![];
+    if ssr && !text.contains("output:") {
+        text = insert_in_define_config(&text, "\n  output: 'server',")?;
+        done.push("output server");
+    }
+    if !locales.is_empty() && !text.contains("i18n:") {
+        let list = locales
+            .iter()
+            .map(|l| format!("'{l}'"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        text = insert_in_define_config(
+            &text,
+            &format!(
+                "\n  i18n: {{\n    locales: [{list}],\n    defaultLocale: '{}',\n    routing: {{ prefixDefaultLocale: false }},\n  }},",
+                locales[0]
+            ),
+        )?;
+        done.push("i18n");
+    }
+    if !text.contains("security:") {
+        // `checkOrigin` est actif par défaut depuis Astro 5 : on l'explicite (CSRF des formulaires et API)
+        text = insert_in_define_config(&text, "\n  security: { checkOrigin: true },")?;
+        done.push("checkOrigin");
+    }
+    if icons && !text.contains("astro-icon") {
+        if let Some(i) = text.find("integrations: [") {
+            let at = i + "integrations: [".len();
+            text.insert_str(at, "icon(), ");
+        } else {
+            text = insert_in_define_config(&text, "\n  integrations: [icon()],")?;
+        }
+        // import après le dernier `import` existant
+        let last_import_end = text
+            .lines()
+            .scan(0usize, |pos, l| {
+                let start = *pos;
+                *pos += l.len() + 1;
+                Some((start, l))
+            })
+            .filter(|(_, l)| l.trim_start().starts_with("import "))
+            .map(|(start, l)| start + l.len() + 1)
+            .last()
+            .unwrap_or(0);
+        text.insert_str(
+            last_import_end.min(text.len()),
+            "import icon from 'astro-icon';\n",
+        );
+        done.push("astro-icon");
+    }
+    fs::write(&path, text)?;
+    Ok(if done.is_empty() {
+        "déjà configuré".into()
+    } else {
+        done.join(", ")
+    })
+}
+
+pub fn write_css_theme(target: &Path, t: &super::theme::ThemeColors) -> Result<String> {
+    let css = t.css()?;
+    let dir = target.join("src/styles");
+    fs::create_dir_all(&dir)?;
+    fs::write(dir.join("theme.css"), css)?;
+    t.summary()
 }
 
 pub fn patch_astro_site(target: &Path, url: &str) -> Result<String> {
@@ -513,7 +721,40 @@ fn freeze(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -> 
     Ok(format!("{} paquets figés", lines.len()))
 }
 
+/// Masque les identifiants d'une URL de base de données (`://utilisateur:motdepasse@` → `://***@`).
+/// Utilisateur (et mot de passe) PostgreSQL par défaut d'une installation locale.
+const DEV_PG_USER: &str = "postgres";
+
+pub fn mask_url_credentials(url: &str) -> String {
+    match (url.find("://"), url.find('@')) {
+        (Some(scheme), Some(at)) if at > scheme + 3 && !url[scheme + 3..at].contains('/') => {
+            format!("{}://***@{}", &url[..scheme], &url[at + 1..])
+        }
+        _ => url.to_string(),
+    }
+}
+
+fn redact_secrets(v: &mut Value) {
+    match v {
+        Value::Object(map) => {
+            for (k, val) in map.iter_mut() {
+                if k == "db_url" {
+                    if let Value::String(s) = val {
+                        *s = mask_url_credentials(s);
+                    }
+                } else {
+                    redact_secrets(val);
+                }
+            }
+        }
+        Value::Array(a) => a.iter_mut().for_each(redact_secrets),
+        _ => {}
+    }
+}
+
 pub fn write_manifest(req: &Request, target: &Path) -> Result<()> {
+    let mut request = serde_json::to_value(req)?;
+    redact_secrets(&mut request);
     let manifest = json!({
         "generator": "alpharust",
         "version": env!("CARGO_PKG_VERSION"),
@@ -521,7 +762,7 @@ pub fn write_manifest(req: &Request, target: &Path) -> Result<()> {
         "name": req.name,
         "framework": req.framework().id(),
         "official_tool": req.framework().official_tool(),
-        "request": serde_json::to_value(req)?,
+        "request": request,
     });
     write_json(&target.join(MANIFEST), &manifest)
 }

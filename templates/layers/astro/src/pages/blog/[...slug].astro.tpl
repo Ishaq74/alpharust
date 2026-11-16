@@ -1,8 +1,19 @@
 @@meta when=!official@@
 ---
+@@if ssr@@
+import { getEntry, render } from 'astro:content';
+@@else@@
 import { type CollectionEntry, getCollection, render } from 'astro:content';
+@@end@@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
+@@if ssr@@
+// Rendu serveur : l'article est résolu à la demande.
+export const prerender = false;
+
+const post = await getEntry('blog', Astro.params.slug ?? '');
+if (!post) return new Response(null, { status: 404 });
+@@else@@
 export async function getStaticPaths() {
   const posts = await getCollection('blog');
   return posts.map((post) => ({
@@ -14,6 +25,7 @@ export async function getStaticPaths() {
 type Props = CollectionEntry<'blog'>;
 
 const post = Astro.props;
+@@end@@
 const { Content } = await render(post);
 const format = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 ---
