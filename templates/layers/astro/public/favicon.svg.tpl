@@ -1,0 +1,5 @@
+@@meta mode=replace when=!official@@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="@@title@@">
+  <rect width="64" height="64" rx="14" fill="#3b4cca"/>
+  <path d="M32 12 14 52h9l3.6-9h10.8l3.6 9h9L32 12Zm0 15.5L36 37h-8l4-9.5Z" fill="#fff"/>
+</svg>

@@ -3,6 +3,7 @@
 use axum::body::Body;
 use axum::http::{header, Method, Request, StatusCode};
 use http_body_util::BodyExt;
+use serde_json::{json, Value};
 use std::sync::Once;
 use tower::ServiceExt;
 
@@ -26,169 +27,446 @@ fn setup() {
     });
 }
 
-async fn call(req: Request<Body>) -> (StatusCode, String, Option<String>) {
+struct Resp {
+    status: StatusCode,
+    body: String,
+    ctype: Option<String>,
+    headers: axum::http::HeaderMap,
+}
+
+impl Resp {
+    fn json(&self) -> Value {
+        serde_json::from_str(&self.body)
+            .unwrap_or_else(|e| panic!("JSON invalide ({e}) : {}", self.body))
+    }
+}
+
+async fn call(app: axum::Router, req: Request<Body>) -> Resp {
     setup();
-    let res = alpharust::gui::router(3000).oneshot(req).await.unwrap();
+    let res = app.oneshot(req).await.unwrap();
     let status = res.status();
-    let ctype = res
-        .headers()
+    let headers = res.headers().clone();
+    let ctype = headers
         .get(header::CONTENT_TYPE)
         .map(|v| v.to_str().unwrap().to_string());
     let body = res.into_body().collect().await.unwrap().to_bytes();
-    (status, String::from_utf8_lossy(&body).into_owned(), ctype)
+    Resp {
+        status,
+        body: String::from_utf8_lossy(&body).into_owned(),
+        ctype,
+        headers,
+    }
 }
 
-async fn get(uri: &str) -> (StatusCode, String, Option<String>) {
-    call(Request::get(uri).body(Body::empty()).unwrap()).await
+fn app() -> axum::Router {
+    setup();
+    alpharust::gui::router(3000)
 }
 
-fn post(uri: &str, body: &str, origin: Option<&str>) -> Request<Body> {
+async fn get(uri: &str) -> Resp {
+    call(app(), Request::get(uri).body(Body::empty()).unwrap()).await
+}
+
+fn post_req(uri: &str, body: &Value, origin: Option<&str>) -> Request<Body> {
     let mut b = Request::builder()
         .method(Method::POST)
         .uri(uri)
-        .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded");
+        .header(header::CONTENT_TYPE, "application/json");
     if let Some(o) = origin {
         b = b.header(header::ORIGIN, o);
     }
     b.body(Body::from(body.to_string())).unwrap()
 }
 
+async fn post(uri: &str, body: &Value) -> Resp {
+    call(app(), post_req(uri, body, Some("http://127.0.0.1:3000"))).await
+}
+
 #[tokio::test]
-async fn dashboard_lists_stats_and_navigation() {
-    let (status, html, _) = get("/").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(
-        html.contains("AlphaRust")
-            && html.contains("règles")
-            && html.contains("checkers sémantiques")
-    );
-    for link in ["/rules", "/generate", "/lint", "/checkers"] {
-        assert!(
-            html.contains(&format!("href=\"{}\"", link)),
-            "lien {} absent",
-            link
-        );
+async fn index_is_a_self_contained_accessible_spa() {
+    let r = get("/").await;
+    assert_eq!(r.status, StatusCode::OK);
+    for needle in [
+        "lang=\"fr\"",
+        "/assets/app.js",
+        "/assets/app.css",
+        "skip-link",
+        "<main id=\"main\"",
+        "aria-label=\"Navigation principale\"",
+    ] {
+        assert!(r.body.contains(needle), "index sans `{needle}`");
     }
-    assert!(html.contains("strict"), "profils listés");
-}
-
-#[tokio::test]
-async fn rules_page_filters_and_detail() {
-    let (_, all, _) = get("/rules").await;
-    assert!(all.contains("core/no-eval") && all.contains("domains/cloud/aws-access-key-id"));
-    let (_, filtered, _) = get("/rules?q=stripe").await;
-    assert!(filtered.contains("stripe-secret-key-env") || filtered.contains("payments/stripe"));
-    assert!(!filtered.contains("core/no-eval"));
-    let (_, errors, _) = get("/rules?severity=info").await;
-    assert!(!errors.contains("core/no-eval"), "no-eval est une erreur");
-    let (status, detail, _) = get("/rule?id=core/no-eval").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(detail.contains("Pattern") && detail.contains("eval"));
-    let (status, _, _) = get("/rule?id=../../etc/passwd").await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-}
-
-#[tokio::test]
-async fn lint_page_shows_real_results() {
-    let (status, html, _) = get("/lint?path=tests/fixtures/violations&profile=core").await;
-    assert_eq!(status, StatusCode::OK);
+    let csp = r.headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
+    assert!(csp.contains("default-src 'self'") && csp.contains("script-src 'self'"));
     assert!(
-        html.contains("violation(s)")
-            && html.contains("core/no-eval")
-            && html.contains("badge error")
+        !r.body.contains("http://") && !r.body.contains("https://"),
+        "aucune ressource externe"
     );
-    let (_, clean, _) = get("/lint?path=tests/fixtures/clean").await;
-    assert!(clean.contains("Aucune violation"));
-    let (_, bad, _) = get("/lint?path=/inexistant").await;
-    assert!(bad.contains("introuvable"));
-    let (_, form, _) = get("/lint").await;
-    assert!(form.contains("<form") && form.contains("Lancer le lint"));
+    assert_eq!(r.headers["x-frame-options"], "DENY");
 }
 
 #[tokio::test]
-async fn api_endpoints_return_json_and_sarif() {
-    let (status, body, ctype) =
-        get("/api/lint?path=tests/fixtures/violations&profile=strict").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(ctype.unwrap().contains("json"));
-    let json: serde_json::Value = serde_json::from_str(&body).unwrap();
-    assert!(json["violations"].as_array().unwrap().len() > 5);
-    let (_, body, ctype) = get("/api/sarif?path=tests/fixtures/violations&profile=core").await;
-    assert!(ctype.unwrap().contains("sarif"));
+async fn assets_are_embedded_and_never_use_innerhtml() {
+    let js = get("/assets/app.js").await;
+    assert_eq!(js.status, StatusCode::OK);
+    assert!(js.ctype.unwrap().starts_with("text/javascript"));
+    for banned in [
+        "innerHTML",
+        "outerHTML",
+        "insertAdjacentHTML",
+        "document.write",
+        "eval(",
+    ] {
+        assert!(!js.body.contains(banned), "app.js contient `{banned}`");
+    }
+    assert!(js.body.contains("EventSource"), "flux SSE côté client");
+    let css = get("/assets/app.css").await;
+    assert!(css.ctype.unwrap().starts_with("text/css"));
+    for needle in [
+        "prefers-reduced-motion",
+        "[data-theme=\"light\"]",
+        "@media (max-width: 860px)",
+        ":focus-visible",
+    ] {
+        assert!(css.body.contains(needle), "css sans `{needle}`");
+    }
+    assert_eq!(get("/favicon.svg").await.status, StatusCode::OK);
+    assert_eq!(get("/healthz").await.body, "ok");
+    assert_eq!(get("/nope").await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn meta_describes_frameworks_and_options() {
+    let m = get("/api/meta").await.json();
+    assert_eq!(m["rules"], 97);
+    assert_eq!(m["checkers"], 15);
+    assert!(m["profiles"].as_array().unwrap().len() >= 8);
+    let fws = m["frameworks"].as_array().unwrap();
+    let ids: Vec<&str> = fws.iter().map(|f| f["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["astro", "laravel", "wagtail", "rust"]);
+    let astro = &fws[0]["options"];
+    let ints: Vec<&str> = astro["integrations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_str().unwrap())
+        .collect();
+    for i in ["tailwind", "mdx", "sitemap", "react", "vue", "svelte"] {
+        assert!(ints.contains(&i), "{i}");
+    }
     assert_eq!(
-        serde_json::from_str::<serde_json::Value>(&body).unwrap()["version"],
-        "2.1.0"
+        astro["package_manager"],
+        json!(["npm", "pnpm", "yarn", "bun"])
     );
-    let (_, body, _) = get("/api/rules").await;
-    assert!(
-        serde_json::from_str::<serde_json::Value>(&body)
-            .unwrap()
+    assert_eq!(astro["typescript"], json!(["base", "strict", "strictest"]));
+}
+
+#[tokio::test]
+async fn doctor_reports_every_toolchain() {
+    let d = get("/api/doctor").await.json();
+    assert_eq!(d.as_array().unwrap().len(), 4);
+    for f in d.as_array().unwrap() {
+        assert!(f["tools"]
             .as_array()
             .unwrap()
-            .len()
-            >= 90
-    );
-    let (status, _, _) = get("/api/lint?path=/inexistant").await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(get("/healthz").await.1, "ok");
-}
-
-#[tokio::test]
-async fn html_is_escaped() {
-    let (_, html, _) = get("/lint?path=%3Cscript%3Ealert(1)%3C/script%3E").await;
-    assert!(!html.contains("<script>alert(1)"), "injection non échappée");
-    assert!(html.contains("&lt;script&gt;"));
-    let (_, html, _) = get("/rules?q=%22%3E%3Cimg%20src=x%3E").await;
-    assert!(!html.contains("\"><img src=x>"));
-}
-
-#[tokio::test]
-async fn generate_creates_projects_and_validates_input() {
-    let (_, form, _) = get("/generate").await;
-    assert!(form.contains("Wagtail") && form.contains("Astro") && form.contains("Laravel"));
-
-    let (status, html, _) = call(post(
-        "/generate",
-        "kind=astro&name=gui-demo",
-        Some("http://127.0.0.1:3000"),
-    ))
-    .await;
-    assert_eq!(status, StatusCode::OK, "{}", html);
-    assert!(html.contains("créé dans sites/gui-demo") && html.contains("package.json"));
-    assert!(alpharust::paths::sites_dir()
-        .join("gui-demo/package.json")
-        .exists());
-
-    let (status, html, _) = call(post("/generate", "kind=astro&name=gui-demo", None)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(html.contains("existe déjà"));
-
-    let (status, html, _) = call(post("/generate", "kind=astro&name=..%2Fevil", None)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(html.contains("invalide"));
-    assert!(!alpharust::paths::sites_dir().join("../evil").exists());
-
-    let (status, _, _) = call(post("/generate", "kind=nope&name=x", None)).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-
-    let (status, _, _) = call(post(
-        "/generate",
-        "kind=astro&name=csrf",
-        Some("http://evil.example"),
-    ))
-    .await;
-    assert_eq!(status, StatusCode::FORBIDDEN);
-    assert!(!alpharust::paths::sites_dir().join("csrf").exists());
-
-    let (_, listing, _) = get("/generate").await;
-    assert!(listing.contains("sites/gui-demo"));
-}
-
-#[tokio::test]
-async fn checkers_page_lists_all_checkers() {
-    let (_, html, _) = get("/checkers").await;
-    for (name, _) in alpharust::checkers::catalog() {
-        assert!(html.contains(name), "{} absent", name);
+            .iter()
+            .any(|t| t["required"] == true));
+        assert!(f["ready"].is_boolean());
     }
-    assert!(html.contains("languages/rust/no-unsafe"));
+    let one = get("/api/doctor?framework=rust").await.json();
+    assert_eq!(one.as_array().unwrap().len(), 1);
+    assert_eq!(
+        get("/api/doctor?framework=cobol").await.status,
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[tokio::test]
+async fn plan_previews_official_commands_and_validates() {
+    let ok = post(
+        "/api/plan",
+        &json!({"name":"vitrine","framework":"astro","package_manager":"pnpm","integrations":["tailwind","sitemap"],"site":"https://exemple.com","typescript":"strictest"}),
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::OK, "{}", ok.body);
+    let p = ok.json();
+    let cmds: Vec<&str> = p["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["command"].as_str())
+        .collect();
+    assert!(
+        cmds.iter()
+            .any(|c| c.starts_with("pnpm create astro@latest vitrine")),
+        "{cmds:?}"
+    );
+    assert!(
+        cmds.iter()
+            .any(|c| c.contains("astro add tailwind sitemap --yes")),
+        "{cmds:?}"
+    );
+    assert!(
+        p["preview"].as_str().unwrap().contains("create-astro")
+            || p["preview"].as_str().unwrap().contains("create astro")
+    );
+    assert!(p["tools"].as_array().unwrap().len() >= 3);
+    assert!(p["target"].as_str().unwrap().ends_with("sites/vitrine"));
+
+    // règles de compatibilité
+    let bad = post(
+        "/api/plan",
+        &json!({"name":"x","framework":"astro","integrations":["sitemap"]}),
+    )
+    .await;
+    assert_eq!(bad.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(bad.json()["error"].as_str().unwrap().contains("sitemap"));
+    let two = post(
+        "/api/plan",
+        &json!({"name":"x","framework":"astro","integrations":["react","vue"]}),
+    )
+    .await;
+    assert_eq!(two.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let name = post("/api/plan", &json!({"name":"../evil","framework":"rust"})).await;
+    assert_eq!(name.status, StatusCode::UNPROCESSABLE_ENTITY);
+    let lv = post(
+        "/api/plan",
+        &json!({"name":"x","framework":"laravel","dark":true}),
+    )
+    .await;
+    assert_eq!(lv.status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn client_cannot_choose_the_destination() {
+    let r = post(
+        "/api/plan",
+        &json!({"name":"jail","framework":"rust","path":"/etc/evil"}),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK);
+    let target = r.json()["target"].as_str().unwrap().to_string();
+    assert!(target.ends_with("sites/jail"), "{target}");
+}
+
+#[tokio::test]
+async fn post_requires_a_local_origin() {
+    let body = json!({"name":"x","framework":"rust"});
+    for uri in ["/api/plan", "/api/jobs"] {
+        let r = call(app(), post_req(uri, &body, Some("http://evil.example"))).await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{uri}");
+    }
+    let mut req = post_req("/api/plan", &body, None);
+    req.headers_mut()
+        .insert(header::HOST, "evil.example:3000".parse().unwrap());
+    assert_eq!(
+        call(app(), req).await.status,
+        StatusCode::FORBIDDEN,
+        "DNS rebinding"
+    );
+    let cancel = call(
+        app(),
+        post_req(
+            "/api/jobs/abc/cancel",
+            &json!({}),
+            Some("http://evil.example"),
+        ),
+    )
+    .await;
+    assert_eq!(cancel.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        post("/api/jobs/zzz/cancel", &json!({})).await.status,
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[tokio::test]
+async fn rules_api_supports_listing_and_detail() {
+    let rules = get("/api/rules").await.json();
+    assert_eq!(rules.as_array().unwrap().len(), 97);
+    let first = &rules[0];
+    for k in [
+        "id", "name", "category", "severity", "apply", "kind", "message",
+    ] {
+        assert!(first.get(k).is_some(), "{k}");
+    }
+    let d = get("/api/rule?id=core/no-eval").await;
+    assert_eq!(d.status, StatusCode::OK);
+    let d = d.json();
+    assert_eq!(d["severity"], "error");
+    assert!(d["pattern"].is_string());
+    assert!(!d["examples"]["bad"].as_array().unwrap().is_empty());
+    assert_eq!(
+        get("/api/rule?id=nope/none").await.status,
+        StatusCode::NOT_FOUND
+    );
+    let c = get("/api/checkers").await.json();
+    assert_eq!(c.as_array().unwrap().len(), 15);
+}
+
+#[tokio::test]
+async fn lint_api_returns_counts_violations_and_sarif() {
+    let r = get("/api/lint?path=tests/fixtures/violations&profile=strict").await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.body);
+    let j = r.json();
+    assert!(j["counts"]["error"].as_u64().unwrap() >= 10);
+    assert!(j["files_scanned"].as_u64().unwrap() > 0);
+    let v = &j["violations"][0];
+    for k in ["file", "line", "rule", "rule_id", "message", "severity"] {
+        assert!(v.get(k).is_some(), "{k}");
+    }
+    let clean = get("/api/lint?path=tests/fixtures/clean&profile=strict")
+        .await
+        .json();
+    assert_eq!(clean["violations"].as_array().unwrap().len(), 0);
+
+    let s = get("/api/sarif?path=tests/fixtures/violations&profile=strict").await;
+    assert_eq!(s.ctype.as_deref(), Some("application/sarif+json"));
+    assert_eq!(s.json()["version"], "2.1.0");
+
+    for bad in ["/etc", "../../..", "/nonexistent/dir"] {
+        let r = get(&format!("/api/lint?path={bad}")).await;
+        assert_eq!(r.status, StatusCode::BAD_REQUEST, "{bad}");
+        assert!(r.json()["error"].is_string());
+    }
+    assert_eq!(
+        get("/api/lint?path=.&profile=nope").await.status,
+        StatusCode::BAD_REQUEST
+    );
+}
+
+/// Cycle complet d'un job : création, concurrence, flux SSE rejouable, historique, projets.
+/// Les jobs vivent dans l'état du routeur : un seul routeur (cloné) sert tout le scénario.
+#[tokio::test]
+async fn generation_job_streams_events_over_sse() {
+    let router = app();
+    let origin = Some("http://localhost:3000");
+    // un crate Rust sans installation ni vérification : `cargo new` + couche + manifeste + lint
+    let spec = |name: &str| json!({"name":name,"framework":"rust","install":false,"verify":false,"git":false});
+
+    let created = call(
+        router.clone(),
+        post_req("/api/jobs", &spec("sse-demo"), origin),
+    )
+    .await;
+    assert_eq!(created.status, StatusCode::ACCEPTED, "{}", created.body);
+    let job = created.json();
+    let id = job["id"].as_str().unwrap().to_string();
+    assert_eq!(job["framework"], "rust");
+    assert_eq!(job["status"], "running");
+
+    // concurrence : tant que le job tourne une 2e génération est refusée ; s'il est déjà fini elle est acceptée
+    let second = call(
+        router.clone(),
+        post_req("/api/jobs", &spec("sse-other"), origin),
+    )
+    .await;
+    assert!(
+        second.status == StatusCode::CONFLICT || second.status == StatusCode::ACCEPTED,
+        "{}",
+        second.status
+    );
+
+    // le flux se termine avec le job : on le lit en entier
+    let uri = format!("/api/jobs/{id}/events");
+    let events = call(
+        router.clone(),
+        Request::get(&uri).body(Body::empty()).unwrap(),
+    )
+    .await;
+    assert_eq!(events.status, StatusCode::OK);
+    assert!(events
+        .ctype
+        .as_deref()
+        .unwrap()
+        .starts_with("text/event-stream"));
+    let sse = events.body;
+    assert!(sse.contains("event: end"), "{sse}");
+    for t in ["plan", "step_start", "step_end", "log", "done"] {
+        assert!(
+            sse.contains(&format!("\"type\":\"{t}\"")),
+            "événement `{t}` absent : {sse}"
+        );
+    }
+    assert!(sse.contains("\"status\":\"succeeded\""), "{sse}");
+
+    // reprise : `?from=N` rejoue seulement la suite
+    let tail = call(
+        router.clone(),
+        Request::get(format!("{uri}?from=3"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert!(
+        !tail.body.contains("id: 0\n") && !tail.body.contains("id: 2\n"),
+        "{}",
+        tail.body
+    );
+    assert!(tail.body.contains("id: 3\n") && tail.body.contains("event: end"));
+    let resumed = call(
+        router.clone(),
+        Request::get(&uri)
+            .header("last-event-id", "3")
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert!(
+        !resumed.body.contains("id: 3\n") && resumed.body.contains("id: 4\n"),
+        "Last-Event-ID"
+    );
+
+    let list = call(
+        router.clone(),
+        Request::get("/api/jobs").body(Body::empty()).unwrap(),
+    )
+    .await
+    .json();
+    assert!(list
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|j| j["id"] == id.as_str() && j["status"] == "succeeded"));
+    let one = call(
+        router.clone(),
+        Request::get(format!("/api/jobs/{id}"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await
+    .json();
+    assert_eq!(one["status"], "succeeded");
+    assert!(one["elapsed_ms"].is_number());
+
+    let project = alpharust::paths::sites_dir().join("sse-demo");
+    assert!(
+        project.join("Cargo.toml").is_file(),
+        "cargo new a bien créé le crate"
+    );
+    assert!(project.join(".alpharust-project.json").is_file());
+    let projects = call(
+        router,
+        Request::get("/api/projects").body(Body::empty()).unwrap(),
+    )
+    .await
+    .json();
+    let p = projects["projects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "sse-demo")
+        .unwrap()
+        .clone();
+    assert_eq!(p["framework"], "rust");
+    assert_eq!(p["generated"], true);
+}
+
+#[tokio::test]
+async fn unknown_job_is_404() {
+    assert_eq!(get("/api/jobs/nope").await.status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        get("/api/jobs/nope/events").await.status,
+        StatusCode::NOT_FOUND
+    );
 }

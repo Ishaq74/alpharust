@@ -38,11 +38,13 @@ jobs:
           path: alpharust.sarif
 
   generated-projects:
-    name: projets générés (Wagtail · Astro · Laravel)
+    name: projets générés pour de vrai (Astro · Laravel · Wagtail · Rust)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-python@v5
         with:
@@ -50,32 +52,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
           extensions: mbstring, xml, curl, zip, sqlite3, pdo_sqlite
           tools: composer
-      - name: Générer les trois projets
-        run: |
-          cargo build --release
-          ./target/release/alpharust generate wagtail ci-wagtail
-          ./target/release/alpharust generate astro ci-astro
-          ./target/release/alpharust generate laravel ci-laravel
-      - name: Wagtail — migrations et tests
-        working-directory: sites/ci-wagtail
-        run: |
-          python -m pip install -r requirements.txt
-          python manage.py makemigrations --check --dry-run
-          python manage.py test
-      - name: Astro — build
-        working-directory: sites/ci-astro
-        run: |
-          npm install
-          npm run build
-      - name: Laravel — tests
-        working-directory: sites/ci-laravel
-        run: |
-          composer install --no-interaction --prefer-dist
-          cp .env.example .env
-          php artisan key:generate
-          php artisan test
+      - name: Outils détectés
+        run: cargo run --release -- doctor
+      - name: Générations réelles (create-astro, composer + Breeze, wagtail, cargo new)
+        env:
+          ALPHARUST_E2E: "1"
+        run: cargo test --release --test generators e2e -- --test-threads=1 --nocapture

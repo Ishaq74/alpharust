@@ -1,14 +1,22 @@
 //! Interface en ligne de commande.
 
 use crate::engine::{self, composer, reporter, validate};
-use crate::generators::{self, checks, docs, readme, Kind};
+use crate::generators::{checks, docs, readme};
 use crate::parser::{cache, Rule};
 use crate::profiles::Profile;
+use crate::scaffold::astro::{AstroOptions, PackageManager, Template, TsLevel};
+use crate::scaffold::laravel::{Database, LaravelOptions, Starter};
+use crate::scaffold::rust::{CrateKind, RustOptions};
+use crate::scaffold::wagtail::WagtailOptions;
+use crate::scaffold::{self, Event, Framework, Options, Request};
 use crate::{gui, paths, sarif, tui};
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
+
+mod progress;
+mod wizard;
 
 #[derive(Parser)]
 #[command(
@@ -61,23 +69,32 @@ enum Commands {
     },
     /// Valider toutes les règles, exemples et profils
     CheckRules,
-    /// Initialiser un projet Rust minimal dans sites/
-    Init {
-        name: String,
-        #[arg(short, long, help = "Chemin de destination (défaut: sites/<name>)")]
-        path: Option<PathBuf>,
-        #[arg(long, help = "Écraser un dossier existant non vide")]
-        force: bool,
+    /// Assistant interactif : questions guidées, aperçu des commandes, génération
+    New {
+        /// Nom du projet (sinon demandé)
+        name: Option<String>,
+        /// Framework (sinon demandé)
+        #[arg(value_enum, short, long)]
+        framework: Option<GeneratorKind>,
     },
-    /// Générer un projet framework dans sites/
+    /// Générer un projet avec les outils officiels (create-astro, composer, wagtail start, cargo new)
     Generate {
         #[arg(value_enum)]
-        kind: GeneratorKind,
+        framework: GeneratorKind,
         name: String,
-        #[arg(short, long, help = "Chemin de destination (défaut: sites/<name>)")]
-        path: Option<PathBuf>,
-        #[arg(long, help = "Écraser un dossier existant non vide")]
-        force: bool,
+        #[command(flatten)]
+        opts: GenOpts,
+    },
+    /// Initialiser un projet Rust (alias de `generate rust`)
+    Init {
+        name: String,
+        #[command(flatten)]
+        opts: GenOpts,
+    },
+    /// Vérifier les outils installés (node, npm/pnpm/yarn/bun, php, composer, python, cargo, git)
+    Doctor {
+        #[arg(value_enum, short, long)]
+        framework: Option<GeneratorKind>,
     },
     /// Générer un README
     Readme { name: String },
@@ -121,9 +138,354 @@ impl Severity {
 
 #[derive(ValueEnum, Clone, Copy)]
 enum GeneratorKind {
-    Wagtail,
     Astro,
     Laravel,
+    Wagtail,
+    Rust,
+}
+
+impl GeneratorKind {
+    fn framework(self) -> Framework {
+        match self {
+            GeneratorKind::Astro => Framework::Astro,
+            GeneratorKind::Laravel => Framework::Laravel,
+            GeneratorKind::Wagtail => Framework::Wagtail,
+            GeneratorKind::Rust => Framework::Rust,
+        }
+    }
+}
+
+/// Options de génération (communes + propres à chaque framework).
+#[derive(clap::Args, Clone, Default)]
+struct GenOpts {
+    #[arg(short, long, help = "Dossier du projet (défaut : sites/<name>)")]
+    path: Option<PathBuf>,
+    #[arg(
+        long,
+        help = "Remplacer un projet AlphaRust existant (jamais un dossier étranger)"
+    )]
+    force: bool,
+    #[arg(long, help = "Ne pas installer les dépendances")]
+    no_install: bool,
+    #[arg(long, help = "Ne pas vérifier le résultat (build, tests, lint)")]
+    no_verify: bool,
+    #[arg(long, help = "Pas de dépôt Git")]
+    no_git: bool,
+    #[arg(long, help = "Afficher le plan exact (commandes) sans rien exécuter")]
+    dry_run: bool,
+    #[arg(long, help = "Événements en JSON (une ligne par événement) sur stdout")]
+    json: bool,
+    #[arg(short, long, help = "Afficher toutes les lignes de journal")]
+    verbose: bool,
+    // — Astro —
+    #[arg(
+        long,
+        value_name = "npm|pnpm|yarn|bun",
+        help = "[astro] gestionnaire de paquets"
+    )]
+    pm: Option<String>,
+    #[arg(
+        long,
+        value_name = "alpharust|minimal|basics|blog",
+        help = "[astro] template"
+    )]
+    template: Option<String>,
+    #[arg(
+        long = "ts",
+        value_name = "base|strict|strictest",
+        help = "[astro] niveau TypeScript"
+    )]
+    typescript: Option<String>,
+    #[arg(
+        short = 'i',
+        long = "integration",
+        value_delimiter = ',',
+        help = "[astro] intégrations : tailwind, mdx, sitemap, react, vue, svelte"
+    )]
+    integrations: Vec<String>,
+    #[arg(
+        long,
+        help = "[astro] URL publique du site (requise par sitemap et blog)"
+    )]
+    site: Option<String>,
+    #[arg(long, help = "[astro] ne pas installer @astrojs/check")]
+    no_typecheck: bool,
+    // — Laravel —
+    #[arg(
+        long,
+        value_name = "none|breeze-blade|breeze-livewire|breeze-react|breeze-vue|breeze-api",
+        help = "[laravel] kit de démarrage"
+    )]
+    starter: Option<String>,
+    #[arg(long, help = "[laravel] Breeze en mode sombre")]
+    dark: bool,
+    #[arg(long, help = "[laravel] Pest au lieu de PHPUnit (Breeze)")]
+    pest: bool,
+    #[arg(
+        long,
+        value_name = "sqlite|mysql|pgsql",
+        help = "[laravel] base de données"
+    )]
+    db: Option<String>,
+    #[arg(long, help = "[laravel] npm install && npm run build même sans kit")]
+    frontend: bool,
+    // — Wagtail —
+    #[arg(
+        long = "package",
+        value_delimiter = ',',
+        help = "[wagtail] paquets pip supplémentaires"
+    )]
+    packages: Vec<String>,
+    #[arg(long, help = "[wagtail] ne pas exécuter migrate")]
+    no_migrate: bool,
+    // — Rust —
+    #[arg(long, value_name = "bin|lib", help = "[rust] type de crate")]
+    kind: Option<String>,
+    #[arg(long, value_name = "2018|2021|2024", help = "[rust] édition")]
+    edition: Option<String>,
+    #[arg(
+        long = "dep",
+        value_delimiter = ',',
+        help = "[rust] dépendances (cargo add) : clap, anyhow, serde…"
+    )]
+    deps: Vec<String>,
+}
+
+fn parse_opt<T>(
+    label: &str,
+    v: &Option<String>,
+    f: impl Fn(&str) -> Option<T>,
+    choices: &str,
+) -> Result<Option<T>> {
+    match v {
+        None => Ok(None),
+        Some(s) => f(s).map(Some).ok_or_else(|| {
+            anyhow::anyhow!("valeur invalide pour {label} : `{s}` (attendu : {choices})")
+        }),
+    }
+}
+
+/// Construit la demande depuis les flags ; refuse les options d'un autre framework.
+fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request> {
+    let mut foreign: Vec<&str> = Vec::new();
+    let astro_set = o.pm.is_some()
+        || o.template.is_some()
+        || o.typescript.is_some()
+        || !o.integrations.is_empty()
+        || o.site.is_some()
+        || o.no_typecheck;
+    let laravel_set = o.starter.is_some() || o.dark || o.pest || o.db.is_some() || o.frontend;
+    let wagtail_set = !o.packages.is_empty() || o.no_migrate;
+    let rust_set = o.kind.is_some() || o.edition.is_some() || !o.deps.is_empty();
+    if astro_set && framework != Framework::Astro {
+        foreign.push("astro (--pm, --template, --ts, --integration, --site, --no-typecheck)");
+    }
+    if laravel_set && framework != Framework::Laravel {
+        foreign.push("laravel (--starter, --dark, --pest, --db, --frontend)");
+    }
+    if wagtail_set && framework != Framework::Wagtail {
+        foreign.push("wagtail (--package, --no-migrate)");
+    }
+    if rust_set && framework != Framework::Rust {
+        foreign.push("rust (--kind, --edition, --dep)");
+    }
+    if !foreign.is_empty() {
+        bail!(
+            "options propres à un autre framework que {} : {}",
+            framework.id(),
+            foreign.join(" ; ")
+        );
+    }
+    let mut req = Request::new(framework, name);
+    req.path = o.path.clone();
+    req.force = o.force;
+    req.install = !o.no_install;
+    req.verify = !o.no_verify;
+    req.git = !o.no_git;
+    req.options = match framework {
+        Framework::Astro => {
+            let mut a = AstroOptions::default();
+            if let Some(v) =
+                parse_opt("--pm", &o.pm, PackageManager::parse, "npm, pnpm, yarn, bun")?
+            {
+                a.package_manager = v;
+            }
+            if let Some(v) = parse_opt(
+                "--template",
+                &o.template,
+                Template::parse,
+                "alpharust, minimal, basics, blog",
+            )? {
+                a.template = v;
+            }
+            if let Some(v) = parse_opt(
+                "--ts",
+                &o.typescript,
+                TsLevel::parse,
+                "base, strict, strictest",
+            )? {
+                a.typescript = v;
+            }
+            a.integrations = o.integrations.clone();
+            a.site = o.site.clone();
+            a.typecheck = !o.no_typecheck;
+            Options::Astro(a)
+        }
+        Framework::Laravel => {
+            let mut l = LaravelOptions::default();
+            if let Some(v) = parse_opt(
+                "--starter",
+                &o.starter,
+                Starter::parse,
+                "none, breeze-blade, breeze-livewire, breeze-react, breeze-vue, breeze-api",
+            )? {
+                l.starter = v;
+            }
+            if let Some(v) = parse_opt("--db", &o.db, Database::parse, "sqlite, mysql, pgsql")? {
+                l.database = v;
+            }
+            l.dark = o.dark;
+            l.pest = o.pest;
+            l.frontend = o.frontend;
+            Options::Laravel(l)
+        }
+        Framework::Wagtail => Options::Wagtail(WagtailOptions {
+            packages: o.packages.clone(),
+            migrate: !o.no_migrate,
+        }),
+        Framework::Rust => {
+            let kind = match o.kind.as_deref() {
+                None | Some("bin") => CrateKind::Bin,
+                Some("lib") => CrateKind::Lib,
+                Some(other) => {
+                    bail!("valeur invalide pour --kind : `{other}` (attendu : bin, lib)")
+                }
+            };
+            Options::Rust(RustOptions {
+                kind,
+                edition: o.edition.clone(),
+                deps: o.deps.clone(),
+            })
+        }
+    };
+    req.validate()?;
+    Ok(req)
+}
+
+/// Aperçu (dry-run) ou exécution d'une demande. Renvoie le code de sortie.
+fn run_scaffold(req: &Request, dry_run: bool, json: bool, verbose: bool) -> Result<i32> {
+    let plan = scaffold::plan(req)?;
+    if dry_run {
+        let tools = scaffold::preflight(req);
+        if json {
+            emit(&format!(
+                "{}\n",
+                serde_json::to_string(&serde_json::json!({
+                    "tools": tools,
+                    "steps": plan.infos(),
+                    "target": plan.target.display().to_string(),
+                }))?
+            ));
+        } else {
+            let printer = progress::Printer::new(false);
+            emit(&format!(
+                "Outils détectés\n{}\n{}",
+                printer.tools(&tools),
+                plan.preview()
+            ));
+        }
+        let ok = scaffold::preflight_check(&tools).is_ok();
+        if !ok && !json {
+            emit("\n⚠ Des outils requis manquent : la génération échouerait (voir ci-dessus).\n");
+        }
+        return Ok(if ok { 0 } else { 1 });
+    }
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    // le projet n'est "partiel" que si une étape après le contrôle de la destination a démarré
+    let touched = std::cell::Cell::new(false);
+    let result = if json {
+        scaffold::execute(
+            req,
+            &mut |ev: Event| {
+                if matches!(&ev, Event::StepStart { index, .. } if *index > 0) {
+                    touched.set(true);
+                }
+                if let Ok(line) = serde_json::to_string(&ev) {
+                    emit(&format!("{line}\n"));
+                }
+            },
+            &cancel,
+        )
+    } else {
+        let mut printer = progress::Printer::new(verbose);
+        scaffold::execute(
+            req,
+            &mut |ev: Event| {
+                if matches!(&ev, Event::StepStart { index, .. } if *index > 0) {
+                    touched.set(true);
+                }
+                printer.handle(&ev)
+            },
+            &cancel,
+        )
+    };
+    match result {
+        Ok(report) => {
+            if !json {
+                let mut out = format!("\n{}\n", report.summary());
+                if let Some(l) = &report.lint {
+                    out.push_str(&format!(
+                        "Lint AlphaRust : {} erreur(s), {} avertissement(s), {} info(s) sur {} fichier(s)\n",
+                        l.errors, l.warnings, l.infos, l.files
+                    ));
+                }
+                out.push_str("\nSuite :\n");
+                for s in &report.next_steps {
+                    out.push_str(&format!("  {s}\n"));
+                }
+                emit(&out);
+            }
+            Ok(0)
+        }
+        Err(_) => {
+            // le message a déjà été affiché par l'événement `Failed`
+            if !json && touched.get() {
+                eprintln!(
+                    "Le projet partiel reste dans {} pour analyse (relancer avec --force pour le remplacer).",
+                    plan.target.display()
+                );
+            }
+            Ok(1)
+        }
+    }
+}
+
+fn doctor(framework: Option<Framework>) -> i32 {
+    let frameworks: Vec<Framework> = framework
+        .map(|f| vec![f])
+        .unwrap_or_else(|| Framework::ALL.to_vec());
+    let printer = progress::Printer::new(false);
+    let mut all_ok = true;
+    for f in frameworks {
+        let req = Request::new(f, "doctor");
+        let tools = scaffold::preflight(&req);
+        let ready = scaffold::preflight_check(&tools).is_ok();
+        all_ok &= ready;
+        emit(&format!(
+            "{} — {} ({})\n{}\n",
+            f.label(),
+            if ready { "prêt" } else { "outils manquants" },
+            f.official_tool(),
+            printer.tools(&tools)
+        ));
+    }
+    if all_ok {
+        0
+    } else if framework.is_some() {
+        1
+    } else {
+        0
+    }
 }
 
 #[derive(ValueEnum, Clone, Copy)]
@@ -141,20 +503,6 @@ fn emit(text: &str) {
         .is_err()
     {
         std::process::exit(0);
-    }
-}
-
-fn next_steps(kind: Kind, target: &std::path::Path) -> String {
-    let dir = target.display();
-    match kind {
-        Kind::Bootstrap => format!("Suite : cd {dir} && cargo test && cargo run"),
-        Kind::Wagtail => format!(
-            "Suite : cd {dir} && python -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt && python manage.py migrate && python manage.py runserver"
-        ),
-        Kind::Astro => format!("Suite : cd {dir} && npm install && npm run dev"),
-        Kind::Laravel => format!(
-            "Suite : cd {dir} && composer install && cp .env.example .env && php artisan key:generate && touch database/database.sqlite && php artisan migrate --seed && php artisan serve"
-        ),
     }
 }
 
@@ -245,43 +593,38 @@ pub async fn run() -> Result<i32> {
                 Ok(1)
             }
         }
-        Commands::Init { name, path, force } => {
-            let target = path.unwrap_or_else(|| generators::default_target(&name));
-            let g = generators::generate(Kind::Bootstrap, &target, &name, force)?;
-            emit(&format!(
-                "{}\n{}\n",
-                g.summary(),
-                next_steps(g.kind, &g.target)
-            ));
-            Ok(0)
+        Commands::New { name, framework } => {
+            use std::io::IsTerminal;
+            if !std::io::stdin().is_terminal() {
+                bail!("`alpharust new` est interactif et nécessite un terminal : utiliser `alpharust generate <framework> <nom> [options]`");
+            }
+            let req = wizard::ask(name, framework.map(GeneratorKind::framework))?;
+            if !wizard::confirm_plan(&req)? {
+                emit("Annulé.\n");
+                return Ok(0);
+            }
+            run_scaffold(&req, false, false, false)
         }
         Commands::Generate {
-            kind,
+            framework,
             name,
-            path,
-            force,
+            opts,
         } => {
-            let kind = match kind {
-                GeneratorKind::Wagtail => Kind::Wagtail,
-                GeneratorKind::Astro => Kind::Astro,
-                GeneratorKind::Laravel => Kind::Laravel,
-            };
-            let target = path.unwrap_or_else(|| generators::default_target(&name));
-            let g = generators::generate(kind, &target, &name, force)?;
-            emit(&format!(
-                "{}\n{}\n",
-                g.summary(),
-                next_steps(g.kind, &g.target)
-            ));
-            Ok(0)
+            let req = request_from(framework.framework(), &name, &opts)?;
+            run_scaffold(&req, opts.dry_run, opts.json, opts.verbose)
         }
+        Commands::Init { name, opts } => {
+            let req = request_from(Framework::Rust, &name, &opts)?;
+            run_scaffold(&req, opts.dry_run, opts.json, opts.verbose)
+        }
+        Commands::Doctor { framework } => Ok(doctor(framework.map(GeneratorKind::framework))),
         Commands::Readme { name } => {
-            generators::validate_name(&name)?;
+            crate::generators::validate_name(&name)?;
             emit(&readme::generate(&name));
             Ok(0)
         }
         Commands::Docs { name } => {
-            generators::validate_name(&name)?;
+            crate::generators::validate_name(&name)?;
             emit(&docs::generate(&name));
             Ok(0)
         }

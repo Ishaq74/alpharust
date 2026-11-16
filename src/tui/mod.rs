@@ -4,9 +4,9 @@
 //! et rendent dans un `TestBackend`.
 
 use crate::engine::{self, composer};
-use crate::generators::{self, Kind};
 use crate::parser::Rule;
 use crate::profiles::Profile;
+use crate::scaffold::{self, Event as ScEvent, Framework, Request};
 use anyhow::{bail, Result};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
@@ -23,26 +23,36 @@ use ratatui::{
 };
 use std::io::{self, IsTerminal};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Lint,
-    Generate(Kind),
+    Generate(Framework),
+    Doctor,
     ListRules,
     ListProfiles,
     ListCheckers,
     Quit,
 }
 
-pub const MENU: [(&str, Action); 9] = [
+pub const MENU: [(&str, Action); 10] = [
     ("Lint du répertoire courant", Action::Lint),
-    ("Générer un projet Wagtail", Action::Generate(Kind::Wagtail)),
-    ("Générer un projet Astro", Action::Generate(Kind::Astro)),
-    ("Générer un projet Laravel", Action::Generate(Kind::Laravel)),
     (
-        "Initialiser un projet Rust",
-        Action::Generate(Kind::Bootstrap),
+        "Générer un projet Astro",
+        Action::Generate(Framework::Astro),
     ),
+    (
+        "Générer un projet Laravel",
+        Action::Generate(Framework::Laravel),
+    ),
+    (
+        "Générer un projet Wagtail",
+        Action::Generate(Framework::Wagtail),
+    ),
+    ("Générer un projet Rust", Action::Generate(Framework::Rust)),
+    ("Vérifier les outils (doctor)", Action::Doctor),
     ("Lister les règles", Action::ListRules),
     ("Lister les profils", Action::ListProfiles),
     ("Lister les checkers", Action::ListCheckers),
@@ -70,7 +80,7 @@ pub enum Mode {
     Menu,
     /// Saisie du nom d'un projet à générer.
     Input {
-        kind: Kind,
+        kind: Framework,
         buffer: String,
     },
 }
@@ -85,6 +95,11 @@ pub struct App {
     /// Index du profil actif (`None` = toutes les règles).
     pub profile: Option<usize>,
     pub quit: bool,
+    /// Génération en cours : réception des événements du thread de travail.
+    pub job: Option<mpsc::Receiver<ScEvent>>,
+    pub cancel: Arc<AtomicBool>,
+    /// Le résultat suit la fin du journal (génération en direct).
+    pub follow: bool,
 }
 
 impl Default for App {
@@ -111,6 +126,9 @@ impl App {
             profiles: Profile::list().unwrap_or_default(),
             profile: None,
             quit: false,
+            job: None,
+            cancel: Arc::new(AtomicBool::new(false)),
+            follow: false,
         };
         app.output
             .push(line("Bienvenue dans AlphaRust", Level::Title));
@@ -134,6 +152,11 @@ impl App {
     fn set_output(&mut self, lines: Vec<OutLine>) {
         self.output = lines;
         self.scroll = 0;
+        self.follow = false;
+    }
+
+    pub fn running(&self) -> bool {
+        self.job.is_some()
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
@@ -171,8 +194,18 @@ impl App {
                     self.selected += 1;
                 }
             }
-            KeyCode::PageDown => self.scroll = self.scroll.saturating_add(8),
-            KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(8),
+            KeyCode::Char('x') if self.running() => {
+                self.cancel.store(true, Ordering::Relaxed);
+                self.status = "Annulation demandée…".into();
+            }
+            KeyCode::PageDown => {
+                self.follow = false;
+                self.scroll = self.scroll.saturating_add(8)
+            }
+            KeyCode::PageUp => {
+                self.follow = false;
+                self.scroll = self.scroll.saturating_sub(8)
+            }
             KeyCode::Char('p') => self.cycle_profile(),
             KeyCode::Enter => self.activate(MENU[self.selected].1),
             _ => {}
@@ -196,16 +229,17 @@ impl App {
             Action::Quit => self.quit = true,
             Action::Lint => self.lint(),
             Action::Generate(kind) => {
-                let default = match kind {
-                    Kind::Bootstrap => "rust-app".to_string(),
-                    k => format!("{}-site", k.label().to_lowercase()),
-                };
+                if self.running() {
+                    self.status = "Une génération est déjà en cours (x : annuler)".into();
+                    return;
+                }
                 self.mode = Mode::Input {
                     kind,
-                    buffer: default,
+                    buffer: format!("mon-{}", kind.id()),
                 };
                 self.status = "Nom du projet (Entrée : valider, Échap : annuler)".into();
             }
+            Action::Doctor => self.doctor(),
             Action::ListRules => self.list_rules(),
             Action::ListProfiles => self.list_profiles(),
             Action::ListCheckers => {
@@ -263,23 +297,175 @@ impl App {
         }
     }
 
-    fn generate(&mut self, kind: Kind, name: &str) {
-        let target = generators::default_target(name);
-        match generators::generate(kind, &target, name, false) {
-            Ok(g) => {
-                let mut out = vec![line(g.summary(), Level::Ok)];
-                out.extend(
-                    g.files
-                        .iter()
-                        .map(|f| line(format!("  + {}", f), Level::Normal)),
-                );
-                self.status = format!("{} généré dans sites/{}", kind.label(), name);
-                self.set_output(out);
+    fn doctor(&mut self) {
+        let mut out = vec![line("Outils installés", Level::Title)];
+        for f in Framework::ALL {
+            let tools = scaffold::preflight(&Request::new(f, "doctor"));
+            let ready = scaffold::preflight_check(&tools).is_ok();
+            out.push(line(
+                format!(
+                    "{} — {}",
+                    f.label(),
+                    if ready { "prêt" } else { "outils manquants" }
+                ),
+                if ready { Level::Ok } else { Level::Warning },
+            ));
+            for t in tools {
+                let mark = if t.ok {
+                    "✔"
+                } else if t.required {
+                    "✘"
+                } else {
+                    "○"
+                };
+                out.push(line(
+                    format!(
+                        "  {} {:<28} {}",
+                        mark,
+                        t.label,
+                        t.version.clone().unwrap_or_else(|| "—".into())
+                    ),
+                    if t.ok { Level::Normal } else { Level::Error },
+                ));
+                if !t.ok {
+                    out.push(line(format!("      → {}", t.hint), Level::Info));
+                }
             }
-            Err(e) => {
+        }
+        self.status = "Outils vérifiés".into();
+        self.set_output(out);
+    }
+
+    /// Lance la génération dans un thread ; les événements arrivent via [`App::poll_job`].
+    fn generate(&mut self, kind: Framework, name: &str) {
+        let req = Request::new(kind, name);
+        if let Err(e) = req.validate() {
+            self.status = "Génération en échec".into();
+            self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]);
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.cancel = Arc::new(AtomicBool::new(false));
+        let cancel = Arc::clone(&self.cancel);
+        std::thread::spawn(move || {
+            let tx2 = tx.clone();
+            let _ = scaffold::execute(
+                &req,
+                &mut |ev| {
+                    let _ = tx2.send(ev);
+                },
+                &cancel,
+            );
+        });
+        self.job = Some(rx);
+        self.follow = true;
+        self.scroll = 0;
+        self.output = vec![line(
+            format!("Génération {} « {} » (x : annuler)", kind.label(), name),
+            Level::Title,
+        )];
+        self.status = "Génération en cours…".into();
+    }
+
+    /// Vide le canal d'événements de la génération en cours.
+    pub fn poll_job(&mut self) {
+        let Some(rx) = &self.job else { return };
+        let mut events = Vec::new();
+        let mut closed = false;
+        loop {
+            match rx.try_recv() {
+                Ok(ev) => events.push(ev),
+                Err(mpsc::TryRecvError::Empty) => break,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    closed = true;
+                    break;
+                }
+            }
+        }
+        for ev in events {
+            self.apply_event(ev);
+        }
+        if closed {
+            self.job = None;
+        }
+    }
+
+    pub fn apply_event(&mut self, ev: ScEvent) {
+        match ev {
+            ScEvent::Preflight { tools } => {
+                for t in tools {
+                    let mark = if t.ok { "✔" } else { "✘" };
+                    self.output.push(line(
+                        format!("{} {} {}", mark, t.label, t.version.unwrap_or_default()),
+                        if t.ok { Level::Normal } else { Level::Error },
+                    ));
+                }
+            }
+            ScEvent::Plan { target, steps } => {
+                self.output.push(line(
+                    format!("{} étapes → {}", steps.len(), target),
+                    Level::Info,
+                ));
+            }
+            ScEvent::StepStart {
+                index,
+                total,
+                label,
+                command,
+                ..
+            } => {
+                self.status = format!("[{}/{}] {}", index + 1, total, label);
+                self.output.push(line(
+                    format!("▶ [{}/{}] {}", index + 1, total, label),
+                    Level::Title,
+                ));
+                if let Some(c) = command {
+                    self.output.push(line(format!("  $ {}", c), Level::Info));
+                }
+            }
+            ScEvent::Log { line: l, .. } => {
+                self.output.push(line(format!("  │ {}", l), Level::Normal));
+            }
+            ScEvent::StepEnd {
+                ok,
+                fatal,
+                millis,
+                note,
+                ..
+            } => {
+                let (mark, level) = if ok {
+                    ("✔", Level::Ok)
+                } else if fatal {
+                    ("✘", Level::Error)
+                } else {
+                    ("⚠", Level::Warning)
+                };
+                self.output.push(line(
+                    format!(
+                        "  {} {:.1}s {}",
+                        mark,
+                        millis as f64 / 1000.0,
+                        note.unwrap_or_default().lines().next().unwrap_or("")
+                    ),
+                    level,
+                ));
+            }
+            ScEvent::Done { report } => {
+                self.status = format!("Projet prêt : {}", report.target);
+                self.output.push(line(report.summary(), Level::Ok));
+                for s in &report.next_steps {
+                    self.output.push(line(format!("  {}", s), Level::Info));
+                }
+            }
+            ScEvent::Failed { message, .. } => {
                 self.status = "Génération en échec".into();
-                self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]);
+                self.output
+                    .push(line(format!("✘ {}", message), Level::Error));
             }
+        }
+        if self.output.len() > 3000 {
+            let extra = self.output.len() - 3000;
+            self.output.drain(..extra);
         }
     }
 
@@ -380,9 +566,15 @@ impl App {
                 Line::from(Span::styled(l.text.clone(), style))
             })
             .collect();
+        let inner_h = cols[1].height.saturating_sub(2) as usize;
+        let scroll = if self.follow {
+            lines.len().saturating_sub(inner_h).min(u16::MAX as usize) as u16
+        } else {
+            self.scroll
+        };
         f.render_widget(
             Paragraph::new(lines)
-                .scroll((self.scroll, 0))
+                .scroll((scroll, 0))
                 .wrap(Wrap { trim: false })
                 .block(Block::default().borders(Borders::ALL).title(" Résultat ")),
             cols[1],
@@ -390,7 +582,7 @@ impl App {
 
         let footer = match &self.mode {
             Mode::Menu => format!(
-                "↑↓ naviguer · Entrée choisir · p profil · PgUp/PgDn défiler · q quitter │ {}",
+                "↑↓ naviguer · Entrée choisir · p profil · PgUp/PgDn défiler · x annuler · q quitter │ {}",
                 self.status
             ),
             Mode::Input { kind, buffer } => format!(
@@ -427,6 +619,7 @@ pub fn run() -> Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
     let mut app = App::new();
     while !app.quit {
+        app.poll_job();
         terminal.draw(|f| app.draw(f))?;
         if event::poll(std::time::Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
@@ -524,7 +717,7 @@ mod tests {
     #[test]
     fn generate_prompts_then_rejects_bad_name() {
         let mut app = App::new();
-        app.activate(Action::Generate(Kind::Wagtail));
+        app.activate(Action::Generate(Framework::Wagtail));
         assert!(matches!(app.mode, Mode::Input { .. }));
         for _ in 0..40 {
             app.handle_key(key(KeyCode::Backspace));
@@ -542,9 +735,77 @@ mod tests {
     }
 
     #[test]
+    fn job_events_are_rendered_in_the_result_pane() {
+        use crate::scaffold::Phase;
+        let mut app = App::new();
+        let (tx, rx) = mpsc::channel();
+        app.job = Some(rx);
+        app.follow = true;
+        app.output.clear();
+        tx.send(ScEvent::StepStart {
+            index: 0,
+            total: 2,
+            id: "create".into(),
+            label: "Créer le projet".into(),
+            phase: Phase::Scaffold,
+            command: Some("npm create astro@latest demo".into()),
+        })
+        .unwrap();
+        tx.send(ScEvent::Log {
+            index: 0,
+            line: "Dependencies installed".into(),
+        })
+        .unwrap();
+        tx.send(ScEvent::StepEnd {
+            index: 0,
+            id: "create".into(),
+            ok: true,
+            fatal: true,
+            millis: 1500,
+            note: None,
+        })
+        .unwrap();
+        tx.send(ScEvent::Failed {
+            message: "boum".into(),
+            step: None,
+        })
+        .unwrap();
+        drop(tx);
+        assert!(app.running());
+        app.poll_job();
+        assert!(!app.running(), "le canal fermé termine la génération");
+        let text: Vec<&str> = app.output.iter().map(|l| l.text.as_str()).collect();
+        assert!(text.iter().any(|l| l.contains("[1/2] Créer le projet")));
+        assert!(text
+            .iter()
+            .any(|l| l.contains("$ npm create astro@latest demo")));
+        assert!(text.iter().any(|l| l.contains("Dependencies installed")));
+        assert!(text.iter().any(|l| l.contains("✔ 1.5s")));
+        assert!(text.iter().any(|l| l.contains("✘ boum")));
+        let screen = render_to_string(&app, 100, 24);
+        assert!(screen.contains("boum"), "{screen}");
+    }
+
+    #[test]
+    fn doctor_lists_tools_for_each_framework() {
+        let mut app = App::new();
+        app.activate(Action::Doctor);
+        let all: String = app
+            .output
+            .iter()
+            .map(|l| l.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for f in ["Astro", "Laravel", "Wagtail", "Rust"] {
+            assert!(all.contains(f), "{all}");
+        }
+        assert!(all.contains("Node.js") && all.contains("Cargo"));
+    }
+
+    #[test]
     fn escape_cancels_input() {
         let mut app = App::new();
-        app.activate(Action::Generate(Kind::Laravel));
+        app.activate(Action::Generate(Framework::Laravel));
         app.handle_key(key(KeyCode::Esc));
         assert_eq!(app.mode, Mode::Menu);
         assert!(!app.quit);
@@ -555,7 +816,7 @@ mod tests {
         let mut app = App::new();
         app.handle_key(key(KeyCode::Down));
         let screen = render_to_string(&app, 100, 24);
-        assert!(screen.contains("Générer un projet Wagtail"));
+        assert!(screen.contains("Générer un projet Astro"));
         assert!(screen.contains("Quitter"));
     }
 }

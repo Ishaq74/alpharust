@@ -1,245 +1,639 @@
-//! Les projets générés doivent être complets, sans marqueur résiduel, et passer leurs propres règles.
+//! Pipeline de génération : outils officiels (simulés ou réels) + couche de modèles + vérification.
+//!
+//! * Tests *hermétiques* : un faux `npm`/`node` (scripts shell dans un PATH jetable) joue le rôle de
+//!   `create-astro` ; on vérifie l'ordre des étapes, les correctifs (tsconfig, scripts, site), la couche
+//!   de modèles, le manifeste, le lint du résultat, les erreurs de pré-vérification et les garde-fous.
+//! * Tests *réels* (`ALPHARUST_E2E=1`) : de vraies générations avec create-astro, composer, wagtail, cargo.
+//!   Ils s'ignorent proprement (message) quand une chaîne d'outils manque.
+
+#![cfg(unix)]
 
 use alpharust::engine;
-use alpharust::generators::{self, Kind};
-use std::path::Path;
-use std::process::Command;
+use alpharust::scaffold::astro::{AstroOptions, PackageManager, Template, TsLevel};
+use alpharust::scaffold::laravel::{LaravelOptions, Starter};
+use alpharust::scaffold::wagtail::WagtailOptions;
+use alpharust::scaffold::{self, Event, Framework, Options, Report, Request};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
-fn generate(
-    kind: Kind,
-    name: &str,
-) -> (tempfile::TempDir, std::path::PathBuf, generators::Generated) {
+/// `PATH` est global au processus : les tests qui le modifient (ou en dépendent) sont sérialisés.
+static LOCK: Mutex<()> = Mutex::new(());
+static ORIGINAL_PATH: OnceLock<std::ffi::OsString> = OnceLock::new();
+
+fn lock() -> MutexGuard<'static, ()> {
+    let g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    ORIGINAL_PATH.get_or_init(|| std::env::var_os("PATH").unwrap_or_default());
+    std::env::set_var("ALPHARUST_NO_CACHE", "1");
+    g
+}
+
+fn set_path(shims: Option<&Path>) {
+    let orig = ORIGINAL_PATH.get().unwrap().clone();
+    match shims {
+        Some(dir) => {
+            let mut paths = vec![dir.to_path_buf()];
+            paths.extend(std::env::split_paths(&orig));
+            std::env::set_var("PATH", std::env::join_paths(paths).unwrap());
+        }
+        None => std::env::set_var("PATH", orig),
+    }
+}
+
+fn write_exe(dir: &Path, name: &str, body: &str) {
+    let p = dir.join(name);
+    std::fs::write(&p, format!("#!/bin/sh\n{body}\n")).unwrap();
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+/// Faux `node` + faux `npm` qui imitent `npm create astro@latest`, `astro add`, `npm install`, `npm run`.
+fn fake_astro_toolchain() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
-    let target = dir.path().join(name);
-    let g = generators::generate(kind, &target, name, false).unwrap();
-    (dir, target, g)
+    write_exe(dir.path(), "node", "echo v24.0.0");
+    write_exe(
+        dir.path(),
+        "npm",
+        r#"
+if [ "$1" = "--version" ]; then echo 11.0.0; exit 0; fi
+echo "npm $*" >> "$FAKE_NPM_LOG"
+case "$1" in
+  create)
+    d="$3"
+    mkdir -p "$d/src/pages" "$d/public"
+    printf '{\n  "name": "%s",\n  "type": "module",\n  "version": "0.0.1",\n  "scripts": {\n    "dev": "astro dev",\n    "build": "astro build",\n    "preview": "astro preview",\n    "astro": "astro"\n  },\n  "dependencies": {\n    "astro": "^5.0.0"\n  }\n}\n' "$d" > "$d/package.json"
+    printf '{\n  "extends": "astro/tsconfigs/strict",\n  "include": [".astro/types.d.ts", "**/*"],\n  "exclude": ["dist"]\n}\n' > "$d/tsconfig.json"
+    printf "import { defineConfig } from 'astro/config';\n\n// https://astro.build/config\nexport default defineConfig({});\n" > "$d/astro.config.mjs"
+    printf -- '---\n---\n<h1>Astro</h1>\n' > "$d/src/pages/index.astro"
+    printf 'node_modules\ndist\n.astro\n' > "$d/.gitignore"
+    printf '# official\n' > "$d/README.md"
+    echo '<svg xmlns="http://www.w3.org/2000/svg"/>' > "$d/public/favicon.svg"
+    echo "created $d"
+    ;;
+  exec) echo "astro add done" ;;
+  install) echo "installed" ;;
+  run) echo "ran $2" ;;
+esac
+exit 0
+"#,
+    );
+    dir
 }
 
-fn assert_no_markers(target: &Path, files: &[String]) {
-    for f in files {
-        assert!(!f.contains("@@"), "chemin non substitué : {}", f);
-        let content = std::fs::read_to_string(target.join(f)).unwrap();
-        assert!(!content.contains("@@"), "marqueur non substitué dans {}", f);
-    }
+fn run(req: &Request) -> (anyhow::Result<Report>, Vec<Event>) {
+    let mut events = Vec::new();
+    let cancel = AtomicBool::new(false);
+    let r = scaffold::execute(req, &mut |e| events.push(e), &cancel);
+    (r, events)
 }
 
-fn has_all(target: &Path, files: &[&str]) {
-    for f in files {
-        assert!(target.join(f).exists(), "{} manquant", f);
-    }
+fn astro_request(dir: &Path, name: &str, f: impl FnOnce(&mut AstroOptions)) -> Request {
+    let mut o = AstroOptions::default();
+    f(&mut o);
+    let mut req = Request::new(Framework::Astro, name);
+    req.path = Some(dir.join(name));
+    req.options = Options::Astro(o);
+    req
 }
 
-fn lint_clean(target: &Path, profile: &str) {
-    let report = engine::lint(target, Some(profile)).unwrap();
+fn step_ids(events: &[Event]) -> Vec<String> {
+    events
+        .iter()
+        .filter_map(|e| match e {
+            Event::StepStart { id, .. } => Some(id.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn read(p: &Path) -> String {
+    std::fs::read_to_string(p).unwrap_or_else(|e| panic!("{}: {e}", p.display()))
+}
+
+fn json(p: &Path) -> serde_json::Value {
+    serde_json::from_str(&read(p)).unwrap()
+}
+
+#[test]
+fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
+    let _g = lock();
+    let shims = fake_astro_toolchain();
+    let log = shims.path().join("npm.log");
+    std::env::set_var("FAKE_NPM_LOG", &log);
+    set_path(Some(shims.path()));
+
+    let out = tempfile::tempdir().unwrap();
+    let req = astro_request(out.path(), "vitrine", |o| {
+        o.integrations = vec!["tailwind".into(), "mdx".into(), "sitemap".into()];
+        o.site = Some("https://vitrine.example.com".into());
+        o.typescript = TsLevel::Strictest;
+    });
+    let (result, events) = run(&req);
+    set_path(None);
+    let report = result.unwrap_or_else(|e| panic!("{e:#}"));
+    let t = out.path().join("vitrine");
+
+    // 1. ordre des étapes : préparation → outil officiel → configuration → couche → vérifications
+    let ids = step_ids(&events);
+    assert_eq!(
+        ids,
+        [
+            "prepare",
+            "create",
+            "tsconfig",
+            "integrations",
+            "typecheck-deps",
+            "scripts",
+            "layer",
+            "site",
+            "manifest",
+            "check",
+            "build",
+            "lint",
+            "git"
+        ],
+        "{ids:?}"
+    );
+    assert!(matches!(events.first(), Some(Event::Preflight { .. })));
+    assert!(matches!(events.last(), Some(Event::Done { .. })));
+
+    // 2. les vraies commandes ont été lancées, dans l'ordre
+    let npm = read(&log);
+    let lines: Vec<&str> = npm.lines().collect();
+    assert!(lines[0].starts_with("npm create astro@latest vitrine -- --template minimal --install --no-git --no-ai --yes"), "{lines:?}");
     assert!(
-        report.violations.is_empty(),
-        "profil {} : {:#?}",
-        profile,
-        report.violations
+        lines[1].contains("exec -- astro add tailwind mdx sitemap --yes"),
+        "{lines:?}"
     );
-}
-
-#[test]
-fn wagtail_project_is_complete() {
-    let (_d, t, g) = generate(Kind::Wagtail, "mon-cms");
-    assert!(g.files.len() >= 20, "{} fichiers", g.files.len());
-    has_all(
-        &t,
-        &[
-            "manage.py",
-            "requirements.txt",
-            "README.md",
-            ".gitignore",
-            ".env.example",
-            "mon_cms/settings/base.py",
-            "mon_cms/settings/dev.py",
-            "mon_cms/settings/production.py",
-            "mon_cms/urls.py",
-            "mon_cms/wsgi.py",
-            "mon_cms/templates/base.html",
-            "home/models.py",
-            "home/migrations/0001_initial.py",
-            "home/migrations/0002_create_homepage.py",
-            "home/templates/home/home_page.html",
-            "home/tests.py",
-        ],
-    );
-    assert_no_markers(&t, &g.files);
-    assert!(std::fs::read_to_string(t.join("manage.py"))
-        .unwrap()
-        .contains("mon_cms.settings.dev"));
-    lint_clean(&t, "cms");
-    lint_clean(&t, "strict");
-}
-
-#[test]
-fn astro_project_is_complete() {
-    let (_d, t, g) = generate(Kind::Astro, "mon-astro");
-    has_all(
-        &t,
-        &[
-            "package.json",
-            "astro.config.mjs",
-            "tsconfig.json",
-            "src/content.config.ts",
-            "src/layouts/Layout.astro",
-            "src/pages/index.astro",
-            "src/pages/blog/[id].astro",
-            "src/content/blog/premier-article.md",
-            "README.md",
-            ".gitignore",
-        ],
-    );
-    assert_no_markers(&t, &g.files);
-    let pkg: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(t.join("package.json")).unwrap()).unwrap();
-    assert_eq!(pkg["name"], "mon-astro");
-    assert!(pkg["scripts"]["build"].is_string());
-    lint_clean(&t, "web");
-    lint_clean(&t, "strict");
-}
-
-#[test]
-fn laravel_project_is_complete() {
-    let (_d, t, g) = generate(Kind::Laravel, "mon-laravel");
-    has_all(
-        &t,
-        &[
-            "composer.json",
-            "artisan",
-            "bootstrap/app.php",
-            "public/index.php",
-            "routes/web.php",
-            "app/Http/Controllers/PageController.php",
-            "app/Models/Page.php",
-            "database/migrations/2026_01_01_000000_create_pages_table.php",
-            "resources/views/layouts/app.blade.php",
-            "tests/Feature/PageTest.php",
-            "phpunit.xml",
-            ".env.example",
-            "storage/logs/.gitignore",
-        ],
-    );
-    assert_no_markers(&t, &g.files);
-    let composer: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(t.join("composer.json")).unwrap()).unwrap();
-    assert_eq!(composer["name"], "app/mon-laravel");
-    lint_clean(&t, "web");
-    lint_clean(&t, "strict");
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        assert_ne!(
-            std::fs::metadata(t.join("artisan"))
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o111,
-            0,
-            "artisan exécutable"
-        );
-    }
-}
-
-#[test]
-fn bootstrap_project_builds_and_passes_its_tests() {
-    let (d, t, g) = generate(Kind::Bootstrap, "demo-app");
-    has_all(
-        &t,
-        &[
-            "Cargo.toml",
-            "src/main.rs",
-            "src/lib.rs",
-            "tests/smoke.rs",
-            "README.md",
-            "docs/index.md",
-            ".github/workflows/ci.yml",
-            "LICENSE",
-            ".alpharust.toml",
-        ],
-    );
-    assert_no_markers(&t, &g.files);
-    lint_clean(&t, "core");
-    lint_clean(&t, "starter");
-    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
-    let out = Command::new(cargo)
-        .args(["test", "--quiet"])
-        .current_dir(&t)
-        .env("CARGO_TARGET_DIR", d.path().join("target"))
-        .output()
-        .unwrap();
     assert!(
-        out.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
+        lines[2].contains("install -D @astrojs/check typescript@^6"),
+        "{lines:?}"
     );
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("test result: ok"), "{}", stdout);
-}
+    assert_eq!(lines[3], "npm run check");
+    assert_eq!(lines[4], "npm run build");
 
-#[test]
-fn generated_python_and_php_are_syntactically_valid() {
-    let (_d, w, _) = generate(Kind::Wagtail, "syn-check");
-    if let Ok(out) = Command::new("python3")
-        .args(["-m", "compileall", "-q", "."])
-        .current_dir(&w)
-        .output()
-    {
-        assert!(
-            out.status.success(),
-            "{}",
-            String::from_utf8_lossy(&out.stderr)
-        );
+    // 3. correctifs appliqués sur les fichiers officiels (pas de réécriture à la main)
+    assert_eq!(
+        json(&t.join("tsconfig.json"))["extends"],
+        "astro/tsconfigs/strictest"
+    );
+    assert_eq!(
+        json(&t.join("package.json"))["scripts"]["check"],
+        "astro check"
+    );
+    assert!(read(&t.join("astro.config.mjs")).contains("site: 'https://vitrine.example.com'"));
+
+    // 4. couche de modèles : fichiers ajoutés, fichiers officiels remplacés, marqueurs résolus
+    for f in [
+        "src/layouts/BaseLayout.astro",
+        "src/components/SEO.astro",
+        "src/components/ThemeToggle.astro",
+        "src/content.config.ts",
+        "src/content/blog/bienvenue.md",
+        "src/content/blog/exemple-mdx.mdx",
+        "src/pages/blog/[...slug].astro",
+        "src/styles/tokens.css",
+        ".alpharust.toml",
+        "docs/index.md",
+    ] {
+        assert!(t.join(f).is_file(), "{f} manquant");
     }
-    let (_d2, l, _) = generate(Kind::Laravel, "syn-check");
-    if Command::new("php")
-        .arg("-v")
-        .output()
-        .is_ok_and(|o| o.status.success())
-    {
-        for f in [
-            "artisan",
-            "routes/web.php",
-            "app/Models/Page.php",
-            "app/Http/Controllers/PageController.php",
-        ] {
-            let out = Command::new("php")
-                .args(["-l", f])
-                .current_dir(&l)
-                .output()
-                .unwrap();
-            assert!(
-                out.status.success(),
-                "{}: {}",
-                f,
-                String::from_utf8_lossy(&out.stdout)
-            );
+    assert!(
+        read(&t.join("src/pages/index.astro")).contains("BaseLayout"),
+        "index officiel remplacé"
+    );
+    assert!(
+        read(&t.join("src/styles/global.css")).starts_with("@import \"tailwindcss\""),
+        "tailwind en tête"
+    );
+    assert!(
+        read(&t.join(".gitignore")).contains("node_modules"),
+        "fichier officiel conservé"
+    );
+    for f in &report.files {
+        assert!(!f.contains("@@"), "chemin non résolu : {f}");
+        if let Ok(c) = std::fs::read_to_string(t.join(f)) {
+            assert!(!c.contains("@@"), "marqueur non résolu dans {f}");
         }
     }
-}
 
-#[test]
-fn names_are_sanitised_for_each_ecosystem() {
-    let (_d, t, _) = generate(Kind::Wagtail, "9-Mon.Site");
-    assert!(t.join("site_9_mon_site/settings/base.py").exists());
-    assert!(generators::generate(Kind::Astro, &_d.path().join("x"), "../x", false).is_err());
-}
-
-#[test]
-fn refuses_to_overwrite_without_force() {
-    let dir = tempfile::tempdir().unwrap();
-    let t = dir.path().join("p");
-    generators::generate(Kind::Astro, &t, "p", false).unwrap();
-    std::fs::write(t.join("package.json"), "MODIFIÉ").unwrap();
-    assert!(generators::generate(Kind::Astro, &t, "p", false).is_err());
+    // 5. manifeste, lint du résultat, rapport
+    let m = json(&t.join(".alpharust-project.json"));
+    assert_eq!(m["framework"], "astro");
+    assert_eq!(m["official_tool"], "create-astro");
     assert_eq!(
-        std::fs::read_to_string(t.join("package.json")).unwrap(),
-        "MODIFIÉ"
+        m["request"]["integrations"],
+        serde_json::json!(["tailwind", "mdx", "sitemap"])
     );
-    generators::generate(Kind::Astro, &t, "p", true).unwrap();
-    assert_ne!(
-        std::fs::read_to_string(t.join("package.json")).unwrap(),
-        "MODIFIÉ"
+    let lint = engine::lint(&t, None).unwrap();
+    assert_eq!(lint.count("error"), 0, "{:#?}", lint.violations);
+    assert!(report.ok && report.lint.as_ref().unwrap().errors == 0);
+    assert!(report.next_steps.iter().any(|s| s.contains("npm run dev")));
+    assert!(t.join(".git").is_dir(), "dépôt git initialisé");
+}
+
+#[test]
+fn astro_without_install_skips_installation_and_verification() {
+    let _g = lock();
+    let shims = fake_astro_toolchain();
+    let log = shims.path().join("npm.log");
+    std::env::set_var("FAKE_NPM_LOG", &log);
+    set_path(Some(shims.path()));
+    let out = tempfile::tempdir().unwrap();
+    let mut req = astro_request(out.path(), "lite", |o| o.template = Template::Minimal);
+    req.install = false;
+    req.git = false;
+    let (result, events) = run(&req);
+    set_path(None);
+    result.unwrap_or_else(|e| panic!("{e:#}"));
+    let ids = step_ids(&events);
+    assert!(
+        !ids.iter()
+            .any(|i| ["build", "check", "typecheck-deps", "integrations"].contains(&i.as_str())),
+        "{ids:?}"
     );
+    assert!(read(&log).contains("--no-install"));
+    assert!(!out.path().join("lite/.git").exists());
+}
+
+#[test]
+fn missing_toolchain_fails_early_with_install_hints() {
+    let _g = lock();
+    let empty = tempfile::tempdir().unwrap();
+    std::env::set_var("PATH", empty.path());
+    let out = tempfile::tempdir().unwrap();
+    let req = astro_request(out.path(), "nope", |_| {});
+    let (result, events) = run(&req);
+    let tools = scaffold::preflight(&req);
+    set_path(None);
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(
+        err.contains("Node.js") && err.contains("nodejs.org"),
+        "{err}"
+    );
+    assert!(matches!(events.last(), Some(Event::Failed { .. })));
+    assert!(
+        !out.path().join("nope").exists(),
+        "rien n'est créé quand un outil manque"
+    );
+    assert!(tools
+        .iter()
+        .any(|t| t.id == "node" && !t.found && !t.hint.is_empty()));
+    let ids = step_ids(&events);
+    assert!(ids.is_empty(), "aucune étape exécutée : {ids:?}");
+}
+
+#[test]
+fn failing_official_command_stops_the_pipeline_with_its_output() {
+    let _g = lock();
+    let shims = tempfile::tempdir().unwrap();
+    write_exe(shims.path(), "node", "echo v24.0.0");
+    write_exe(
+        shims.path(),
+        "npm",
+        r#"if [ "$1" = "--version" ]; then echo 11.0.0; exit 0; fi
+echo "npm ERR! network unreachable" >&2
+exit 7"#,
+    );
+    set_path(Some(shims.path()));
+    let out = tempfile::tempdir().unwrap();
+    let req = astro_request(out.path(), "broken", |_| {});
+    let (result, events) = run(&req);
+    set_path(None);
+    let err = format!("{:#}", result.unwrap_err());
+    assert!(err.contains("code 7") || err.contains("7"), "{err}");
+    assert!(
+        err.contains("network unreachable"),
+        "la sortie de l'outil est conservée : {err}"
+    );
+    let ids = step_ids(&events);
+    assert_eq!(
+        ids,
+        ["prepare", "create"],
+        "pas d'étape après l'échec : {ids:?}"
+    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, Event::Log { line, .. } if line.contains("network unreachable"))));
+}
+
+#[test]
+fn cancellation_stops_before_running_anything() {
+    let _g = lock();
+    let shims = fake_astro_toolchain();
+    std::env::set_var("FAKE_NPM_LOG", shims.path().join("npm.log"));
+    set_path(Some(shims.path()));
+    let out = tempfile::tempdir().unwrap();
+    let req = astro_request(out.path(), "cancelled", |_| {});
+    let cancel = AtomicBool::new(true);
+    let mut events = Vec::new();
+    let r = scaffold::execute(&req, &mut |e| events.push(e), &cancel);
+    set_path(None);
+    let err = format!("{:#}", r.unwrap_err());
+    assert!(err.to_lowercase().contains("annul"), "{err}");
+    assert!(
+        !shims.path().join("npm.log").exists(),
+        "aucune commande lancée"
+    );
+}
+
+#[test]
+fn force_only_replaces_projects_generated_by_alpharust() {
+    let _g = lock();
+    let shims = fake_astro_toolchain();
+    std::env::set_var("FAKE_NPM_LOG", shims.path().join("npm.log"));
+    set_path(Some(shims.path()));
+    let out = tempfile::tempdir().unwrap();
+
+    // dossier étranger non vide : refus, même avec --force, et rien n'est supprimé
+    let foreign = out.path().join("foreign");
+    std::fs::create_dir_all(&foreign).unwrap();
+    std::fs::write(foreign.join("precious.txt"), "à garder").unwrap();
+    let mut req = astro_request(out.path(), "foreign", |o| o.template = Template::Minimal);
+    req.install = false;
+    let (r, _) = run(&req);
+    assert!(format!("{:#}", r.unwrap_err()).contains("--force"));
+    req.force = true;
+    let (r, _) = run(&req);
+    let err = format!("{:#}", r.unwrap_err());
+    assert!(
+        err.contains("n'est pas un projet généré par AlphaRust"),
+        "{err}"
+    );
+    assert_eq!(read(&foreign.join("precious.txt")), "à garder");
+
+    // projet AlphaRust existant : refus sans --force, remplacement avec
+    let mut ok = astro_request(out.path(), "mine", |o| o.template = Template::Minimal);
+    ok.install = false;
+    ok.git = false;
+    run(&ok).0.unwrap_or_else(|e| panic!("{e:#}"));
+    std::fs::write(out.path().join("mine/stale.txt"), "x").unwrap();
+    assert!(run(&ok).0.is_err());
+    ok.force = true;
+    run(&ok).0.unwrap_or_else(|e| panic!("{e:#}"));
+    set_path(None);
+    assert!(
+        !out.path().join("mine/stale.txt").exists(),
+        "ancien contenu supprimé"
+    );
+}
+
+#[test]
+fn invalid_requests_are_rejected_before_any_work() {
+    let _g = lock();
+    for bad in ["../evil", "a/b", ".hidden", "..", "", "-rf", "x y"] {
+        let r = Request::new(Framework::Rust, bad);
+        assert!(r.validate().is_err(), "{bad:?}");
+    }
+    let mut r = Request::new(Framework::Wagtail, "cms");
+    r.install = false;
+    assert!(r
+        .validate()
+        .unwrap_err()
+        .to_string()
+        .contains("Wagtail exige l'installation"));
+    let mut r = astro_request(Path::new("/tmp"), "x", |o| {
+        o.integrations = vec!["sitemap".into()]
+    });
+    assert!(r.validate().unwrap_err().to_string().contains("--site"));
+    r = astro_request(Path::new("/tmp"), "x", |o| {
+        o.integrations = vec!["react".into(), "svelte".into()]
+    });
+    assert!(r.validate().is_err());
+    let mut lv = Request::new(Framework::Laravel, "x");
+    lv.options = Options::Laravel(LaravelOptions {
+        pest: true,
+        ..Default::default()
+    });
+    assert!(lv.validate().is_err(), "--pest sans kit");
+    lv.options = Options::Laravel(LaravelOptions {
+        starter: Starter::BreezeBlade,
+        pest: true,
+        ..Default::default()
+    });
+    assert!(lv.validate().is_ok());
+    let mut w = Request::new(Framework::Wagtail, "x");
+    w.options = Options::Wagtail(WagtailOptions {
+        packages: vec!["bad;rm -rf /".into()],
+        migrate: true,
+    });
+    assert!(w.validate().is_err(), "spécification pip invalide");
+}
+
+#[test]
+fn plans_are_pure_previews_and_never_touch_the_disk() {
+    let _g = lock();
+    let out = tempfile::tempdir().unwrap();
+    for f in Framework::ALL {
+        let mut req = Request::new(f, "preview");
+        req.path = Some(out.path().join("preview"));
+        let plan = scaffold::plan(&req).unwrap();
+        let text = plan.preview();
+        assert!(
+            text.contains(f.official_tool().split_whitespace().next().unwrap())
+                || text.contains(f.official_tool()),
+            "{f:?}: {text}"
+        );
+        assert!(plan.steps.len() >= 8, "{f:?}");
+        assert!(!out.path().join("preview").exists());
+    }
+    let mut req = astro_request(out.path(), "pm", |o| {
+        o.package_manager = PackageManager::Bun
+    });
+    req.install = true;
+    let p = scaffold::plan(&req).unwrap().preview();
+    assert!(p.contains("bun create astro@latest pm"), "{p}");
+}
+
+#[test]
+fn rust_project_is_created_by_cargo_new_and_verified_for_real() {
+    let _g = lock();
+    set_path(None);
+    if alpharust::scaffold::tools::which("cargo").is_none() {
+        eprintln!("cargo absent : test ignoré");
+        return;
+    }
+    let out = tempfile::tempdir().unwrap();
+    let mut req = Request::new(Framework::Rust, "vrai-crate");
+    req.path = Some(out.path().join("vrai-crate"));
+    // pas de dépendance réseau : on vérifie sans installer d'extras
+    let (result, events) = run(&req);
+    let report = result.unwrap_or_else(|e| panic!("{e:#}"));
+    let t = out.path().join("vrai-crate");
+    let ids = step_ids(&events);
+    assert_eq!(ids[1], "create");
+    assert!(t.join("Cargo.toml").is_file() && t.join("src/main.rs").is_file());
+    assert!(
+        read(&t.join("Cargo.toml")).contains("name = \"vrai-crate\""),
+        "généré par cargo new"
+    );
+    assert!(t.join("tests/smoke.rs").is_file() && t.join(".github/workflows/ci.yml").is_file());
+    assert!(ids.contains(&"test".to_string()));
+    assert!(
+        report.steps.iter().find(|s| s.id == "test").unwrap().ok,
+        "cargo test passe dans le projet généré"
+    );
+    assert_eq!(report.lint.as_ref().unwrap().errors, 0);
+    let fmt = report.steps.iter().find(|s| s.id == "fmt");
+    if let Some(f) = fmt {
+        assert!(f.ok, "cargo fmt --check : {:?}", f.note);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Générations réelles (ALPHARUST_E2E=1) : create-astro, composer, wagtail… avec réseau
+// ---------------------------------------------------------------------------
+
+fn e2e_enabled() -> bool {
+    std::env::var("ALPHARUST_E2E").is_ok_and(|v| v == "1")
+}
+
+/// Génère pour de vrai ; renvoie `None` (test ignoré) si une chaîne d'outils manque.
+fn e2e(req: Request) -> Option<(PathBuf, Report, tempfile::TempDir)> {
+    if !e2e_enabled() {
+        eprintln!("ALPHARUST_E2E != 1 : génération réelle ignorée");
+        return None;
+    }
+    set_path(None);
+    let tools = scaffold::preflight(&req);
+    if let Err(e) = scaffold::preflight_check(&tools) {
+        eprintln!("chaîne d'outils absente, test ignoré : {e:#}");
+        return None;
+    }
+    let out = tempfile::tempdir().unwrap();
+    let mut req = req;
+    req.path = Some(out.path().join(&req.name));
+    let (result, events) = run(&req);
+    let report = result.unwrap_or_else(|e| {
+        let logs: Vec<String> = events
+            .iter()
+            .filter_map(|e| match e {
+                Event::Log { line, .. } => Some(line.clone()),
+                _ => None,
+            })
+            .collect();
+        let tail: Vec<&String> = logs.iter().rev().take(40).collect();
+        panic!("génération en échec : {e:#}\n{tail:#?}")
+    });
+    for s in &report.steps {
+        assert!(
+            s.ok || !s.fatal,
+            "étape en échec : {} ({:?})",
+            s.label,
+            s.note
+        );
+    }
+    let t = out.path().join(&req.name);
+    Some((t, report, out))
+}
+
+fn assert_lint_clean(t: &Path) {
+    let r = engine::lint(t, None).unwrap();
+    assert_eq!(r.count("error"), 0, "{:#?}", r.violations);
+}
+
+#[test]
+fn e2e_astro_npm_with_integrations() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Astro, "e2e-astro");
+    req.options = Options::Astro(AstroOptions {
+        integrations: vec![
+            "tailwind".into(),
+            "mdx".into(),
+            "sitemap".into(),
+            "react".into(),
+        ],
+        site: Some("https://e2e.example.com".into()),
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    assert!(
+        t.join("node_modules/astro").is_dir(),
+        "dépendances installées"
+    );
+    assert!(t.join("dist/index.html").is_file(), "build effectué");
+    assert!(t.join("dist/sitemap-index.xml").is_file(), "sitemap généré");
+    for id in ["check", "build"] {
+        assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
+    }
+    let pkg = read(&t.join("package.json"));
+    for dep in [
+        "@astrojs/react",
+        "@astrojs/mdx",
+        "@astrojs/sitemap",
+        "tailwindcss",
+        "@astrojs/check",
+    ] {
+        assert!(pkg.contains(dep), "{dep} installé via astro add");
+    }
+    assert_lint_clean(&t);
+}
+
+#[test]
+fn e2e_astro_official_blog_template_with_pnpm() {
+    let _g = lock();
+    if alpharust::scaffold::tools::which("pnpm").is_none() {
+        eprintln!("pnpm absent : test ignoré");
+        return;
+    }
+    let mut req = Request::new(Framework::Astro, "e2e-blog");
+    req.options = Options::Astro(AstroOptions {
+        package_manager: PackageManager::Pnpm,
+        template: Template::Blog,
+        typescript: TsLevel::Strictest,
+        site: Some("https://blog.example.com".into()),
+        ..Default::default()
+    });
+    let Some((t, _r, _keep)) = e2e(req) else {
+        return;
+    };
+    assert!(t.join("pnpm-lock.yaml").is_file());
+    assert!(t.join("dist/index.html").is_file());
+    assert_eq!(
+        json(&t.join("tsconfig.json"))["extends"],
+        "astro/tsconfigs/strictest"
+    );
+    assert_lint_clean(&t);
+}
+
+#[test]
+fn e2e_laravel_with_breeze_and_pest() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Laravel, "e2e-laravel");
+    req.options = Options::Laravel(LaravelOptions {
+        starter: Starter::BreezeBlade,
+        pest: true,
+        dark: true,
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    assert!(t.join("artisan").is_file() && t.join("vendor/autoload.php").is_file());
+    assert!(
+        t.join("public/build/manifest.json").is_file(),
+        "front compilé"
+    );
+    assert!(t.join("routes/pages.php").is_file());
+    assert!(report.steps.iter().find(|s| s.id == "test").unwrap().ok);
+    assert_lint_clean(&t);
+}
+
+#[test]
+fn e2e_wagtail_in_a_venv() {
+    let _g = lock();
+    let Some((t, report, _keep)) = e2e(Request::new(Framework::Wagtail, "e2e-cms")) else {
+        return;
+    };
+    assert!(t.join(".venv/bin/python").is_file() && t.join("manage.py").is_file());
+    assert!(
+        t.join("e2e_cms/settings/base.py").is_file(),
+        "créé par `wagtail start`"
+    );
+    for id in ["check", "migrations", "test"] {
+        assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
+    }
+    assert_lint_clean(&t);
 }

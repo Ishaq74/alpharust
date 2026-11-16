@@ -8,13 +8,21 @@ use std::path::Path;
 use walkdir::WalkDir;
 
 /// Dossiers jamais analysés.
-const SKIP_DIRS: [&str; 6] = [
+const SKIP_DIRS: [&str; 14] = [
     "target",
     ".git",
     "node_modules",
     ".alpharust-cache",
     ".venv",
     "__pycache__",
+    "vendor",
+    "dist",
+    ".astro",
+    ".next",
+    ".pytest_cache",
+    ".cache",
+    "storage",
+    "staticfiles",
 ];
 /// Fichiers plus gros que ça sont ignorés (binaires, bundles…).
 const MAX_FILE_SIZE: u64 = 2 * 1024 * 1024;
@@ -464,9 +472,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         for p in [
             "a.txt",
-            "vendor/b.txt",
+            "lib/b.txt",
             "node_modules/c.txt",
             "target/d.txt",
+            "vendor/e.txt",
+            "dist/f.txt",
+            ".astro/g.txt",
         ] {
             let path = dir.path().join(p);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -476,10 +487,10 @@ mod tests {
         assert_eq!(
             all.violations.len(),
             2,
-            "node_modules et target sont ignorés"
+            "node_modules, target, vendor, dist et .astro sont ignorés"
         );
         let opts = Options {
-            exclude: vec!["vendor/**".into()],
+            exclude: vec!["lib/**".into()],
         };
         let some = run_with(&[r], dir.path(), &opts).unwrap();
         assert_eq!(some.violations.len(), 1);

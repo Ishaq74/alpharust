@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>AlphaRust</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+      <a class="brand" href="#/dashboard" aria-label="AlphaRust, tableau de bord">
+        <img src="/favicon.svg" width="32" height="32" alt="">
+        <span>AlphaRust<small id="version"></small></span>
+      </a>
+      <nav id="nav" aria-label="Sections"></nav>
+      <div class="sidebar-foot">
+        <button type="button" class="btn ghost block" id="theme-toggle" aria-pressed="false">
+          <span id="theme-label">Thème sombre</span>
+        </button>
+        <p class="muted small" id="cwd" title="Dossier de travail"></p>
+      </div>
+    </aside>
+    <div class="content">
+      <header class="topbar">
+        <button type="button" class="btn ghost icon-only" id="menu-toggle" aria-controls="sidebar" aria-expanded="false" aria-label="Ouvrir le menu">☰</button>
+        <h1 id="page-title">Tableau de bord</h1>
+        <div class="topbar-actions" id="topbar-actions"></div>
+      </header>
+      <main id="main" tabindex="-1"></main>
+    </div>
+  </div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">AlphaRust GUI nécessite JavaScript (aucune ressource externe n'est chargée).</p></noscript>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>

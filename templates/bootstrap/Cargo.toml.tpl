@@ -1,8 +1,0 @@
-[package]
-name = "@@slug@@"
-version = "0.1.0"
-edition = "2021"
-description = "@@title@@"
-license = "MIT"
-
-[dependencies]

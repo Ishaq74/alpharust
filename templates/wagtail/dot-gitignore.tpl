@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-.venv/
-venv/
-db.sqlite3
-.env
-media/
-staticfiles/
-.alpharust-cache/

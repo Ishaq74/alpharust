@@ -1,14 +1,22 @@
-# Templates
+# Couches de modèles
 
-Fichiers sources des générateurs, embarqués dans le binaire par `include_str!` (voir `src/generators/`).
+Ces fichiers sont posés **après** l'outil officiel (create-astro, composer, `wagtail start`, `cargo new`) ;
+ils sont embarqués dans le binaire (`include_dir!`, recompilation automatique via `build.rs`).
 
-| Dossier | Générateur |
-|---------|------------|
-| `bootstrap/` | `alpharust init` (Rust) |
-| `wagtail/` | `alpharust generate wagtail` |
-| `astro/` | `alpharust generate astro` |
-| `laravel/` | `alpharust generate laravel` |
+```text
+layers/
+├── common/     # appliqué à tous : .alpharust.toml, docs/…
+├── astro/      # structure Astro (layout, composants, pages, collection blog, thème)
+├── laravel/    # pages, modèle, migration, seeder, tests (sans conflit avec Breeze)
+├── wagtail/    # README, docs, .gitignore, .env.example, test d'accueil, .alpharust.toml
+└── rust/       # tests, CI, LICENSE, README, docs
+```
 
-Chaque fichier se termine par `.tpl`. Marqueurs : `@@name@@`, `@@slug@@`, `@@pkg@@`, `@@title@@`, `@@upper@@`
-(substitués dans le contenu et dans les chemins). Un dossier ou fichier `dot-xxx` devient `.xxx`.
-Un test (`src/generators`) échoue si un template n'est pas référencé.
+Syntaxe (détails : `docs/generators.md`) :
+
+* chemins : `dot-xxx` → `.xxx`, suffixe `.tpl` retiré, `@@var@@` substitué ;
+* en-tête facultatif `@@meta mode=create|replace when=a|b&!c@@` (`create` n'écrase jamais un fichier officiel) ;
+* blocs `@@if expr@@ … @@else@@ … @@end@@` (propres lignes) ou en ligne ;
+* variables : `name slug pkg title upper version folder pm run install_cmd typescript template site …` selon le framework.
+
+Les tests vérifient l'équilibre des blocs, l'absence de marqueur résiduel et que le projet généré passe son propre lint.

@@ -11,4 +11,5 @@ pub mod parser;
 pub mod paths;
 pub mod profiles;
 pub mod sarif;
+pub mod scaffold;
 pub mod tui;

@@ -189,15 +189,15 @@ fn secrets_profile_detects_real_looking_tokens() {
 fn config_file_excludes_disables_and_overrides() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("a.py"), "x = eval(s)\n").unwrap();
-    std::fs::create_dir(dir.path().join("vendor")).unwrap();
-    std::fs::write(dir.path().join("vendor/b.py"), "x = eval(s)\n").unwrap();
+    std::fs::create_dir(dir.path().join("third")).unwrap();
+    std::fs::write(dir.path().join("third/b.py"), "x = eval(s)\n").unwrap();
 
     let base = engine::lint(dir.path(), Some("core")).unwrap();
     assert_eq!(base.violations.len(), 2);
 
     std::fs::write(
         dir.path().join(".alpharust.toml"),
-        "profile = \"core\"\nexclude = [\"vendor/**\"]\n[severity]\n\"core/no-eval\" = \"warning\"\n",
+        "profile = \"core\"\nexclude = [\"third/**\"]\n[severity]\n\"core/no-eval\" = \"warning\"\n",
     )
     .unwrap();
     let cfg = engine::lint(dir.path(), None).unwrap();

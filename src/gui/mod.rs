@@ -1,27 +1,56 @@
-//! GUI web locale (axum) : tableau de bord, règles, génération, lint, API JSON/SARIF.
+//! Interface web : application d'une page (HTML/CSS/JS embarqués) + API JSON + flux SSE.
 //!
-//! Le serveur n'écoute que sur 127.0.0.1. Les requêtes POST dont l'en-tête `Origin`
-//! ne correspond pas à l'hôte local sont refusées (protection CSRF).
+//! * Aucun JavaScript ni CSS externe : les ressources de `src/gui/assets/` sont compilées dans le binaire.
+//! * La génération de projets est un *job* : le thread de travail exécute `scaffold::execute`,
+//!   les événements sont conservés (rejouables) et diffusés en SSE à `/api/jobs/:id/events`.
+//! * Le serveur n'écoute que sur 127.0.0.1 ; les requêtes `POST` exigent une `Origin`/`Host` locale ;
+//!   la destination d'un projet est toujours `sites/<nom>` (jamais un chemin fourni par le client) ;
+//!   le lint n'accepte que des chemins sous le dossier courant ou sous `sites/`.
+//! * Le client n'insère jamais de texte non échappé dans le DOM (`textContent` / helper `h()`).
 
-use crate::engine;
-use crate::generators::{self, Kind};
+use crate::engine::{self, composer};
 use crate::parser::Rule;
 use crate::profiles::Profile;
+use crate::scaffold::astro::{self, PackageManager, Template, TsLevel};
+use crate::scaffold::laravel::{Database, Starter};
+use crate::scaffold::rust as rust_gen;
+use crate::scaffold::{self, Event, Framework, Request};
 use axum::{
-    extract::{Form, Query},
-    http::{header, HeaderMap, StatusCode},
-    response::{Html, IntoResponse, Response},
-    routing::get,
+    extract::{Path as UrlPath, Query, State},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
+    response::{
+        sse::{Event as SseEvent, KeepAlive, Sse},
+        Html, IntoResponse, Response,
+    },
+    routing::{get, post},
     Json, Router,
 };
+use futures_util::stream::{self, Stream};
 use serde::Deserialize;
+use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use tokio::sync::watch;
 
 pub const DEFAULT_PORT: u16 = 3000;
 
-/// Échappe le HTML (tout texte dynamique passe par ici).
+const INDEX_HTML: &str = include_str!("assets/index.html");
+const APP_CSS: &str = include_str!("assets/app.css");
+const APP_JS: &str = include_str!("assets/app.js");
+const FAVICON: &str = include_str!("assets/favicon.svg");
+
+/// Nombre maximal de jobs conservés en mémoire.
+const MAX_JOBS: usize = 20;
+
+// ---------------------------------------------------------------------------
+// Échappement HTML (utilisé pour les rares réponses HTML côté serveur)
+// ---------------------------------------------------------------------------
+
 pub fn esc(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
@@ -31,373 +60,138 @@ pub fn esc(s: &str) -> String {
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
             '\'' => out.push_str("&#39;"),
-            _ => out.push(c),
+            c => out.push(c),
         }
     }
     out
 }
 
-const CSS: &str = r#"
-:root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#e6edf3;--muted:#8b949e;--accent:#58a6ff;--err:#f85149;--warn:#d29922;--info:#3fb950}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg);line-height:1.5}
-header.top{background:var(--panel);border-bottom:1px solid var(--line);padding:.8rem 2rem;display:flex;gap:2rem;align-items:center}
-header.top .brand{font-weight:700;font-size:1.2rem;color:var(--fg);text-decoration:none}
-header.top nav a{color:var(--muted);text-decoration:none;margin-right:1.2rem;padding-bottom:.2rem}
-header.top nav a.active,header.top nav a:hover{color:var(--fg);border-bottom:2px solid var(--accent)}
-main{max-width:1100px;margin:0 auto;padding:1.5rem 2rem 3rem}
-h1{margin:.2rem 0 1rem;font-size:1.7rem}
-a{color:var(--accent)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin:1rem 0 2rem}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem 1.2rem}
-.card .n{font-size:2rem;font-weight:700}.card .l{color:var(--muted)}
-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-th,td{text-align:left;padding:.5rem .8rem;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:600;font-size:.85rem;text-transform:uppercase}
-tr:last-child td{border-bottom:0}
-code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88rem}
-pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;overflow:auto;white-space:pre-wrap}
-form.inline{display:flex;gap:.6rem;flex-wrap:wrap;align-items:end;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:1rem 0}
-label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:.25rem}
-input,select{background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:.5rem .7rem;font-size:.95rem;min-width:12rem}
-button{background:#238636;color:#fff;border:0;border-radius:6px;padding:.55rem 1.1rem;font-size:.95rem;cursor:pointer}
-button:hover{background:#2ea043}
-.badge{display:inline-block;padding:.05rem .55rem;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid}
-.badge.error{color:var(--err);border-color:var(--err)}.badge.warning{color:var(--warn);border-color:var(--warn)}
-.badge.info{color:var(--info);border-color:var(--info)}.badge.kind{color:var(--muted);border-color:var(--line)}
-.ok{color:var(--info);font-weight:600}.fail{color:var(--err);font-weight:600}
-.muted{color:var(--muted)}
-.summary{display:flex;gap:1.5rem;margin:1rem 0;font-size:1.05rem}
-"#;
-
-/// Gabarit commun à toutes les pages.
-pub fn page(title: &str, active: &str, body: &str) -> String {
-    let nav = [
-        ("/", "Tableau de bord"),
-        ("/rules", "Règles"),
-        ("/generate", "Générer"),
-        ("/lint", "Lint"),
-        ("/checkers", "Checkers"),
-    ]
-    .iter()
-    .map(|(href, label)| {
-        let class = if *href == active {
-            " class=\"active\""
-        } else {
-            ""
-        };
-        format!("<a href=\"{}\"{}>{}</a>", href, class, label)
-    })
-    .collect::<Vec<_>>()
-    .join("");
-    format!(
-        "<!DOCTYPE html>\n<html lang=\"fr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>{} — AlphaRust</title><style>{}</style></head><body><header class=\"top\"><a class=\"brand\" href=\"/\">⚙ AlphaRust</a><nav>{}</nav></header><main>{}</main></body></html>",
-        esc(title),
-        CSS,
-        nav,
-        body
-    )
-}
-
-fn badge(severity: &str) -> String {
-    format!("<span class=\"badge {0}\">{0}</span>", esc(severity))
-}
-
-fn sites() -> Vec<String> {
-    let mut names: Vec<String> = std::fs::read_dir(crate::paths::sites_dir())
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| e.file_name().into_string().ok())
-                .collect()
-        })
-        .unwrap_or_default();
-    names.sort();
-    names
-}
-
 // ---------------------------------------------------------------------------
-// Pages
+// Jobs de génération
 // ---------------------------------------------------------------------------
 
-pub fn dashboard_html() -> String {
-    let rules = Rule::load_all().unwrap_or_default();
-    let count = |s: &str| rules.iter().filter(|r| r.severity == s).count();
-    let profiles = Profile::list().unwrap_or_default();
-    let sites = sites();
-    let mut body = format!(
-        "<h1>AlphaRust</h1><p class=\"muted\">Règles de qualité, générateurs de projets et lint — v{}</p>",
-        env!("CARGO_PKG_VERSION")
-    );
-    body.push_str(&format!(
-        "<div class=\"cards\"><div class=\"card\"><div class=\"n\">{}</div><div class=\"l\">règles</div></div>\
-         <div class=\"card\"><div class=\"n\">{}</div><div class=\"l\">erreurs · {} warnings · {} infos</div></div>\
-         <div class=\"card\"><div class=\"n\">{}</div><div class=\"l\">profils</div></div>\
-         <div class=\"card\"><div class=\"n\">{}</div><div class=\"l\">checkers sémantiques</div></div>\
-         <div class=\"card\"><div class=\"n\">{}</div><div class=\"l\">projets dans sites/</div></div></div>",
-        rules.len(),
-        count("error"),
-        count("warning"),
-        count("info"),
-        profiles.len(),
-        crate::checkers::catalog().len(),
-        sites.len()
-    ));
-    body.push_str("<h2>Profils</h2><table><tr><th>Profil</th><th>Règles</th><th>Lint</th></tr>");
-    for name in &profiles {
-        if let Ok(p) = Profile::load(name) {
-            body.push_str(&format!(
-                "<tr><td><strong>{0}</strong></td><td>{1}</td><td><a href=\"/lint?path=tests/fixtures/violations&amp;profile={0}\">lint des fixtures</a></td></tr>",
-                esc(name),
-                p.select(rules.clone()).len()
-            ));
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum JobStatus {
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+impl JobStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            JobStatus::Running => "running",
+            JobStatus::Succeeded => "succeeded",
+            JobStatus::Failed => "failed",
+            JobStatus::Cancelled => "cancelled",
         }
     }
-    body.push_str("</table><h2>Projets générés</h2>");
-    if sites.is_empty() {
-        body.push_str("<p class=\"muted\">Aucun projet pour le moment — <a href=\"/generate\">en générer un</a>.</p>");
-    } else {
-        body.push_str("<ul>");
-        for s in &sites {
-            body.push_str(&format!("<li><code>sites/{}</code></li>", esc(s)));
-        }
-        body.push_str("</ul>");
-    }
-    page("Tableau de bord", "/", &body)
 }
 
-#[derive(Deserialize, Default)]
-pub struct RulesQuery {
-    q: Option<String>,
-    severity: Option<String>,
-}
-
-pub fn rules_html(query: &RulesQuery) -> String {
-    let all = Rule::load_all().unwrap_or_default();
-    let q = query.q.clone().unwrap_or_default().to_lowercase();
-    let sev = query.severity.clone().unwrap_or_default();
-    let rules: Vec<&Rule> = all
-        .iter()
-        .filter(|r| sev.is_empty() || r.severity == sev)
-        .filter(|r| {
-            q.is_empty()
-                || r.id.to_lowercase().contains(&q)
-                || r.name.to_lowercase().contains(&q)
-                || r.apply.to_lowercase().contains(&q)
-        })
-        .collect();
-    let opt = |v: &str, label: &str| {
-        format!(
-            "<option value=\"{0}\"{1}>{2}</option>",
-            v,
-            if sev == v { " selected" } else { "" },
-            label
-        )
-    };
-    let mut body = format!(
-        "<h1>Règles</h1><form class=\"inline\" method=\"get\" action=\"/rules\"><label>Recherche<input name=\"q\" value=\"{}\" placeholder=\"stripe, eval, html…\"></label><label>Sévérité<select name=\"severity\">{}{}{}{}</select></label><button type=\"submit\">Filtrer</button></form><p class=\"muted\">{} règle(s) sur {} — <a href=\"/api/rules\">JSON</a></p>",
-        esc(&query.q.clone().unwrap_or_default()),
-        opt("", "toutes"),
-        opt("error", "error"),
-        opt("warning", "warning"),
-        opt("info", "info"),
-        rules.len(),
-        all.len()
-    );
-    body.push_str("<table><tr><th>Règle</th><th>Sévérité</th><th>Type</th><th>Apply</th></tr>");
-    for r in rules {
-        body.push_str(&format!(
-            "<tr><td><a href=\"/rule?id={0}\"><code>{0}</code></a><br><span class=\"muted\">{1}</span></td><td>{2}</td><td><span class=\"badge kind\">{3}</span></td><td><code>{4}</code></td></tr>",
-            esc(&r.id),
-            esc(&r.display_message()),
-            badge(&r.severity),
-            r.kind(),
-            esc(&r.apply)
-        ));
-    }
-    body.push_str("</table>");
-    page("Règles", "/rules", &body)
-}
-
-pub fn rule_html(id: &str) -> Option<String> {
-    let rules = Rule::load_all().ok()?;
-    let r = rules.iter().find(|r| r.id == id)?;
-    let mut body = format!(
-        "<h1><code>{}</code></h1><p>{} <span class=\"badge kind\">{}</span> — apply : <code>{}</code></p>",
-        esc(&r.id),
-        badge(&r.severity),
-        r.kind(),
-        esc(&r.apply)
-    );
-    if let Some(p) = &r.pattern {
-        body.push_str(&format!("<h3>Pattern</h3><pre>{}</pre>", esc(p)));
-    }
-    if let Some(c) = &r.checker {
-        body.push_str(&format!("<h3>Checker</h3><pre>{}</pre>", esc(c)));
-    }
-    body.push_str(&format!(
-        "<h3>Description</h3><pre>{}</pre><p><a href=\"/rules\">← Règles</a></p>",
-        esc(&r.description)
-    ));
-    Some(page(&r.id, "/rules", &body))
-}
-
-pub fn checkers_html() -> String {
-    let mut body = String::from("<h1>Checkers sémantiques</h1><p class=\"muted\">Analyses au-delà de la regex ligne à ligne : balises HTML, titres Markdown, lexer Rust, contraste CSS, manifestes, présence de fichiers…</p><table><tr><th>Checker</th><th>Description</th><th>Règles</th></tr>");
-    let rules = Rule::load_all().unwrap_or_default();
-    for (name, desc) in crate::checkers::catalog() {
-        let used: Vec<String> = rules
-            .iter()
-            .filter(|r| r.checker.as_deref() == Some(name))
-            .map(|r| format!("<code>{}</code>", esc(&r.id)))
-            .collect();
-        body.push_str(&format!(
-            "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>",
-            name,
-            esc(desc),
-            used.join("<br>")
-        ));
-    }
-    body.push_str("</table>");
-    page("Checkers", "/checkers", &body)
-}
-
-fn generate_form_html(message: Option<&str>) -> String {
-    let mut body = String::from("<h1>Générer un projet</h1>");
-    if let Some(m) = message {
-        body.push_str(m);
-    }
-    body.push_str(
-        "<form class=\"inline\" method=\"post\" action=\"/generate\"><label>Type<select name=\"kind\"><option value=\"wagtail\">Wagtail (Django CMS)</option><option value=\"astro\">Astro</option><option value=\"laravel\">Laravel</option><option value=\"init\">Rust (init)</option></select></label><label>Nom du projet<input type=\"text\" name=\"name\" placeholder=\"mon-site\" required pattern=\"[A-Za-z0-9][A-Za-z0-9._\\-]*\"></label><button type=\"submit\">Générer dans sites/</button></form><h2>Projets existants</h2>",
-    );
-    let sites = sites();
-    if sites.is_empty() {
-        body.push_str("<p class=\"muted\">Aucun projet dans <code>sites/</code>.</p>");
-    } else {
-        body.push_str("<ul>");
-        for s in sites {
-            body.push_str(&format!("<li><code>sites/{}</code></li>", esc(&s)));
-        }
-        body.push_str("</ul>");
-    }
-    page("Générer", "/generate", &body)
-}
-
-#[derive(Deserialize)]
-pub struct GenerateForm {
-    kind: String,
+struct Job {
+    id: String,
+    framework: Framework,
     name: String,
+    target: String,
+    started_at: u64,
+    started: Instant,
+    cancel: Arc<AtomicBool>,
+    /// Événements sérialisés (JSON), dans l'ordre d'émission.
+    events: Mutex<Vec<String>>,
+    status: Mutex<JobStatus>,
+    elapsed_ms: Mutex<Option<u128>>,
+    tick: watch::Sender<usize>,
 }
 
-/// Exécute la génération et renvoie (statut, page HTML).
-pub fn generate_result(form: &GenerateForm) -> (StatusCode, String) {
-    let Some(kind) = Kind::parse(&form.kind) else {
-        let msg = format!(
-            "<div class=\"card\"><span class=\"fail\">✗ Type inconnu : {}</span></div>",
-            esc(&form.kind)
-        );
-        return (StatusCode::BAD_REQUEST, generate_form_html(Some(&msg)));
-    };
-    let target = generators::default_target(&form.name);
-    match generators::generate(kind, &target, &form.name, false) {
-        Ok(g) => {
-            let files: String = g.files.iter().map(|f| format!("{}\n", esc(f))).collect();
-            let msg = format!(
-                "<div class=\"card\"><span class=\"ok\">✓ Projet {} « {} » créé dans sites/{}</span> — {} fichiers</div><pre>{}</pre>",
-                kind.label(),
-                esc(&form.name),
-                esc(&form.name),
-                g.files.len(),
-                files
-            );
-            (StatusCode::OK, generate_form_html(Some(&msg)))
+impl Job {
+    fn push(&self, ev: &Event) {
+        if let Ok(text) = serde_json::to_string(ev) {
+            let mut events = self.events.lock().unwrap();
+            events.push(text);
+            let n = events.len();
+            drop(events);
+            self.tick.send_replace(n);
         }
-        Err(e) => {
-            let msg = format!(
-                "<div class=\"card\"><span class=\"fail\">✗ {}</span></div>",
-                esc(&format!("{:#}", e))
-            );
-            (StatusCode::BAD_REQUEST, generate_form_html(Some(&msg)))
-        }
+    }
+
+    fn status(&self) -> JobStatus {
+        *self.status.lock().unwrap()
+    }
+
+    fn finish(&self, status: JobStatus) {
+        *self.status.lock().unwrap() = status;
+        *self.elapsed_ms.lock().unwrap() = Some(self.started.elapsed().as_millis());
+        // réveille les flux SSE pour qu'ils constatent la fin
+        self.tick.send_modify(|n| *n += 1);
+    }
+
+    fn summary(&self) -> Value {
+        json!({
+            "id": self.id,
+            "framework": self.framework.id(),
+            "name": self.name,
+            "target": self.target,
+            "status": self.status().as_str(),
+            "started_at": self.started_at,
+            "elapsed_ms": *self.elapsed_ms.lock().unwrap(),
+            "events": self.events.lock().unwrap().len(),
+        })
     }
 }
 
-#[derive(Deserialize, Default, Clone)]
-pub struct LintQuery {
-    path: Option<String>,
-    profile: Option<String>,
+#[derive(Default)]
+struct Jobs {
+    list: Mutex<Vec<Arc<Job>>>,
 }
 
-pub fn lint_html(query: &LintQuery) -> String {
-    let profiles = Profile::list().unwrap_or_default();
-    let path = query.path.clone().unwrap_or_default();
-    let profile = query.profile.clone().unwrap_or_default();
-    let mut options = format!(
-        "<option value=\"\"{}>toutes les règles</option>",
-        if profile.is_empty() { " selected" } else { "" }
-    );
-    for p in &profiles {
-        options.push_str(&format!(
-            "<option value=\"{0}\"{1}>{0}</option>",
-            esc(p),
-            if *p == profile { " selected" } else { "" }
-        ));
+impl Jobs {
+    fn get(&self, id: &str) -> Option<Arc<Job>> {
+        self.list
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|j| j.id == id)
+            .cloned()
     }
-    let mut body = format!(
-        "<h1>Lint</h1><form class=\"inline\" method=\"get\" action=\"/lint\"><label>Chemin<input type=\"text\" name=\"path\" value=\"{}\" placeholder=\".\"></label><label>Profil<select name=\"profile\">{}</select></label><button type=\"submit\">Lancer le lint</button></form>",
-        esc(if path.is_empty() { "." } else { &path }),
-        options
-    );
-    if !path.is_empty() {
-        let profile_opt = (!profile.is_empty()).then_some(profile.as_str());
-        match engine::lint(Path::new(&path), profile_opt) {
-            Ok(report) => {
-                let (e, w, i) = (
-                    report.count("error"),
-                    report.count("warning"),
-                    report.count("info"),
-                );
-                let q = format!("path={}&amp;profile={}", esc(&path), esc(&profile));
-                body.push_str(&format!(
-                    "<div class=\"summary\"><span class=\"{}\">{} violation(s)</span><span>{} error</span><span>{} warning</span><span>{} info</span><span class=\"muted\">{} fichiers · {} règles{}</span></div><p><a href=\"/api/lint?{q}\">JSON</a> · <a href=\"/api/sarif?{q}\">SARIF</a></p>",
-                    if report.violations.is_empty() { "ok" } else { "fail" },
-                    report.violations.len(),
-                    e,
-                    w,
-                    i,
-                    report.files_scanned,
-                    report.rules_used,
-                    report.profile.as_ref().map(|p| format!(" · profil {}", esc(p))).unwrap_or_default(),
-                    q = q
-                ));
-                if report.violations.is_empty() {
-                    body.push_str("<p class=\"ok\">✓ Aucune violation</p>");
-                } else {
-                    body.push_str("<table><tr><th>Sévérité</th><th>Fichier</th><th>Règle</th><th>Message</th></tr>");
-                    for v in &report.violations {
-                        body.push_str(&format!(
-                            "<tr><td>{}</td><td><code>{}:{}</code></td><td><code>{}</code></td><td>{}</td></tr>",
-                            badge(&v.severity),
-                            esc(&v.file),
-                            v.line,
-                            esc(&v.rule_id),
-                            esc(&v.message)
-                        ));
-                    }
-                    body.push_str("</table>");
-                }
+
+    fn running(&self) -> Option<Arc<Job>> {
+        self.list
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|j| j.status() == JobStatus::Running)
+            .cloned()
+    }
+
+    fn insert(&self, job: Arc<Job>) {
+        let mut list = self.list.lock().unwrap();
+        list.push(job);
+        while list.len() > MAX_JOBS {
+            if let Some(i) = list.iter().position(|j| j.status() != JobStatus::Running) {
+                list.remove(i);
+            } else {
+                break;
             }
-            Err(e) => body.push_str(&format!(
-                "<div class=\"card\"><span class=\"fail\">✗ {}</span></div>",
-                esc(&format!("{:#}", e))
-            )),
         }
     }
-    page("Lint", "/lint", &body)
+}
+
+#[derive(Clone)]
+struct AppState {
+    port: u16,
+    jobs: Arc<Jobs>,
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
-// Handlers / routeur
+// Utilitaires
 // ---------------------------------------------------------------------------
 
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
@@ -406,123 +200,572 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> 
         .expect("tâche interrompue")
 }
 
-async fn index() -> Html<String> {
-    Html(blocking(dashboard_html).await)
+fn error(status: StatusCode, msg: impl std::fmt::Display) -> Response {
+    (status, Json(json!({ "error": format!("{msg}") }))).into_response()
 }
 
-async fn rules(Query(q): Query<RulesQuery>) -> Html<String> {
-    Html(blocking(move || rules_html(&q)).await)
-}
-
-async fn rule_detail(Query(q): Query<HashMap<String, String>>) -> Response {
-    let id = q.get("id").cloned().unwrap_or_default();
-    match blocking(move || rule_html(&id)).await {
-        Some(html) => Html(html).into_response(),
-        None => (
-            StatusCode::NOT_FOUND,
-            Html(page(
-                "Introuvable",
-                "/rules",
-                "<h1>Règle introuvable</h1><p><a href=\"/rules\">← Règles</a></p>",
-            )),
-        )
-            .into_response(),
-    }
-}
-
-async fn checkers_page() -> Html<String> {
-    Html(blocking(checkers_html).await)
-}
-
-async fn generate_form() -> Html<String> {
-    Html(blocking(|| generate_form_html(None)).await)
-}
-
-/// Refuse un POST dont l'`Origin` n'est pas l'hôte local.
+/// Refuse un `POST` dont l'`Origin` ou le `Host` n'est pas l'hôte local de ce serveur.
 fn same_origin(headers: &HeaderMap, port: u16) -> bool {
-    match headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+    let allowed = [
+        format!("127.0.0.1:{port}"),
+        format!("localhost:{port}"),
+        format!("[::1]:{port}"),
+    ];
+    let origin_ok = match headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
         None => true,
-        Some(origin) => [
-            format!("http://127.0.0.1:{}", port),
-            format!("http://localhost:{}", port),
-        ]
-        .iter()
-        .any(|o| o == origin),
+        Some(origin) => allowed.iter().any(|a| origin == format!("http://{a}")),
+    };
+    let host_ok = match headers.get(header::HOST).and_then(|v| v.to_str().ok()) {
+        None => true,
+        Some(host) => allowed.iter().any(|a| a == host),
+    };
+    origin_ok && host_ok
+}
+
+/// Chemin analysable : sous le dossier courant ou sous `sites/` (après résolution des liens).
+fn safe_path(raw: &str) -> Result<PathBuf, String> {
+    let raw = if raw.trim().is_empty() {
+        "."
+    } else {
+        raw.trim()
+    };
+    let p = PathBuf::from(raw);
+    let abs = if p.is_absolute() {
+        p
+    } else {
+        std::env::current_dir().map_err(|e| e.to_string())?.join(p)
+    };
+    let canon = abs
+        .canonicalize()
+        .map_err(|_| format!("chemin introuvable : {raw}"))?;
+    let mut roots = Vec::new();
+    if let Ok(cwd) = std::env::current_dir().and_then(|d| d.canonicalize()) {
+        roots.push(cwd);
+    }
+    if let Ok(s) = crate::paths::sites_dir().canonicalize() {
+        roots.push(s);
+    }
+    if roots.iter().any(|r| canon.starts_with(r)) {
+        Ok(canon)
+    } else {
+        Err(format!(
+            "chemin refusé : {raw} (seuls le dossier courant et sites/ sont analysables)"
+        ))
     }
 }
 
-async fn generate_post(port: u16, headers: HeaderMap, Form(form): Form<GenerateForm>) -> Response {
-    if !same_origin(&headers, port) {
-        return (StatusCode::FORBIDDEN, "origine refusée").into_response();
+/// Outils + verdict (`Err` = message d'installation) en une seule détection.
+fn tools_json(req: &Request) -> (Value, Option<String>) {
+    let tools = scaffold::preflight(req);
+    let missing = scaffold::preflight_check(&tools)
+        .err()
+        .map(|e| format!("{e:#}"));
+    (json!(tools), missing)
+}
+
+// ---------------------------------------------------------------------------
+// Statique
+// ---------------------------------------------------------------------------
+
+fn asset(content_type: &'static str, body: &'static str) -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, HeaderValue::from_static(content_type)),
+            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache")),
+            (
+                header::HeaderName::from_static("x-content-type-options"),
+                HeaderValue::from_static("nosniff"),
+            ),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+async fn index() -> Response {
+    let mut res = Html(INDEX_HTML).into_response();
+    let h = res.headers_mut();
+    h.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static(
+            "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; \
+             connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+        ),
+    );
+    h.insert(
+        header::HeaderName::from_static("x-frame-options"),
+        HeaderValue::from_static("DENY"),
+    );
+    h.insert(
+        header::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    );
+    res
+}
+
+// ---------------------------------------------------------------------------
+// API : méta, doctor, plan
+// ---------------------------------------------------------------------------
+
+fn framework_schema() -> Value {
+    json!([
+        {
+            "id": "astro", "label": Framework::Astro.label(), "tool": Framework::Astro.official_tool(),
+            "description": "Site statique ou hybride : create-astro officiel, intégrations via `astro add`, types vérifiés par `astro check`.",
+            "options": {
+                "package_manager": PackageManager::ALL.iter().map(|p| p.id()).collect::<Vec<_>>(),
+                "template": Template::ALL.iter().map(|t| json!({
+                    "id": t.id(),
+                    "label": match t { Template::Alpharust => "AlphaRust (minimal + structure complète)", Template::Minimal => "Minimal (officiel)", Template::Basics => "Basics (officiel)", Template::Blog => "Blog (officiel)" },
+                })).collect::<Vec<_>>(),
+                "typescript": TsLevel::ALL.iter().map(|t| t.id()).collect::<Vec<_>>(),
+                "integrations": astro::INTEGRATIONS.iter().map(|(n, d)| json!({"id": n, "description": d})).collect::<Vec<_>>(),
+            }
+        },
+        {
+            "id": "laravel", "label": Framework::Laravel.label(), "tool": Framework::Laravel.official_tool(),
+            "description": "Application PHP : `composer create-project laravel/laravel`, kit Breeze optionnel, migrations et tests exécutés.",
+            "options": {
+                "starter": Starter::ALL.iter().map(|s| json!({"id": s.id(), "label": s.label()})).collect::<Vec<_>>(),
+                "database": Database::ALL.iter().map(|d| d.id()).collect::<Vec<_>>(),
+            }
+        },
+        {
+            "id": "wagtail", "label": Framework::Wagtail.label(), "tool": Framework::Wagtail.official_tool(),
+            "description": "CMS Django : venv Python, `pip install wagtail`, `wagtail start`, migrations, check et tests.",
+            "options": {}
+        },
+        {
+            "id": "rust", "label": Framework::Rust.label(), "tool": Framework::Rust.official_tool(),
+            "description": "Crate Rust : `cargo new`, dépendances via `cargo add`, tests, rustfmt et clippy.",
+            "options": {
+                "kind": ["bin", "lib"],
+                "edition": ["2018", "2021", "2024"],
+                "deps": rust_gen::DEPS.iter().map(|(n, f)| json!({"id": n, "features": f})).collect::<Vec<_>>(),
+            }
+        }
+    ])
+}
+
+async fn api_meta() -> Json<Value> {
+    Json(
+        blocking(|| {
+            let rules = Rule::load_all().unwrap_or_default();
+            let composed = composer::compose(rules.clone());
+            let profiles: Vec<Value> = Profile::list()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|name| {
+                    let n = Profile::load(&name)
+                        .map(|p| p.select(rules.clone()).len())
+                        .unwrap_or(0);
+                    json!({ "name": name, "rules": n })
+                })
+                .collect();
+            json!({
+                "name": "AlphaRust",
+                "version": env!("CARGO_PKG_VERSION"),
+                "cwd": std::env::current_dir().map(|p| p.display().to_string()).unwrap_or_default(),
+                "sites_dir": crate::paths::sites_dir().display().to_string(),
+                "rules": composed.len(),
+                "checkers": crate::checkers::catalog().len(),
+                "profiles": profiles,
+                "frameworks": framework_schema(),
+            })
+        })
+        .await,
+    )
+}
+
+#[derive(Deserialize)]
+struct DoctorQuery {
+    framework: Option<String>,
+}
+
+async fn api_doctor(Query(q): Query<DoctorQuery>) -> Response {
+    let frameworks: Vec<Framework> = match q.framework.as_deref().filter(|s| !s.is_empty()) {
+        None => Framework::ALL.to_vec(),
+        Some(s) => match Framework::parse(s) {
+            Some(f) => vec![f],
+            None => return error(StatusCode::BAD_REQUEST, format!("framework inconnu : {s}")),
+        },
+    };
+    let out = blocking(move || {
+        frameworks
+            .into_iter()
+            .map(|f| {
+                let (tools, missing) = tools_json(&Request::new(f, "doctor"));
+                json!({ "framework": f.id(), "label": f.label(), "ready": missing.is_none(), "missing": missing, "tools": tools })
+            })
+            .collect::<Vec<_>>()
+    })
+    .await;
+    Json(json!(out)).into_response()
+}
+
+/// La destination est imposée : `sites/<nom>`.
+fn sanitize_request(mut req: Request) -> Request {
+    req.path = None;
+    req
+}
+
+async fn api_plan(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<Request>,
+) -> Response {
+    if !same_origin(&headers, st.port) {
+        return error(StatusCode::FORBIDDEN, "origine refusée");
     }
-    let (status, html) = blocking(move || generate_result(&form)).await;
-    (status, Html(html)).into_response()
+    let req = sanitize_request(req);
+    if let Err(e) = req.validate() {
+        return error(StatusCode::UNPROCESSABLE_ENTITY, format!("{e:#}"));
+    }
+    blocking(move || match scaffold::plan(&req) {
+        Ok(plan) => {
+            let (tools, missing) = tools_json(&req);
+            let ready = missing.is_none();
+            Json(json!({
+                "target": plan.target.display().to_string(),
+                "steps": plan.infos(),
+                "preview": plan.preview(),
+                "tools": tools,
+                "ready": ready,
+                "missing": missing,
+                "exists": plan.target.exists(),
+            }))
+            .into_response()
+        }
+        Err(e) => error(StatusCode::UNPROCESSABLE_ENTITY, format!("{e:#}")),
+    })
+    .await
 }
 
-async fn lint_page(Query(q): Query<LintQuery>) -> Html<String> {
-    Html(blocking(move || lint_html(&q)).await)
+// ---------------------------------------------------------------------------
+// API : jobs
+// ---------------------------------------------------------------------------
+
+async fn api_job_create(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<Request>,
+) -> Response {
+    if !same_origin(&headers, st.port) {
+        return error(StatusCode::FORBIDDEN, "origine refusée");
+    }
+    let req = sanitize_request(req);
+    if let Err(e) = req.validate() {
+        return error(StatusCode::UNPROCESSABLE_ENTITY, format!("{e:#}"));
+    }
+    if let Some(j) = st.jobs.running() {
+        return error(
+            StatusCode::CONFLICT,
+            format!(
+                "une génération est déjà en cours ({} « {} »)",
+                j.framework.label(),
+                j.name
+            ),
+        );
+    }
+    let id = format!("{:x}{:04x}", now_secs(), st.jobs.list.lock().unwrap().len());
+    let (tick, _) = watch::channel(0usize);
+    let job = Arc::new(Job {
+        id: id.clone(),
+        framework: req.framework(),
+        name: req.name.clone(),
+        target: req.target().display().to_string(),
+        started_at: now_secs(),
+        started: Instant::now(),
+        cancel: Arc::new(AtomicBool::new(false)),
+        events: Mutex::new(Vec::new()),
+        status: Mutex::new(JobStatus::Running),
+        elapsed_ms: Mutex::new(None),
+        tick,
+    });
+    st.jobs.insert(job.clone());
+    let worker = job.clone();
+    std::thread::spawn(move || {
+        let result = scaffold::execute(&req, &mut |ev| worker.push(&ev), &worker.cancel);
+        let status = match result {
+            Ok(_) => JobStatus::Succeeded,
+            Err(_) if worker.cancel.load(Ordering::Relaxed) => JobStatus::Cancelled,
+            Err(_) => JobStatus::Failed,
+        };
+        worker.finish(status);
+    });
+    (StatusCode::ACCEPTED, Json(job.summary())).into_response()
 }
 
-async fn api_rules() -> Json<serde_json::Value> {
-    let rules = blocking(|| Rule::load_all().unwrap_or_default()).await;
-    Json(serde_json::json!(rules
+async fn api_jobs(State(st): State<AppState>) -> Json<Value> {
+    let list = st.jobs.list.lock().unwrap();
+    Json(json!(list
         .iter()
-        .map(|r| serde_json::json!({
-            "id": r.id, "name": r.name, "severity": r.severity, "apply": r.apply, "kind": r.kind(),
-            "message": r.display_message()
-        }))
+        .rev()
+        .map(|j| j.summary())
         .collect::<Vec<_>>()))
 }
 
-async fn api_lint(Query(q): Query<LintQuery>) -> Response {
-    let path = q.path.clone().unwrap_or_else(|| ".".into());
+async fn api_job(State(st): State<AppState>, UrlPath(id): UrlPath<String>) -> Response {
+    match st.jobs.get(&id) {
+        Some(j) => Json(j.summary()).into_response(),
+        None => error(StatusCode::NOT_FOUND, "job introuvable"),
+    }
+}
+
+async fn api_job_cancel(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    UrlPath(id): UrlPath<String>,
+) -> Response {
+    if !same_origin(&headers, st.port) {
+        return error(StatusCode::FORBIDDEN, "origine refusée");
+    }
+    match st.jobs.get(&id) {
+        Some(j) => {
+            j.cancel.store(true, Ordering::Relaxed);
+            Json(j.summary()).into_response()
+        }
+        None => error(StatusCode::NOT_FOUND, "job introuvable"),
+    }
+}
+
+#[derive(Deserialize)]
+struct EventsQuery {
+    /// Reprise : index du premier événement à envoyer.
+    from: Option<usize>,
+}
+
+/// Flux SSE : rejoue les événements déjà émis puis diffuse les suivants ; se termine avec le job.
+async fn api_job_events(
+    State(st): State<AppState>,
+    UrlPath(id): UrlPath<String>,
+    Query(q): Query<EventsQuery>,
+    headers: HeaderMap,
+) -> Response {
+    let Some(job) = st.jobs.get(&id) else {
+        return error(StatusCode::NOT_FOUND, "job introuvable");
+    };
+    let from = q
+        .from
+        .or_else(|| {
+            headers
+                .get("last-event-id")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.parse::<usize>().ok())
+                .map(|i| i + 1)
+        })
+        .unwrap_or(0);
+    let rx = job.tick.subscribe();
+    let s: std::pin::Pin<Box<dyn Stream<Item = Result<SseEvent, Infallible>> + Send>> = Box::pin(
+        stream::unfold(
+            (job, rx, from, false),
+            |(job, mut rx, mut idx, closed)| async move {
+                if closed {
+                    return None;
+                }
+                loop {
+                    let next = job.events.lock().unwrap().get(idx).cloned();
+                    if let Some(text) = next {
+                        let ev = SseEvent::default().id(idx.to_string()).data(text);
+                        idx += 1;
+                        return Some((Ok(ev), (job, rx, idx, false)));
+                    }
+                    if job.status() != JobStatus::Running {
+                        // tous les événements sont partis : message de clôture
+                        let end = SseEvent::default().event("end").data(
+                        json!({ "status": job.status().as_str(), "elapsed_ms": *job.elapsed_ms.lock().unwrap() })
+                            .to_string(),
+                    );
+                        return Some((Ok(end), (job, rx, idx, true)));
+                    }
+                    if rx.changed().await.is_err() {
+                        return None;
+                    }
+                }
+            },
+        ),
+    );
+    Sse::new(s).keep_alive(KeepAlive::default()).into_response()
+}
+
+// ---------------------------------------------------------------------------
+// API : projets, lint, règles
+// ---------------------------------------------------------------------------
+
+async fn api_projects() -> Json<Value> {
+    Json(
+        blocking(|| {
+            let dir = crate::paths::sites_dir();
+            let mut out = Vec::new();
+            if let Ok(rd) = std::fs::read_dir(&dir) {
+                for e in rd.flatten() {
+                    let p = e.path();
+                    if !p.is_dir() {
+                        continue;
+                    }
+                    let name = e.file_name().to_string_lossy().into_owned();
+                    let manifest = std::fs::read_to_string(p.join(scaffold::MANIFEST))
+                        .ok()
+                        .and_then(|t| serde_json::from_str::<Value>(&t).ok());
+                    out.push(json!({
+                        "name": name,
+                        "path": p.display().to_string(),
+                        "generated": manifest.is_some(),
+                        "framework": manifest.as_ref().and_then(|m| m.get("framework")).cloned(),
+                        "created": manifest.as_ref().and_then(|m| m.get("created_at")).cloned(),
+                        "official_tool": manifest.as_ref().and_then(|m| m.get("official_tool")).cloned(),
+                    }));
+                }
+            }
+            out.sort_by(|a, b| a["name"].as_str().cmp(&b["name"].as_str()));
+            json!({ "dir": dir.display().to_string(), "projects": out })
+        })
+        .await,
+    )
+}
+
+#[derive(Deserialize)]
+struct LintQuery {
+    path: Option<String>,
+    profile: Option<String>,
+}
+
+fn run_lint(q: &LintQuery) -> Result<(PathBuf, engine::LintReport, u128), (StatusCode, String)> {
+    let path =
+        safe_path(q.path.as_deref().unwrap_or(".")).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     let profile = q.profile.clone().filter(|p| !p.is_empty());
-    match blocking(move || engine::lint(Path::new(&path), profile.as_deref())).await {
-        Ok(r) => Json(serde_json::json!({
-            "violations": r.violations, "files_scanned": r.files_scanned, "rules_used": r.rules_used
+    let t = Instant::now();
+    engine::lint(&path, profile.as_deref())
+        .map(|r| (path, r, t.elapsed().as_millis()))
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e:#}")))
+}
+
+async fn api_lint(Query(q): Query<LintQuery>) -> Response {
+    blocking(move || match run_lint(&q) {
+        Ok((path, r, ms)) => Json(json!({
+            "path": path.display().to_string(),
+            "profile": r.profile,
+            "files_scanned": r.files_scanned,
+            "rules_used": r.rules_used,
+            "elapsed_ms": ms,
+            "counts": {
+                "error": r.count("error"),
+                "warning": r.count("warning"),
+                "info": r.count("info"),
+            },
+            "violations": r.violations,
         }))
         .into_response(),
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("{:#}", e) })),
-        )
-            .into_response(),
-    }
+        Err((status, msg)) => error(status, msg),
+    })
+    .await
 }
 
 async fn api_sarif(Query(q): Query<LintQuery>) -> Response {
-    let path = q.path.clone().unwrap_or_else(|| ".".into());
-    let profile = q.profile.clone().filter(|p| !p.is_empty());
-    match blocking(move || engine::lint(Path::new(&path), profile.as_deref())).await {
-        Ok(r) => (
-            [(header::CONTENT_TYPE, "application/sarif+json")],
+    blocking(move || match run_lint(&q) {
+        Ok((_, r, _)) => (
+            [
+                (header::CONTENT_TYPE, "application/sarif+json"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"alpharust.sarif\"",
+                ),
+            ],
             crate::sarif::to_sarif(&r.violations),
         )
             .into_response(),
-        Err(e) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": format!("{:#}", e) })),
-        )
-            .into_response(),
-    }
+        Err((status, msg)) => error(status, msg),
+    })
+    .await
 }
 
+fn rule_summary(r: &Rule) -> Value {
+    json!({
+        "id": r.id,
+        "name": r.name,
+        "category": r.id.split('/').next().unwrap_or(""),
+        "severity": r.severity,
+        "apply": r.apply,
+        "kind": r.kind(),
+        "message": r.display_message(),
+    })
+}
+
+async fn api_rules() -> Json<Value> {
+    Json(
+        blocking(|| {
+            let rules = composer::compose(Rule::load_all().unwrap_or_default());
+            json!(rules.iter().map(rule_summary).collect::<Vec<_>>())
+        })
+        .await,
+    )
+}
+
+async fn api_rule(Query(q): Query<HashMap<String, String>>) -> Response {
+    let id = q.get("id").cloned().unwrap_or_default();
+    blocking(move || {
+        let rules = Rule::load_all().unwrap_or_default();
+        match rules.iter().find(|r| r.id == id) {
+            Some(r) => {
+                let mut v = rule_summary(r);
+                v["pattern"] = json!(r.pattern);
+                v["checker"] = json!(r.checker);
+                v["args"] = json!(r.args);
+                v["description"] = json!(r.description);
+                v["examples"] = json!({ "bad": r.examples.bad, "good": r.examples.good });
+                Json(v).into_response()
+            }
+            None => error(StatusCode::NOT_FOUND, format!("règle introuvable : {id}")),
+        }
+    })
+    .await
+}
+
+async fn api_checkers() -> Json<Value> {
+    Json(json!(crate::checkers::catalog()
+        .iter()
+        .map(|(n, d)| json!({ "name": n, "description": d }))
+        .collect::<Vec<_>>()))
+}
+
+// ---------------------------------------------------------------------------
+// Routeur
+// ---------------------------------------------------------------------------
+
 pub fn router(port: u16) -> Router {
+    let state = AppState {
+        port,
+        jobs: Arc::new(Jobs::default()),
+    };
     Router::new()
         .route("/", get(index))
-        .route("/rules", get(rules))
-        .route("/rule", get(rule_detail))
-        .route("/checkers", get(checkers_page))
         .route(
-            "/generate",
-            get(generate_form)
-                .post(move |h: HeaderMap, f: Form<GenerateForm>| generate_post(port, h, f)),
+            "/assets/app.css",
+            get(|| async { asset("text/css; charset=utf-8", APP_CSS) }),
         )
-        .route("/lint", get(lint_page))
-        .route("/api/rules", get(api_rules))
+        .route(
+            "/assets/app.js",
+            get(|| async { asset("text/javascript; charset=utf-8", APP_JS) }),
+        )
+        .route(
+            "/favicon.svg",
+            get(|| async { asset("image/svg+xml", FAVICON) }),
+        )
+        .route("/api/meta", get(api_meta))
+        .route("/api/doctor", get(api_doctor))
+        .route("/api/plan", post(api_plan))
+        .route("/api/jobs", get(api_jobs).post(api_job_create))
+        .route("/api/jobs/:id", get(api_job))
+        .route("/api/jobs/:id/cancel", post(api_job_cancel))
+        .route("/api/jobs/:id/events", get(api_job_events))
+        .route("/api/projects", get(api_projects))
         .route("/api/lint", get(api_lint))
         .route("/api/sarif", get(api_sarif))
+        .route("/api/rules", get(api_rules))
+        .route("/api/rule", get(api_rule))
+        .route("/api/checkers", get(api_checkers))
         .route("/healthz", get(|| async { "ok" }))
+        .with_state(state)
 }
 
 pub async fn run(port: u16) -> anyhow::Result<()> {
@@ -533,4 +776,64 @@ pub async fn run(port: u16) -> anyhow::Result<()> {
     println!("AlphaRust GUI running at http://{}", addr);
     axum::serve(listener, router(port)).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod unit {
+    use super::*;
+
+    #[test]
+    fn esc_escapes_all_special_characters() {
+        assert_eq!(
+            esc("<a href=\"x\">&'"),
+            "&lt;a href=&quot;x&quot;&gt;&amp;&#39;"
+        );
+    }
+
+    #[test]
+    fn origin_and_host_checks() {
+        let mut h = HeaderMap::new();
+        assert!(same_origin(&h, 3000));
+        h.insert(header::ORIGIN, "http://localhost:3000".parse().unwrap());
+        assert!(same_origin(&h, 3000));
+        h.insert(header::HOST, "evil.example:3000".parse().unwrap());
+        assert!(!same_origin(&h, 3000), "DNS rebinding");
+        h.insert(header::HOST, "127.0.0.1:3000".parse().unwrap());
+        // alpharust-ignore: no-hardcoded-urls
+        h.insert(header::ORIGIN, "http://evil.example".parse().unwrap());
+        assert!(!same_origin(&h, 3000));
+    }
+
+    #[test]
+    fn safe_path_rejects_outside_roots() {
+        assert!(safe_path("").is_ok());
+        assert!(safe_path(".").is_ok());
+        assert!(safe_path("/etc").is_err());
+        assert!(safe_path("../../../../etc").is_err());
+        assert!(safe_path("/definitely/not/here").is_err());
+    }
+
+    #[test]
+    fn jobs_keep_a_bounded_history() {
+        let jobs = Jobs::default();
+        for i in 0..(MAX_JOBS + 5) {
+            let (tick, _) = watch::channel(0);
+            let job = Arc::new(Job {
+                id: i.to_string(),
+                framework: Framework::Rust,
+                name: "x".into(),
+                target: "t".into(),
+                started_at: 0,
+                started: Instant::now(),
+                cancel: Arc::new(AtomicBool::new(false)),
+                events: Mutex::new(vec![]),
+                status: Mutex::new(JobStatus::Succeeded),
+                elapsed_ms: Mutex::new(None),
+                tick,
+            });
+            jobs.insert(job);
+        }
+        assert_eq!(jobs.list.lock().unwrap().len(), MAX_JOBS);
+        assert!(jobs.get("0").is_none() && jobs.get("24").is_some());
+    }
 }
