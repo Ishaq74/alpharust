@@ -140,11 +140,9 @@ impl Preset {
     }
 }
 
-/// Composants Starwind installés par défaut (`starwind add`).
-pub const STARWIND_DEFAULT: &[&str] = &["button", "card", "input", "label", "alert"];
-
-/// Composants Starwind connus (catalogue officiel, mêmes noms que `starwind add`).
-pub const STARWIND_COMPONENTS: &[&str] = &[
+/// Composants Starwind d'atomic (`src/components/atoms/`), tous posés avec le kit `starwind`.
+/// `icon-picker` et `media-picker` (liés à la base média d'atomic) ne sont pas repris.
+pub const STARWIND_ATOMS: &[&str] = &[
     "accordion",
     "alert",
     "alert-dialog",
@@ -158,6 +156,7 @@ pub const STARWIND_COMPONENTS: &[&str] = &[
     "carousel",
     "checkbox",
     "collapsible",
+    "container",
     "dialog",
     "dropdown",
     "dropzone",
@@ -288,12 +287,6 @@ mod tests {
         assert!(is_locale("ar") && !is_locale("de"));
     }
 
-    #[test]
-    fn starwind_defaults_are_known() {
-        for c in STARWIND_DEFAULT {
-            assert!(STARWIND_COMPONENTS.contains(c), "{c}");
-        }
-    }
     #[test]
     fn presets_fill_defaults_but_never_override_explicit_options() {
         let p = Preset::find("saas-pg").unwrap();

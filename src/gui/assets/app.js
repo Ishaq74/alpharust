@@ -374,7 +374,7 @@ const GEN_DEFAULT = () => ({
   force: false,
   astro: {
     package_manager: 'npm', template: 'alpharust', typescript: 'strict', integrations: [], site: '', typecheck: true,
-    ui: 'none', ui_components: [], database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [],
+    ui: 'none', database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [],
     theme_on: false, theme: { primary: '#4f46e5', secondary: '#7c3aed', accent: '#ec4899' }, css_variants: [], docker: false, ci: false,
   },
   laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false },
@@ -406,11 +406,11 @@ function buildRequest(G) {
     return {
       ...base, package_manager: a.package_manager, template: a.template, typescript: a.typescript,
       integrations: G.install ? a.integrations : [], site: a.site.trim() || null, typecheck: a.typecheck,
-      ui: withUi, ui_components: withUi === 'starwind' ? a.ui_components : [],
+      ui: withUi,
       database: platform ? a.database : 'none', db_url: platform && a.database === 'postgres' ? a.db_url.trim() || null : null,
       auth: platform && a.auth, auth_plugins: platform && a.auth ? a.auth_plugins : [],
       i18n: platform ? a.i18n : [],
-      theme: withUi === 'concordia' && a.theme_on ? a.theme : null, css_variants: withUi === 'concordia' ? a.css_variants : [],
+      theme: platform && a.theme_on ? a.theme : null, css_variants: withUi === 'concordia' ? a.css_variants : [],
       docker: platform && a.docker, ci: platform && a.ci,
     };
   }
@@ -436,8 +436,7 @@ function cliFor(G) {
     if (!a.typecheck) add('--no-typecheck');
     if (a.template === 'alpharust') {
       if (a.ui !== 'none') add('--ui', a.ui);
-      if (a.ui === 'starwind' && a.ui_components.length) add('--ui-component', a.ui_components.join(','));
-      if (a.ui === 'concordia' && a.theme_on) add('--theme-primary', a.theme.primary, '--theme-secondary', a.theme.secondary, '--theme-accent', a.theme.accent);
+      if (a.theme_on) add('--theme-primary', a.theme.primary, '--theme-secondary', a.theme.secondary, '--theme-accent', a.theme.accent);
       if (a.ui === 'concordia' && a.css_variants.length) add('--css-variant', a.css_variants.join(','));
       if (a.database !== 'none') add('--db', a.database);
       if (a.database === 'postgres' && a.db_url.trim()) add('--db-url', shellQuote(a.db_url.trim()));
@@ -732,13 +731,12 @@ function platformOptions(G, o, change) {
         if (v === 'concordia') a.integrations = a.integrations.filter((x) => x !== 'tailwind');
       }, { rebuild: true }), 'ui'),
       a.ui === 'starwind' ? h('div', {},
-        h('p', { class: 'hint' }, 'Installé avec l’outil officiel : ', h('code', {}, 'starwind init'), ' puis ', h('code', {}, 'starwind add'), '.'),
-        h('details', {}, h('summary', {}, `Composants Starwind (${a.ui_components.length || o.starwind_default.length})`),
-          multiCheck(o.starwind_components, a.ui_components.length ? a.ui_components : o.starwind_default, (id, v) => change(() => {
-            const cur = a.ui_components.length ? a.ui_components : [...o.starwind_default];
-            a.ui_components = toggleIn(cur, id, v);
-          }), 'swc', blocked))) : null,
+        h('p', { class: 'hint' }, 'Initialisé avec l’outil officiel ', h('code', {}, 'starwind init'), ' ; les ', h('strong', {}, `${o.starwind_atoms.length} composants`), ' d’atomic (', h('code', {}, 'src/components/atoms'), ') sont tous posés.'),
+        h('details', {}, h('summary', {}, 'Liste des composants'), h('p', { class: 'hint' }, o.starwind_atoms.join(', ')))) : null,
       a.ui === 'concordia' ? concordiaOptions(a, o, change, blocked) : null),
+    h('fieldset', { disabled: !platform }, h('legend', {}, 'Thème de marque (themes/theme.css)'),
+      checkbox('Générer la palette (contrôle WCAG)', 'Couleurs de marque + textes lisibles calculés comme dans themecsutomizer ; écrit dans src/styles/themes/theme.css, tous kits', a.theme_on, (v) => change(() => (a.theme_on = v), { rebuild: true }), { key: 'theme', disabled: !platform }),
+      a.theme_on ? themePanel(a, change) : null),
     h('fieldset', { disabled: blocked }, h('legend', {}, 'Base de données (Drizzle ORM)'),
       radioGroup('db', a.database, o.database, (v) => change(() => {
         a.database = v;
@@ -776,9 +774,7 @@ function concordiaOptions(a, o, change, blocked) {
         const cur = a.css_variants.length ? a.css_variants : [...variants];
         const next = toggleIn(cur, v, on);
         a.css_variants = next.length === variants.length ? [] : next.length ? next : ['initial'];
-      }), { key: `cv:${v}`, disabled: blocked }))),
-    checkbox('Générer un thème (contrôle WCAG)', 'Couleurs de marque + textes lisibles calculés comme dans themecsutomizer', a.theme_on, (v) => change(() => (a.theme_on = v), { rebuild: true }), { key: 'theme', disabled: blocked }),
-    a.theme_on ? themePanel(a, change) : null);
+      }), { key: `cv:${v}`, disabled: blocked }))));
 }
 
 // La CSP interdit les attributs `style` : les couleurs passent par le CSSOM.

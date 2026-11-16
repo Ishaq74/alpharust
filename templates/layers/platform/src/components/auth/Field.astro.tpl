@@ -11,8 +11,8 @@ interface Props {
 }
 const { name, label, type = 'text', value = '', autocomplete, required = true@@if !concordia@@, minlength@@end@@ } = Astro.props;
 @@if starwind@@
-import { Input } from '@/components/starwind/input';
-import { Label } from '@/components/starwind/label';
+import { Input } from '@atoms/input';
+import { Label } from '@atoms/label';
 @@end@@
 @@if concordia@@
 import FormGroup from '@components/ui/Form/FormGroup.astro';

@@ -38,5 +38,15 @@ ALPHARUST_E2E=1 ALPHARUST_E2E_PG_URL=postgresql://…/ma_base cargo test --test 
 ```
 
 Les trois tests génèrent de vrais projets (SQLite + Better Auth + Starwind + i18n ; Concordia + thème ; PostgreSQL) et
-vérifient chaque étape (`starwind-add`, `auth-schema`, `db-migrate`, `check`, `build`, `test`) puis le lint.
+vérifient chaque étape (`starwind-config`, `atoms-deps`, `auth-schema`, `db-migrate`, `check`, `build`, `test`) puis le lint.
 Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authentification, parité i18n).
+
+### Arborescence de design (src/styles)
+
+* **Unitaires** (`src/scaffold/internal.rs`) : `design_system_layout_is_identical_for_every_ui_option` rend les couches de
+  chaque kit (CSS simple, Tailwind, Starwind, Concordia) et vérifie l'arborescence, que chaque `@import` de `global.css`
+  pointe vers un fichier existant, l'absence de directive non résolue, le thème (`--brand-*` / `--color-*`) et le README ;
+  `starwind_components_have_a_file_each_and_target_real_slots` vérifie que chaque `[data-slot='…']` ciblé existe dans les composants ;
+  `concordia_keeps_its_files_verbatim…` compare les fichiers Concordia à l'original.
+* **e2e réels** : `e2e_astro_design_system_plain_and_tailwind` (palette + `astro check` + build) et les e2e plateforme
+  (Starwind + thème, Concordia + thème) vérifient `src/styles/` après installation.

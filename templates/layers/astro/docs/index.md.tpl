@@ -17,7 +17,7 @@ La configuration exacte est conservée dans `.alpharust-project.json`.
 
 - Astro (rendu statique), TypeScript `astro/tsconfigs/@@typescript@@`
 @@if tailwind@@
-- Tailwind CSS (plugin Vite officiel), importé dans `src/styles/global.css`
+- Tailwind CSS (plugin Vite officiel), importé dans `src/styles/global.css` (entrée unique du design system)
 @@end@@
 @@if mdx@@
 - MDX pour le contenu (`src/content/blog/*.mdx`)

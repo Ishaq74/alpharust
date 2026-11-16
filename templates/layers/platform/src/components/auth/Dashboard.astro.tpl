@@ -4,7 +4,7 @@ import AuthShell from './AuthShell.astro';
 import { DEFAULT_LOCALE@@if plugin_admin@@, localizedPath@@end@@ } from '@i18n/config';
 import { getMessages } from '@i18n/utils';
 @@if starwind@@
-import { Button } from '@/components/starwind/button';
+import { Button } from '@atoms/button';
 @@end@@
 @@if concordia@@
 import Button from '@components/ui/Button.astro';

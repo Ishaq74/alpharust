@@ -6,7 +6,7 @@ est ensuite **vérifié pour de vrai** (`astro check`, `astro build`, `vitest`, 
 
 | Brique | Option | Outil officiel / source | Ce qui est vérifié |
 |--------|--------|-------------------------|--------------------|
-| Tailwind + **Starwind UI** | `--ui starwind [--ui-component …]` | `starwind@latest init --defaults` puis `starwind add … --yes` | composants présents, build |
+| Tailwind + **Starwind UI** | `--ui starwind` | `starwind@latest init --defaults`, puis les **46 composants Starwind d'atomic** (`src/components/atoms`) + effets `wow/` + `lib/starwind` | `astro check` sur ~305 fichiers, build, `/design` |
 | **Concordia** (CSS pur) | `--ui concordia [--css-variant …] [--theme-*]` | copie fidèle du dépôt `Ishaq74/concordia` (jetons, variantes, **tous** les composants) | `astro check` sur les 80+ composants, page de démonstration `/components` |
 | Base de données | `--db sqlite\|postgres [--db-url …]` | `drizzle-orm` + `drizzle-kit generate` / `migrate` | migrations appliquées, test d'insertion/lecture |
 | Authentification | `--auth [--auth-plugin admin,username,organization]` | **Better Auth** ; schéma Drizzle produit par `auth@latest generate` | inscription, connexion, mauvais mot de passe (tests) + parcours navigateur |
@@ -28,7 +28,7 @@ src/
   i18n/            config.ts, utils.ts, messages/{fr,en,es,ar}.json
   middleware.ts    session → Astro.locals + en-têtes de sécurité
   pages/           auth/{sign-in,sign-up,dashboard}, admin, api/health, api/auth/[...all], [lang]/…
-  components/      auth/ (Starwind, Concordia ou HTML simple), LanguageSwitcher
+  components/      auth/ (Starwind atoms, Concordia ou HTML simple), LanguageSwitcher
 tests/             base de données (TEST), authentification, parité i18n
 ```
 
@@ -39,13 +39,61 @@ tests/             base de données (TEST), authentification, parité i18n
 * **Aucun identifiant en clair dans les fichiers versionnés** : `.env.example` s'appuie sur `PGUSER`/`PGPASSWORD`, la CI et
   compose lisent leurs mots de passe via variables, et le manifeste `.alpharust-project.json` masque les URL (`://***@`).
 
+## Design system : une arborescence pour tous les kits
+
+Quel que soit le kit (CSS simple, Tailwind, Tailwind + Starwind, Concordia), le projet généré reçoit **la même
+arborescence `src/styles/`** — celle des dépôts `concordia` / `astro-css-drizzle-better-auth`
+(`global.css`, `base.css`, `tokens/`, `components/`), complétée par `themes/` :
+
+```text
+src/styles/                      CSS simple · Tailwind · Starwind          Concordia
+├── global.css                   entrée unique (BaseLayout)                idem (importe base.css + variantes)
+├── base.css                     remise à zéro, valeurs globales           Concordia (verbatim) : jetons + variante initiale
+├── starwind.css                 Starwind seul : `starwind init`           —
+├── tokens/
+│   ├── colors.css               --background, --primary… (clair/sombre)   Concordia (verbatim)
+│   ├── typography.css · spacing.css                                      Concordia (verbatim)
+│   ├── components.css           --button-border-radius, --card-padding…   Concordia (verbatim)
+│   ├── tailwind.css             @theme (Tailwind / Starwind)              —
+│   └── site.css                 pont vers les variables du gabarit        idem, branché sur les jetons Concordia
+├── themes/theme.css             palette de marque WCAG (--brand-*)        palette de marque WCAG (--color-*)
+└── components/
+    ├── layout.css · button.css · custom.css                              + retro/modern/futuristic/initial.css (verbatim)
+    ├── card.css                 (hors Concordia)
+    └── input · textarea · select · badge · alert · dialog · tabs · table · tooltip .css   (Starwind seul)
+```
+
+**Comment personnaliser** (détail dans `docs/design.md` du projet) :
+
+1. une valeur de **jeton** (`tokens/components.css`, p. ex. `--button-border-radius: 9999px`) change tous les composants concernés ;
+2. la **palette** (`themes/theme.css`) est générée avec contrôle WCAG pour *tous* les kits (`--theme-primary/-secondary/-accent`) ;
+   les kits non-Concordia lisent `--brand-*` (aucune collision avec l'espace `--color-*` de Tailwind), Concordia lit ses `--color-*` ;
+3. **Starwind** : les composants d'`atoms/` ne sont jamais modifiés. Chacun expose `data-slot="…"` ; `components/<nom>.css`
+   cible ce hook dans `@layer overrides`, déclarée *après* les utilitaires Tailwind, et lit les jetons. Un composant sans
+   fichier se surcharge dans `components/custom.css` ;
+4. **Concordia** : jetons de `tokens/components.css` ou règles dans `components/custom.css`, variantes = fichiers `components/<variante>.css`.
+
+`tokens/site.css` relie les variables du gabarit AlphaRust (`--bg`, `--text`, `--brand`…) aux jetons du kit : le site suit donc
+le thème sans réécriture. La page `/design` (Starwind) et `/components` (Concordia) montrent les composants avec vos jetons.
+
+## Starwind : ce qui vient d'atomic
+
+* `src/components/atoms/**` — les composants Starwind d'atomic, **copiés sans modification de code** (46 dossiers : accordion,
+  alert, alert-dialog, avatar, badge, button, card, carousel, dialog, dropdown, input, select, sheet, sidebar, table, tabs,
+  toast, tooltip…), `src/lib/starwind/positioning.ts`, `src/components/wow/**` (effets).
+* `tokens/colors.css` : jeux « Fire Brand » OKLCH d'atomic (`:root` et `.dark`) ; seules les couleurs primaires lisent `--brand-primary`.
+* `starwind.config.json` aligné sur atomic (`componentDir: src/components/atoms`, `utilsDir: src/lib/starwind`).
+* Non repris : `icon-picker` et `media-picker` (liés à la base média d'atomic).
+* Corrections : imports de la documentation (`@components/starwind/…` → `@atoms/…`) ; alias `@atoms/*`, `@starwind/*` ;
+  dépendances installées par le gestionnaire de paquets (`tailwind-variants`, `@tabler/icons`, `embla-carousel`, `motion`, `astro-icon`).
+
 ## Concordia et themecsutomizer
 
 `--ui concordia` copie sans réécriture `src/styles/{base.css,tokens,components/*}` et `src/components/ui/**`.
 Corrections minimales apportées (liste complète dans l'ADR 0012) : `SearchBar` (TypeScript strict), shim
 `@lib/i18n/route-helpers`, `concordia.css` (sélection des variantes), `astro-icon` + `@iconify-json/mdi` installés.
 
-`--theme-primary/-secondary/-accent` génère `src/styles/theme.css` avec l'algorithme WCAG du dépôt
+`--theme-primary/-secondary/-accent` (tous les kits) génère `src/styles/themes/theme.css` avec l'algorithme WCAG du dépôt
 `themecsutomizer` (luminance relative, contraste, AA ≥ 4,5 / AAA ≥ 7, texte lisible blanc ou `#111827`, variante sombre
 recalculée sur `#0f172a`). La GUI affiche ce contrôle **en direct** ; `npm run theme:check` le rejoue dans le projet.
 

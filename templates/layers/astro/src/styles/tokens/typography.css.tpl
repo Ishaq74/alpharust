@@ -1,0 +1,12 @@
+@@meta when=!official&!concordia@@
+/* Typographie : familles et échelle. */
+:root {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --line-height-base: 1.6;
+  --line-height-heading: 1.2;
+}

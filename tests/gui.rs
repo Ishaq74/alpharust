@@ -529,7 +529,7 @@ async fn meta_exposes_platform_options_and_presets() {
     let o = &astro["options"];
     assert_eq!(o["ui"].as_array().unwrap().len(), 3);
     assert!(o["locales"].as_array().unwrap().len() >= 4);
-    assert!(o["starwind_components"].as_array().unwrap().len() > 30);
+    assert!(o["starwind_atoms"].as_array().unwrap().len() > 40);
     assert_eq!(
         o["css_variants"],
         json!(["initial", "retro", "modern", "futuristic"])

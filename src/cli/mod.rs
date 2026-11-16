@@ -250,27 +250,21 @@ struct GenOpts {
     )]
     ui: Option<String>,
     #[arg(
-        long = "ui-component",
-        value_delimiter = ',',
-        help = "[astro] composants Starwind (défaut : button,card,input,label,alert)"
-    )]
-    ui_components: Vec<String>,
-    #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro, ui concordia] couleur primaire (WCAG)"
+        help = "[astro] couleur primaire de marque (WCAG)"
     )]
     theme_primary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro, ui concordia] couleur secondaire"
+        help = "[astro] couleur secondaire de marque"
     )]
     theme_secondary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro, ui concordia] couleur d'accent"
+        help = "[astro] couleur d'accent de marque"
     )]
     theme_accent: Option<String>,
     #[arg(
@@ -369,7 +363,6 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || o.site.is_some()
         || o.no_typecheck
         || o.ui.is_some()
-        || !o.ui_components.is_empty()
         || o.theme_primary.is_some()
         || o.theme_secondary.is_some()
         || o.theme_accent.is_some()
@@ -441,7 +434,6 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             if let Some(v) = parse_opt("--ui", &o.ui, UiKit::parse, "none, starwind, concordia")? {
                 a.ui = v;
             }
-            a.ui_components = o.ui_components.clone();
             if let Some(v) = parse_opt("--db", &o.db, Db::parse, "none, postgres, sqlite")? {
                 a.database = v;
             }

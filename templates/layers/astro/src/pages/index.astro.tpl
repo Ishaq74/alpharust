@@ -75,7 +75,7 @@ const format = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
     padding: var(--space-12) var(--space-8);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) * 2);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg) 70%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 14%, var(--bg)), var(--bg) 70%);
   }
   .lead {
     font-size: 1.25rem;

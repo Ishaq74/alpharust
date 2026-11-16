@@ -195,10 +195,21 @@ impl ThemeColors {
         ])
     }
 
-    /// Feuille `theme.css` : couleurs de marque, textes lisibles et versions sombres.
-    pub fn css(&self) -> Result<String> {
+    /// Feuille `themes/theme.css` : couleurs de marque, textes lisibles et versions sombres.
+    ///
+    /// `prefix` : `color` (jetons Concordia : `--color-primary`, `--on-primary`, `--button-primary-color`) ou
+    /// `brand` (autres kits : `--brand-primary`, `--on-brand-primary`, sans collision avec l'espace `--color-*` de Tailwind).
+    pub fn css(&self, prefix: &str) -> Result<String> {
         self.validate()?;
         let r = self.reports()?;
+        let concordia = prefix == "color";
+        let on = |n: &str| {
+            if concordia {
+                format!("on-{n}")
+            } else {
+                format!("on-{prefix}-{n}")
+            }
+        };
         let mut out = String::new();
         out.push_str("/* Thème généré par AlphaRust (contrôle WCAG façon themecsutomizer).\n");
         out.push_str(
@@ -206,27 +217,31 @@ impl ThemeColors {
         );
         out.push_str(":root {\n");
         for c in &r {
-            out.push_str(&format!("  --color-{}: {};\n", c.name, c.hex));
+            out.push_str(&format!("  --{prefix}-{}: {};\n", c.name, c.hex));
         }
         for c in &r {
-            out.push_str(&format!("  --button-{}-color: {};\n", c.name, c.text));
+            if concordia {
+                out.push_str(&format!("  --button-{}-color: {};\n", c.name, c.text));
+            }
             out.push_str(&format!(
-                "  --on-{}: {}; /* contraste {:.2}:1 ({}) */\n",
-                c.name,
+                "  --{}: {}; /* contraste {:.2}:1 ({}) */\n",
+                on(c.name),
                 c.text,
                 c.ratio,
                 c.rating.label()
             ));
         }
         out.push_str("}\n\n");
-        out.push_str(":root[data-theme='dark'] {\n");
+        out.push_str(":root[data-theme='dark'],\n.dark {\n");
         for c in &r {
-            out.push_str(&format!("  --color-{}: {};\n", c.name, c.dark_hex));
+            out.push_str(&format!("  --{prefix}-{}: {};\n", c.name, c.dark_hex));
         }
         for c in &r {
             let t = accessible_text(parse_hex(&c.dark_hex).unwrap_or((0, 0, 0)));
-            out.push_str(&format!("  --button-{}-color: {};\n", c.name, to_hex(t)));
-            out.push_str(&format!("  --on-{}: {};\n", c.name, to_hex(t)));
+            if concordia {
+                out.push_str(&format!("  --button-{}-color: {};\n", c.name, to_hex(t)));
+            }
+            out.push_str(&format!("  --{}: {};\n", on(c.name), to_hex(t)));
         }
         out.push_str("}\n");
         Ok(out)
@@ -296,14 +311,28 @@ mod tests {
 
     #[test]
     fn css_contains_tokens_and_rejects_bad_colors() {
-        let css = ThemeColors::default().css().unwrap();
+        let css = ThemeColors::default().css("color").unwrap();
         assert!(css.contains("--color-primary: #4f46e5;"));
         assert!(css.contains("[data-theme='dark']"));
         assert!(css.contains("--button-primary-color: #ffffff;"));
+        assert!(css.contains("--on-primary: #ffffff;"));
         let bad = ThemeColors {
             primary: "red".into(),
             ..Default::default()
         };
-        assert!(bad.css().is_err());
+        assert!(bad.css("color").is_err());
+    }
+
+    #[test]
+    fn brand_prefix_avoids_tailwind_color_namespace() {
+        let css = ThemeColors::default().css("brand").unwrap();
+        assert!(css.contains("--brand-primary: #4f46e5;"));
+        assert!(css.contains("--on-brand-primary: #ffffff;"));
+        assert!(css.contains(":root[data-theme='dark'],\n.dark {"));
+        assert!(!css.contains("--color-"), "pas de --color-* hors Concordia");
+        assert!(
+            !css.contains("--button-"),
+            "jetons de boutons propres à Concordia"
+        );
     }
 }

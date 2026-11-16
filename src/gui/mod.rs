@@ -338,8 +338,7 @@ fn framework_schema() -> Value {
                 ],
                 "auth_plugins": platform::AUTH_PLUGINS.iter().map(|(n, d)| json!({"id": n, "description": d})).collect::<Vec<_>>(),
                 "locales": platform::LOCALES.iter().map(|(n, d)| json!({"id": n, "label": d})).collect::<Vec<_>>(),
-                "starwind_components": platform::STARWIND_COMPONENTS,
-                "starwind_default": platform::STARWIND_DEFAULT,
+                "starwind_atoms": platform::STARWIND_ATOMS,
                 "css_variants": theme::VARIANTS,
                 "theme_defaults": {"primary": theme::DEFAULT_PRIMARY, "secondary": theme::DEFAULT_SECONDARY, "accent": theme::DEFAULT_ACCENT},
                 "presets": platform::PRESETS.iter().map(|p| {

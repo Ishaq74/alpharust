@@ -15,9 +15,12 @@ exclude = [
   "src/database/migrations/**",
 @@end@@
 @@if starwind@@
-  # composants installés par `starwind add` (code tiers)
-  "src/components/starwind/**",
+  # composants Starwind d'atomic (atoms/) et utilitaires : code tiers repris tel quel
+  "src/components/atoms/**",
+  "src/components/wow/**",
+  "src/lib/starwind/**",
   "src/styles/starwind.css",
+  "src/styles/tokens/colors.css",
 @@end@@
 @@if concordia@@
   # système CSS et composants Concordia (copie fidèle du dépôt d'origine)

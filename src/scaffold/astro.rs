@@ -227,8 +227,6 @@ pub struct AstroOptions {
     pub typecheck: bool,
     /// Kit d'interface : Starwind (Tailwind) ou système CSS Concordia.
     pub ui: UiKit,
-    /// Composants Starwind à ajouter (défaut : button, card, input, label, alert).
-    pub ui_components: Vec<String>,
     /// Base de données Drizzle (PostgreSQL ou SQLite).
     pub database: Db,
     /// URL PostgreSQL de développement ; si elle est fournie, les migrations sont appliquées.
@@ -239,7 +237,7 @@ pub struct AstroOptions {
     pub auth_plugins: Vec<String>,
     /// Langues (la première est la langue par défaut) : fr, en, es, ar.
     pub i18n: Vec<String>,
-    /// Couleurs de marque du kit CSS (`concordia`), contrôlées WCAG.
+    /// Couleurs de marque (tous les kits), contrôlées WCAG, écrites dans `src/styles/themes/theme.css`.
     pub theme: Option<ThemeColors>,
     /// Variantes de composants CSS à inclure : initial (toujours), retro, modern, futuristic.
     pub css_variants: Vec<String>,
@@ -259,7 +257,6 @@ impl Default for AstroOptions {
             site: None,
             typecheck: true,
             ui: UiKit::None,
-            ui_components: vec![],
             database: Db::None,
             db_url: None,
             auth: false,
@@ -325,15 +322,31 @@ impl AstroOptions {
             .or(if self.auth { Some("fr") } else { None })
     }
 
-    /// Composants Starwind à installer.
-    pub fn starwind_components(&self) -> Vec<String> {
-        if self.ui_components.is_empty() {
-            platform::STARWIND_DEFAULT
-                .iter()
-                .map(|s| s.to_string())
-                .collect()
+    /// Libellé du kit de design (README et docs du projet généré).
+    pub fn kit_label(&self) -> &'static str {
+        match (self.ui, self.has("tailwind")) {
+            (UiKit::Starwind, _) => "Tailwind + Starwind UI",
+            (UiKit::Concordia, _) => "CSS Concordia",
+            (UiKit::None, true) => "Tailwind",
+            (UiKit::None, false) => "CSS simple",
+        }
+    }
+
+    /// Moteur CSS chargé en tête de `global.css`.
+    pub fn engine_label(&self) -> &'static str {
+        match (self.ui, self.has("tailwind")) {
+            (UiKit::Starwind, _) => "`starwind.css` (Tailwind 4)",
+            (UiKit::None, true) => "`tailwindcss`",
+            _ => "aucun",
+        }
+    }
+
+    /// Préfixe des variables de marque : `color` (jetons Concordia) ou `brand` (autres kits).
+    pub fn theme_prefix(&self) -> &'static str {
+        if self.ui == UiKit::Concordia {
+            "color"
         } else {
-            self.ui_components.clone()
+            "brand"
         }
     }
 
@@ -432,16 +445,11 @@ impl AstroOptions {
         if self.ui == UiKit::Concordia && self.has("tailwind") {
             bail!("le kit `concordia` est un système CSS sans Tailwind : retirer l'intégration tailwind ou choisir `--ui starwind`");
         }
-        for c in &self.ui_components {
-            if !platform::STARWIND_COMPONENTS.contains(&c.as_str()) {
-                bail!("composant Starwind inconnu `{c}`");
-            }
+        if !self.css_variants.is_empty() && self.ui != UiKit::Concordia {
+            bail!("--css-variant n'a de sens qu'avec `--ui concordia`");
         }
-        if !self.ui_components.is_empty() && self.ui != UiKit::Starwind {
-            bail!("--ui-component n'a de sens qu'avec `--ui starwind`");
-        }
-        if (self.theme.is_some() || !self.css_variants.is_empty()) && self.ui != UiKit::Concordia {
-            bail!("--theme-* et --css-variant n'ont de sens qu'avec `--ui concordia`");
+        if self.theme.is_some() && self.template != Template::Alpharust {
+            bail!("--theme-* exige le template `alpharust` (le design system AlphaRust)");
         }
         if let Some(t) = &self.theme {
             t.validate()?;
@@ -655,17 +663,24 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "Initialiser Starwind UI (starwind init)",
             pm.dlx("starwind@latest", &["init".into(), "--defaults".into()]),
         ));
-        let mut args = vec!["add".to_string()];
-        args.extend(o.starwind_components());
-        args.extend(["--yes".into(), "-m".into(), pm.id().into()]);
+        steps.push(Step::internal(
+            "starwind-config",
+            Phase::Configure,
+            "Configurer Starwind comme atomic (composants dans src/components/atoms, utilitaires dans src/lib/starwind)",
+            Internal::StarwindConfig,
+        ));
         steps.push(Step::run(
-            "starwind-add",
+            "atoms-deps",
             Phase::Install,
-            &format!(
-                "Ajouter les composants Starwind : {}",
-                o.starwind_components().join(", ")
-            ),
-            pm.dlx("starwind@latest", &args),
+            "Installer les dépendances des composants atomic (tailwind-variants, @tabler/icons, embla-carousel, motion, astro-icon)",
+            pm.add_dep(&[
+                "tailwind-variants".to_string(),
+                "@tabler/icons".to_string(),
+                "embla-carousel".to_string(),
+                "motion".to_string(),
+                "astro-icon".to_string(),
+                "@iconify-json/mdi".to_string(),
+            ]),
         ));
     }
     if req.install && o.ui == UiKit::Concordia {
@@ -719,7 +734,7 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
     if o.has_tests() {
         scripts.extend([("test", "vitest run"), ("test:watch", "vitest")]);
     }
-    if o.ui == UiKit::Concordia && o.theme.is_some() {
+    if o.theme.is_some() {
         scripts.push(("theme:check", "node scripts/theme-check.mjs"));
     }
     if !scripts.is_empty() && req.install {
@@ -744,6 +759,9 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
     }
     if o.ui == UiKit::Concordia {
         layers.push("ui-concordia");
+    }
+    if o.ui == UiKit::Starwind {
+        layers.push("ui-atomic");
     }
     steps.push(Step::internal(
         "layer",
@@ -773,19 +791,17 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             Internal::AstroConfig {
                 ssr: o.ssr(),
                 locales: o.i18n.clone(),
-                concordia_icons: o.ui == UiKit::Concordia,
+                icons: o.ui != UiKit::None,
             },
         ));
     }
-    if o.ui == UiKit::Concordia {
-        if let Some(t) = &o.theme {
-            steps.push(Step::internal(
-                "theme",
-                Phase::Configure,
-                "Générer le thème CSS (contrôle WCAG)",
-                Internal::CssTheme(t.clone()),
-            ));
-        }
+    if let Some(t) = &o.theme {
+        steps.push(Step::internal(
+            "theme",
+            Phase::Configure,
+            "Générer src/styles/themes/theme.css (contrôle WCAG)",
+            Internal::CssTheme(t.clone(), o.theme_prefix()),
+        ));
     }
     if req.install && o.auth {
         steps.push(Step::run(
@@ -1066,8 +1082,13 @@ mod tests {
                 .position(|x| *x == id)
                 .unwrap_or_else(|| panic!("{id}"))
         };
-        assert!(pos("starwind-init") < pos("starwind-add"));
-        assert!(pos("starwind-add") < pos("platform-deps"));
+        assert!(pos("starwind-init") < pos("starwind-config"));
+        assert!(pos("starwind-config") < pos("atoms-deps"));
+        assert!(pos("atoms-deps") < pos("platform-deps"));
+        assert!(
+            !order.contains(&"starwind-add"),
+            "les composants viennent du calque atomic, pas de `starwind add`"
+        );
         assert!(pos("platform-dev-deps") < pos("layer"));
         assert!(
             pos("layer") < pos("auth-schema"),

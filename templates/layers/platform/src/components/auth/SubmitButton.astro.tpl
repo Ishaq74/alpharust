@@ -5,7 +5,7 @@ interface Props {
 }
 const { label } = Astro.props;
 @@if starwind@@
-import { Button } from '@/components/starwind/button';
+import { Button } from '@atoms/button';
 @@end@@
 @@if concordia@@
 import Button from '@components/ui/Button.astro';
@@ -33,8 +33,8 @@ import Button from '@components/ui/Button.astro';
     padding: 0.65rem 1rem;
     border: 0;
     border-radius: 0.5rem;
-    background: var(--accent);
-    color: var(--accent-contrast);
+    background: var(--brand);
+    color: var(--brand-contrast);
     cursor: pointer;
   }
   .submit:hover {

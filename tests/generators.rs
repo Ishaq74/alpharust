@@ -194,7 +194,8 @@ fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
         "src/content/blog/bienvenue.md",
         "src/content/blog/exemple-mdx.mdx",
         "src/pages/blog/[...slug].astro",
-        "src/styles/tokens.css",
+        "src/styles/tokens/colors.css",
+        "src/styles/themes/theme.css",
         ".alpharust.toml",
         "docs/index.md",
     ] {
@@ -204,9 +205,10 @@ fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
         read(&t.join("src/pages/index.astro")).contains("BaseLayout"),
         "index officiel remplacé"
     );
+    let entry = read(&t.join("src/styles/global.css"));
     assert!(
-        read(&t.join("src/styles/global.css")).starts_with("@import \"tailwindcss\""),
-        "tailwind en tête"
+        entry.find("@import \"tailwindcss\"").unwrap() < entry.find("./tokens/colors.css").unwrap(),
+        "tailwind avant les jetons"
     );
     assert!(
         read(&t.join(".gitignore")).contains("node_modules"),
@@ -661,6 +663,7 @@ fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
         i18n: vec!["fr".into(), "en".into()],
         docker: true,
         ci: true,
+        theme: Some(ThemeColors::default()),
         ..Default::default()
     });
     let Some((t, report, _keep)) = e2e(req) else {
@@ -668,7 +671,8 @@ fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
     };
     for id in [
         "starwind-init",
-        "starwind-add",
+        "starwind-config",
+        "atoms-deps",
         "auth-schema",
         "db-generate",
         "db-migrate",
@@ -678,8 +682,19 @@ fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
     ] {
         step_ok(&report, id);
     }
+    assert_design_layout(&t);
+    assert!(read(&t.join("src/styles/themes/theme.css")).contains("--brand-primary: #4f46e5;"));
+    assert!(
+        walk(&t.join("src/components/atoms")) >= 200,
+        "tous les composants atomic"
+    );
     for f in [
-        "src/components/starwind/button",
+        "src/components/atoms/button/Button.astro",
+        "src/lib/starwind/positioning.ts",
+        "src/styles/tokens/components.css",
+        "src/styles/components/button.css",
+        "src/styles/themes/theme.css",
+        "src/pages/design.astro",
         "src/lib/auth.ts",
         "src/database/schemas/auth.schema.ts",
         "src/pages/[lang]/auth/sign-in.astro",
@@ -721,12 +736,64 @@ fn e2e_astro_platform_concordia_theme_all_components() {
     // tous les composants du dépôt Concordia sont présents
     let count = walk(&t.join("src/components/ui"));
     assert!(count >= 80, "{count} fichiers de composants Concordia");
-    let theme = read(&t.join("src/styles/theme.css"));
+    let theme = read(&t.join("src/styles/themes/theme.css"));
     assert!(theme.contains("--color-primary: #0ea5e9;") && theme.contains("--on-primary"));
     for v in ["retro", "modern", "futuristic"] {
         assert!(t.join(format!("src/styles/components/{v}.css")).is_file());
     }
+    assert_design_layout(&t);
     assert_lint_clean(&t);
+}
+
+/// Arborescence `src/styles/` commune à tous les kits.
+fn assert_design_layout(t: &Path) {
+    for f in [
+        "global.css",
+        "base.css",
+        "tokens/colors.css",
+        "tokens/typography.css",
+        "tokens/spacing.css",
+        "tokens/components.css",
+        "tokens/site.css",
+        "themes/theme.css",
+        "components/layout.css",
+        "components/button.css",
+        "components/custom.css",
+    ] {
+        assert!(t.join("src/styles").join(f).is_file(), "src/styles/{f}");
+    }
+    assert!(read(&t.join("src/layouts/BaseLayout.astro")).contains("styles/global.css"));
+    assert!(read(&t.join("README.md")).contains("Personnaliser le design"));
+}
+
+/// CSS simple et Tailwind seul : même arborescence, palette de marque générée, build réel.
+#[test]
+fn e2e_astro_design_system_plain_and_tailwind() {
+    let _g = lock();
+    for (name, integrations) in [
+        ("e2e-design-plain", vec![]),
+        ("e2e-design-tw", vec!["tailwind".to_string()]),
+    ] {
+        let mut req = Request::new(Framework::Astro, name);
+        req.options = Options::Astro(AstroOptions {
+            integrations,
+            theme: Some(ThemeColors::default()),
+            ..Default::default()
+        });
+        let Some((t, report, _keep)) = e2e(req) else {
+            return;
+        };
+        for id in ["theme", "check", "build"] {
+            step_ok(&report, id);
+        }
+        assert_design_layout(&t);
+        let theme = read(&t.join("src/styles/themes/theme.css"));
+        assert!(
+            theme.contains("--brand-primary: #4f46e5;") && theme.contains("--on-brand-primary")
+        );
+        assert!(t.join("scripts/theme-check.mjs").is_file());
+        assert_lint_clean(&t);
+    }
 }
 
 fn walk(dir: &Path) -> usize {

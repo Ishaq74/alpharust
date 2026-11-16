@@ -87,7 +87,7 @@ Plateforme Astro (thème WCAG en direct, projets orchestrés, TUI, site Concordi
 - **Tiers** : secrets et mauvaises configurations pour AWS, GCP, GitHub, Slack, OpenAI, Twilio, Azure, SendGrid, Postmark, Brevo, Stripe, Adyen, Square, Braintree, Paddle, Auth0, Clerk, Supabase, Firebase, MongoDB, Redis, PlanetScale…
 - **Profils** (`core`, `starter`, `strict`, `web`, `ecommerce`, `cms`, `secrets`, `third-party`) — [`docs/profiles.md`](docs/profiles.md).
 - **Configuration** `.alpharust.toml` (profil, exclusions, désactivation, sévérités, `fail_on`), suppression `alpharust-ignore`, **cache** des règles — [`docs/configuration.md`](docs/configuration.md).
-- **Plateforme Astro** : Starwind (outil officiel) ou Concordia (CSS pur, thème WCAG), Drizzle + PostgreSQL/SQLite, Better Auth, i18n, Docker, CI, préréglages et orchestration (`alpharust projects`, `alpharust run`) — [`docs/platform.md`](docs/platform.md).
+- **Plateforme Astro** : Starwind (outil officiel + les 46 composants d'atomic) ou Concordia (CSS pur), design system `src/styles` identique pour tous les kits, thème WCAG, Drizzle + PostgreSQL/SQLite, Better Auth, i18n, Docker, CI, préréglages et orchestration (`alpharust projects`, `alpharust run`) — [`docs/platform.md`](docs/platform.md).
 - **Générateurs** : outil officiel → installation → couche de modèles → vérification réelle (types, build, tests, lint) ; Astro (npm/pnpm/yarn/bun, Tailwind, MDX, sitemap, React/Vue/Svelte, TypeScript), Laravel (Breeze, Pest), Wagtail, Rust — [`docs/generators.md`](docs/generators.md).
 
 ![Tests](docs/screenshots/cli-tests.png)

@@ -95,6 +95,6 @@ const links = NAV_LINKS.map((l) => ({ href: l.href as string, label: l.label as 
   nav a:hover,
   nav a[aria-current='page'] {
     color: var(--text);
-    border-bottom-color: var(--accent);
+    border-bottom-color: var(--brand);
   }
 </style>

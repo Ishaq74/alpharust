@@ -1,222 +1,69 @@
 @@meta mode=replace when=!official@@
+/*
+ * Design system — ENTRÉE UNIQUE (importée par src/layouts/BaseLayout.astro).
+ * Rien d'autre n'est importé par les pages : ajoutez vos fichiers ici, dans l'ordre voulu.
+ *
+ *   tokens/      variables : couleurs, typographie, espacements, composants
+ *   themes/      palette de marque (générée avec contrôle WCAG : `--theme-*`)
+ *   components/  un fichier par composant (et custom.css pour vos surcharges)
+ */
 @@if starwind@@
-@import "./starwind.css";
+@import "./starwind.css"; /* généré par `starwind init` : Tailwind 4, tw-animate-css, jetons officiels */
 @@else@@
 @@if tailwind@@
 @import "tailwindcss";
 @@end@@
 @@end@@
-@import "./tokens.css";
+@@if tailwind@@
+/* Les surcharges de composants passent APRÈS les utilitaires Tailwind. */
+@layer theme, base, components, utilities, overrides;
+@@end@@
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* 1. Jetons */
+@@if concordia@@
+@import "./base.css"; /* Concordia : tokens/{colors,typography,spacing,components}.css + variante initiale */
+@@else@@
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./tokens/components.css";
+@@if tailwind@@
+@import "./tokens/tailwind.css";
+@@end@@
+@@end@@
+@import "./tokens/site.css";
 
-html {
-  font-family: var(--font-sans);
-  line-height: 1.6;
-  background: var(--bg);
-  color: var(--text);
-  -webkit-text-size-adjust: 100%;
-}
+/* 2. Thème de marque */
+@import "./themes/theme.css";
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex: 1;
-  width: min(100% - 2 * var(--space-6), var(--page-width));
-  margin-inline: auto;
-  padding-block: var(--space-8);
-}
-
-h1,
-h2,
-h3 {
-  line-height: 1.2;
-  text-wrap: balance;
-}
-
-h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  margin-block: 0 var(--space-4);
-}
-
-p,
-li {
-  max-width: var(--measure);
-}
-
-a {
-  color: var(--accent);
-  text-underline-offset: 0.2em;
-}
-
-a:hover {
-  text-decoration-thickness: 2px;
-}
-
-:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 3px;
-  border-radius: 4px;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-code {
-  font-family: var(--font-mono);
-  background: var(--surface);
-  padding: 0.1em 0.35em;
-  border-radius: 0.35rem;
-}
-
-/* Rythme vertical : reste correct même si Tailwind (preflight) remet les marges à zéro. */
-main :where(h2) {
-  font-size: 1.5rem;
-  margin-block: var(--space-12) var(--space-4);
-}
-
-main :where(h3) {
-  font-size: 1.2rem;
-  margin-block: var(--space-6) var(--space-2);
-}
-
-main :where(section > h2:first-child, article > h1 + p + h2) {
-  margin-top: 0;
-}
-
-main :where(p, ul, ol, pre, blockquote, table, figure) {
-  margin-block: 0 var(--space-4);
-}
-
-main :where(ul:not([class]), ol:not([class])) {
-  padding-inline-start: 1.5rem;
-  list-style: revert;
-}
-
-main :where(section + section) {
-  margin-top: var(--space-12);
-}
-
-pre {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-4);
-  overflow-x: auto;
-  line-height: 1.5;
-}
-
-pre code {
-  background: none;
-  padding: 0;
-}
-
-blockquote {
-  border-inline-start: 4px solid var(--accent);
-  padding-inline-start: var(--space-4);
-  color: var(--text-muted);
-}
-
-hr {
-  border: 0;
-  border-top: 1px solid var(--border);
-  margin-block: var(--space-8);
-}
-
-.meta {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-}
-
-.skip-link {
-  position: absolute;
-  left: var(--space-4);
-  top: -4rem;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius);
-  z-index: 10;
-}
-
-.skip-link:focus {
-  top: var(--space-4);
-}
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-6);
-  transition: border-color 0.15s ease, transform 0.15s ease;
-}
-
-.card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-
-.button {
-  display: inline-block;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  padding: var(--space-3) var(--space-6);
-  border-radius: var(--radius);
-  text-decoration: none;
-  font-weight: 600;
-  border: 0;
-  cursor: pointer;
-}
-
-.button:hover {
-  filter: brightness(1.1);
-}
-
-.button.secondary {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.button.secondary:hover {
-  border-color: var(--accent);
-  filter: none;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-6);
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
-    scroll-behavior: auto;
-  }
-}
+/* 3. Base et composants */
+@@if concordia@@
+@@if css_retro@@
+@import "./components/retro.css";
+@@end@@
+@@if css_modern@@
+@import "./components/modern.css";
+@@end@@
+@@if css_futuristic@@
+@import "./components/futuristic.css";
+@@end@@
+@@else@@
+@import "./base.css";
+@@end@@
+@import "./components/layout.css";
+@import "./components/button.css";
+@@if !concordia@@
+@import "./components/card.css";
+@@end@@
+@@if starwind@@
+@import "./components/input.css";
+@import "./components/textarea.css";
+@import "./components/select.css";
+@import "./components/badge.css";
+@import "./components/alert.css";
+@import "./components/dialog.css";
+@import "./components/tabs.css";
+@import "./components/table.css";
+@import "./components/tooltip.css";
+@@end@@
+@import "./components/custom.css";

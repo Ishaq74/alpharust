@@ -236,10 +236,12 @@ pub enum Internal {
     AstroConfig {
         ssr: bool,
         locales: Vec<String>,
-        concordia_icons: bool,
+        icons: bool,
     },
-    /// Feuille de thème CSS (kit Concordia) avec contrôle WCAG.
-    CssTheme(theme::ThemeColors),
+    /// Palette de marque `src/styles/themes/theme.css` avec contrôle WCAG (préfixe `color` ou `brand`).
+    CssTheme(theme::ThemeColors, &'static str),
+    /// `starwind.config.json` aligné sur atomic (dossiers `atoms` et `lib/starwind`).
+    StarwindConfig,
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,

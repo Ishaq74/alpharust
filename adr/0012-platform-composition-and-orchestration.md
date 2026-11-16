@@ -11,7 +11,7 @@ approximativement ni écrire des fichiers « au hasard ».
 
 ## Décision
 
-1. **Outil officiel d'abord.** Starwind : `starwind init` + `starwind add` ; intégrations : `astro add` ; schéma Better
+1. **Outil officiel d'abord.** Starwind : `starwind init` + `starwind add` (remplacé par les composants d'atomic, ADR 0013) ; intégrations : `astro add` ; schéma Better
    Auth : `auth@latest generate` (le paquet `@better-auth/cli` est déprécié) ; migrations : `drizzle-kit generate/migrate`.
    Les dépendances sont installées par le gestionnaire de paquets, jamais écrites à la main dans `package.json`.
 2. **Couche `platform/` calquée sur `atomic`** : environnements `LOCAL|TEST|PROD`, connexion Drizzle paresseuse, journal

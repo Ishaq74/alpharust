@@ -5,7 +5,7 @@ interface Props {
 }
 const { message } = Astro.props;
 @@if starwind@@
-import { Alert } from '@/components/starwind/alert';
+import { Alert } from '@atoms/alert';
 @@end@@
 @@if concordia@@
 import Alert from '@components/ui/Alert.astro';

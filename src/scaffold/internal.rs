@@ -59,6 +59,9 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
                 "corepack",
                 matches!(pm, PackageManager::Pnpm | PackageManager::Yarn),
             );
+            ctx.var("kit", o.kit_label())
+                .var("engine", o.engine_label())
+                .var("theme_prefix", o.theme_prefix());
             ctx.var("pm", o.package_manager.id())
                 .var("run", o.package_manager.run_prefix())
                 .var("install_cmd", o.package_manager.install_cmd())
@@ -341,9 +344,10 @@ fn run_internal(
         Internal::AstroConfig {
             ssr,
             locales,
-            concordia_icons,
-        } => patch_astro_config(target, *ssr, locales, *concordia_icons).map(Some),
-        Internal::CssTheme(t) => write_css_theme(target, t).map(Some),
+            icons,
+        } => patch_astro_config(target, *ssr, locales, *icons).map(Some),
+        Internal::CssTheme(t, prefix) => write_css_theme(target, t, prefix).map(Some),
+        Internal::StarwindConfig => patch_starwind_config(target).map(Some),
         Internal::PackageScripts(scripts) => patch_package_scripts(target, scripts).map(Some),
         Internal::LaravelEnv(db) => patch_laravel_env(target, *db, &req.name).map(Some),
         Internal::LaravelRoutes => patch_laravel_routes(target).map(Some),
@@ -445,6 +449,8 @@ pub const TS_PATHS: &[(&str, &str)] = &[
     ("@styles/*", "src/styles/*"),
     ("@layouts/*", "src/layouts/*"),
     ("@components/*", "src/components/*"),
+    ("@atoms/*", "src/components/atoms/*"),
+    ("@starwind/*", "src/lib/starwind/*"),
     ("@i18n/*", "src/i18n/*"),
     ("@lib/*", "src/lib/*"),
     ("@database/*", "src/database/*"),
@@ -560,12 +566,34 @@ pub fn patch_astro_config(
     })
 }
 
-pub fn write_css_theme(target: &Path, t: &super::theme::ThemeColors) -> Result<String> {
-    let css = t.css()?;
-    let dir = target.join("src/styles");
+pub fn write_css_theme(
+    target: &Path,
+    t: &super::theme::ThemeColors,
+    prefix: &str,
+) -> Result<String> {
+    let css = t.css(prefix)?;
+    let dir = target.join("src/styles/themes");
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("theme.css"), css)?;
     t.summary()
+}
+
+/// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.
+pub fn patch_starwind_config(target: &Path) -> Result<String> {
+    let path = target.join("starwind.config.json");
+    let mut v = read_json(&path)?;
+    let o = v
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("starwind.config.json invalide"))?;
+    o.insert("componentDir".into(), json!("src/components/atoms"));
+    o.insert("utilsDir".into(), json!("src/lib/starwind"));
+    write_json(&path, &v)?;
+    // `starwind init` crée un dossier de composants vide : le vrai est `atoms/`.
+    let unused = target.join("src/components/starwind");
+    if unused.is_dir() && fs::read_dir(&unused)?.next().is_none() {
+        fs::remove_dir(&unused)?;
+    }
+    Ok("componentDir = src/components/atoms · utilsDir = src/lib/starwind".into())
 }
 
 pub fn patch_astro_site(target: &Path, url: &str) -> Result<String> {
@@ -1028,15 +1056,211 @@ mod tests {
     #[test]
     fn css_theme_file_is_written_and_validated() {
         let d = tempfile::tempdir().unwrap();
-        let summary =
-            write_css_theme(d.path(), &super::super::theme::ThemeColors::default()).unwrap();
+        let summary = write_css_theme(
+            d.path(),
+            &super::super::theme::ThemeColors::default(),
+            "color",
+        )
+        .unwrap();
         assert!(summary.contains("primary"));
-        let css = fs::read_to_string(d.path().join("src/styles/theme.css")).unwrap();
+        let css = fs::read_to_string(d.path().join("src/styles/themes/theme.css")).unwrap();
         assert!(css.contains("--color-primary") && css.contains(":root[data-theme='dark']"));
         let bad = super::super::theme::ThemeColors {
             primary: "pas-une-couleur".into(),
             ..Default::default()
         };
-        assert!(write_css_theme(d.path(), &bad).is_err());
+        assert!(write_css_theme(d.path(), &bad, "brand").is_err());
+    }
+
+    /// Rend les couches d'un projet Astro (sans lancer aucun outil) dans un dossier temporaire.
+    fn render_design(
+        configure: impl FnOnce(&mut super::super::astro::AstroOptions),
+    ) -> tempfile::TempDir {
+        use super::super::{plan, Action, Framework, Options, Request};
+        let mut o = super::super::astro::AstroOptions::default();
+        configure(&mut o);
+        let theme = o.theme.clone();
+        let prefix = o.theme_prefix();
+        let mut req = Request::new(Framework::Astro, "demo");
+        req.options = Options::Astro(o);
+        let p = plan(&req).expect("plan valide");
+        let ctx = build_ctx(&req, &p);
+        let layers = p
+            .steps
+            .iter()
+            .find_map(|s| match &s.action {
+                Action::Do(Internal::Layer(l)) => Some(l.clone()),
+                _ => None,
+            })
+            .expect("étape de couche");
+        let dir = tempfile::tempdir().unwrap();
+        layer::apply(&layers, &ctx, dir.path()).unwrap();
+        if let Some(t) = theme {
+            write_css_theme(dir.path(), &t, prefix).unwrap();
+        }
+        dir
+    }
+
+    fn all_files(dir: &Path) -> Vec<std::path::PathBuf> {
+        let mut out = Vec::new();
+        for e in fs::read_dir(dir).unwrap().flatten() {
+            if e.path().is_dir() {
+                out.extend(all_files(&e.path()));
+            } else {
+                out.push(e.path());
+            }
+        }
+        out
+    }
+
+    /// Chaque `@import "./x.css"` d'une feuille doit pointer vers un fichier réellement présent.
+    fn assert_imports_resolve(styles: &Path, sheet: &str, generated_by_tools: &[&str]) {
+        let text = fs::read_to_string(styles.join(sheet)).unwrap();
+        for line in text
+            .lines()
+            .filter(|l| l.trim_start().starts_with("@import"))
+        {
+            let Some(rel) = line.split(['"', '\'']).nth(1) else {
+                continue;
+            };
+            if !rel.starts_with("./") || generated_by_tools.contains(&rel) {
+                continue;
+            }
+            assert!(
+                styles.join(rel).is_file(),
+                "{sheet} importe {rel} qui n'existe pas"
+            );
+        }
+    }
+
+    #[test]
+    fn design_system_layout_is_identical_for_every_ui_option() {
+        use super::super::platform::UiKit;
+        let brand = Some(super::super::theme::ThemeColors::default());
+        type Configure = Box<dyn Fn(&mut super::super::astro::AstroOptions)>;
+        let cases: Vec<(&str, Configure)> = vec![
+            ("css simple", Box::new(|_| {})),
+            (
+                "tailwind",
+                Box::new(|o| o.integrations = vec!["tailwind".into()]),
+            ),
+            ("starwind", Box::new(|o| o.ui = UiKit::Starwind)),
+            ("concordia", Box::new(|o| o.ui = UiKit::Concordia)),
+        ];
+        for (name, cfg) in cases {
+            let theme = brand.clone();
+            let dir = render_design(|o| {
+                cfg(o);
+                o.theme = theme;
+            });
+            let styles = dir.path().join("src/styles");
+            for f in [
+                "global.css",
+                "base.css",
+                "tokens/colors.css",
+                "tokens/typography.css",
+                "tokens/spacing.css",
+                "tokens/components.css",
+                "tokens/site.css",
+                "themes/theme.css",
+                "components/layout.css",
+                "components/button.css",
+                "components/custom.css",
+            ] {
+                assert!(styles.join(f).is_file(), "{name} : src/styles/{f} attendu");
+            }
+            assert_imports_resolve(&styles, "global.css", &["./starwind.css"]);
+            let entry = fs::read_to_string(styles.join("global.css")).unwrap();
+            assert!(entry.contains("themes/theme.css") && entry.contains("components/custom.css"));
+            let theme_css = fs::read_to_string(styles.join("themes/theme.css")).unwrap();
+            let var = if name == "concordia" {
+                "--color-primary"
+            } else {
+                "--brand-primary"
+            };
+            assert!(theme_css.contains(var), "{name} : {var} dans theme.css");
+            for f in all_files(&styles) {
+                let t = fs::read_to_string(&f).unwrap();
+                assert!(
+                    !t.contains("@@"),
+                    "directive non résolue dans {}",
+                    f.display()
+                );
+            }
+            let readme = fs::read_to_string(dir.path().join("README.md")).unwrap();
+            assert!(readme.contains("Personnaliser le design"), "{name}");
+            assert!(dir.path().join("docs/design.md").is_file(), "{name}");
+            assert!(
+                dir.path().join("scripts/theme-check.mjs").is_file(),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn starwind_components_have_a_file_each_and_target_real_slots() {
+        use super::super::platform::UiKit;
+        let dir = render_design(|o| o.ui = UiKit::Starwind);
+        let atoms = dir.path().join("src/components/atoms");
+        for a in super::super::platform::STARWIND_ATOMS {
+            assert!(atoms.join(a).is_dir(), "composant atomic manquant : {a}");
+        }
+        assert!(dir.path().join("src/lib/starwind/positioning.ts").is_file());
+        assert!(dir
+            .path()
+            .join("src/components/wow/ScrollReveal.astro")
+            .is_file());
+        let mut sources = String::new();
+        for f in all_files(&atoms) {
+            if f.extension().is_some_and(|e| e == "astro") {
+                sources.push_str(&fs::read_to_string(f).unwrap());
+            }
+        }
+        let comps = dir.path().join("src/styles/components");
+        let mut hooks = 0;
+        for f in all_files(&comps) {
+            let css = fs::read_to_string(&f).unwrap();
+            for slot in css.split("[data-slot='").skip(1) {
+                let slot = slot.split('\'').next().unwrap();
+                hooks += 1;
+                assert!(
+                    sources.contains(&format!("data-slot=\"{slot}\"")),
+                    "{} cible [data-slot='{slot}'] absent des composants",
+                    f.display()
+                );
+            }
+        }
+        assert!(hooks >= 11, "{hooks} hooks de composants");
+        // l'entrée charge chaque fichier de composant Starwind
+        let entry = fs::read_to_string(dir.path().join("src/styles/global.css")).unwrap();
+        for c in ["input", "select", "dialog", "tabs", "table", "tooltip"] {
+            assert!(entry.contains(&format!("./components/{c}.css")), "{c}");
+        }
+    }
+
+    #[test]
+    fn concordia_keeps_its_files_verbatim_and_other_kits_have_none_of_them() {
+        use super::super::platform::UiKit;
+        let cc = render_design(|o| o.ui = UiKit::Concordia);
+        let tpl = Path::new(env!("CARGO_MANIFEST_DIR")).join("templates/layers/ui-concordia");
+        for f in [
+            "src/styles/base.css",
+            "src/styles/tokens/colors.css",
+            "src/styles/tokens/components.css",
+            "src/styles/components/initial.css",
+        ] {
+            assert_eq!(
+                fs::read(cc.path().join(f)).unwrap(),
+                fs::read(tpl.join(f)).unwrap(),
+                "{f} doit rester identique au dépôt Concordia"
+            );
+        }
+        let plain = render_design(|_| {});
+        assert!(!plain.path().join("src/components/ui").exists());
+        assert!(!plain.path().join("src/components/atoms").exists());
+        assert!(!plain
+            .path()
+            .join("src/styles/components/retro.css")
+            .exists());
     }
 }

@@ -1,15 +1,7 @@
 @@meta when=!official@@
 ---
+// Entrée unique du design system : jetons, thème, composants (voir README → « Personnaliser le design »).
 import '../styles/global.css';
-@@if starwind@@
-// Starwind UI (Tailwind 4) : jetons et composants ; initialisé par `starwind init`.
-@@end@@
-@@if concordia@@
-import '../styles/concordia.css';
-@@if theme@@
-import '../styles/theme.css';
-@@end@@
-@@end@@
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import SEO from '../components/SEO.astro';
@@ -41,12 +33,16 @@ const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
       // Applique le thème choisi avant le premier rendu (évite le flash).
       try {
         const saved = localStorage.getItem('theme');
-        if (saved === 'light' || saved === 'dark') {
-          document.documentElement.dataset.theme = saved;
+        const theme =
+          saved === 'light' || saved === 'dark'
+            ? saved
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.dataset.theme = theme;
 @@if starwind@@
-          document.documentElement.classList.toggle('dark', saved === 'dark');
+        document.documentElement.classList.toggle('dark', theme === 'dark');
 @@end@@
-        }
       } catch {}
     </script>
   </head>

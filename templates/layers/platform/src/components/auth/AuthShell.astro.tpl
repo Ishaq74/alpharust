@@ -5,7 +5,7 @@ interface Props {
 }
 const { title } = Astro.props;
 @@if starwind@@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/starwind/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@atoms/card';
 @@end@@
 @@if concordia@@
 import Card from '@components/ui/Card/Card.astro';
