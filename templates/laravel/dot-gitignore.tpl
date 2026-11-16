@@ -1,0 +1,12 @@
+/vendor
+/node_modules
+.env
+.env.backup
+.phpunit.result.cache
+/.phpunit.cache
+/database/*.sqlite
+/storage/*.key
+/public/storage
+/public/hot
+.DS_Store
+.alpharust-cache/

@@ -1,3 +1,3 @@
 # Checks Generator
 
-Génère des passes de vérification.
+`alpharust checks [--profile p]` : checklist Markdown des règles actives d'un profil.
