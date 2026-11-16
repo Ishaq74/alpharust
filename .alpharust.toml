@@ -1,0 +1,13 @@
+# Configuration AlphaRust du dépôt lui-même (« dogfooding » : `alpharust lint` doit passer).
+# Les règles, fixtures et templates contiennent volontairement des exemples de violations.
+profile = "strict"
+exclude = [
+  "todos/**",
+  "Cargo.lock",
+  "rules/**",
+  "tests/**",
+  "templates/**",
+  "sites/**",
+  "docs/screenshots/**",
+]
+fail_on = "error"
