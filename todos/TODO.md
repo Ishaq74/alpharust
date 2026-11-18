@@ -34,7 +34,14 @@
 - [x] Préréglages, `projects`, `run`, GUI (projets, historique, thème en direct), TUI
 - [x] Tests e2e réels (SQLite, Concordia, PostgreSQL)
 
+## Design kit partagé (ADR 0013, 0014)
+- [x] `src/styles` unifié, 46 atomes Starwind d'atomic, Concordia verbatim (couche `concordia`)
+- [x] Les 46 composants en CSS pur (même API, `data-slot`, événements), page `/components/advanced` pour les deux kits
+- [x] Laravel (`<x-ds.*>`, Vite + Tailwind v4) et Wagtail (app `ds`) : catalogue core, feuilles des 46 composants
+- [x] Générateur versionné `tools/dsgen`, contrôle CI régénération + diff, parité statique et runtime
+
 ## Idées pour la suite
+- [ ] Gabarits Blade et Django des 23 composants étendus (les feuilles CSS et `ds.js` sont déjà livrées)
 - [ ] Générateur WordPress (wp-cli) — reporté, voir ADR 0012
 - [ ] Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
 - [ ] Vérification `docker build` en CI (le Dockerfile généré n'est pas construit aujourd'hui)

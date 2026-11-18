@@ -669,6 +669,10 @@ fn e2e_laravel_design_kit_builds_with_vite_and_passes_its_tests() {
         css.contains("data-slot"),
         "les composants sont dans la feuille compilée"
     );
+    // les composants étendus (CSS pur, mêmes slots qu'atomic) font partie de la même feuille
+    for slot in ["select-content", "sidebar-provider", "toast-viewport"] {
+        assert!(css.contains(slot), "slot étendu {slot} compilé");
+    }
     for id in ["npm-build", "test"] {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
     }
@@ -687,6 +691,13 @@ fn e2e_wagtail_design_kit_serves_components_and_passes_its_tests() {
         return;
     };
     assert!(t.join("ds/static/ds/css/index.css").is_file());
+    for f in ["select", "sidebar", "toast", "utilities"] {
+        assert!(
+            t.join(format!("ds/static/ds/css/components/{f}.css"))
+                .is_file(),
+            "{f}.css"
+        );
+    }
     assert!(read(&t.join("e2e_wg_kit/templates/base.html")).contains("ds/css/index.css"));
     for id in ["design-wire", "check", "test"] {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");

@@ -45,7 +45,7 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `--site` | URL publique (exigée par `sitemap`, écrite dans `astro.config.mjs`) |
 | `--no-typecheck` | n'installe pas `@astrojs/check` |
 | `--preset` | `vitrine`, `blog-i18n`, `app-auth`, `saas-pg`, `concordia` (voir `alpharust presets`) |
-| `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant` ; 23 composants CSS du catalogue partagé) |
+| `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant` ; les 46 composants d'atomic en CSS pur, même API que Starwind) |
 | `--theme-primary/-secondary/-accent` | palette de marque WCAG → `src/styles/themes/theme.css`, **tous les kits** |
 | `--db`, `--db-url` | `none`, `sqlite`, `postgres` (+ URL de développement : migrations appliquées) |
 | `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` |

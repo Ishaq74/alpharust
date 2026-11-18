@@ -888,8 +888,8 @@ for comp in ext:
 lines += ['# Écarts connus entre le DOM rendu par les atomes Starwind (dépôt atomic, repris tels quels) et le contrat.',
           '# Mesurés par le script de parité runtime (docs/tests.md) ; tout autre écart est une erreur.',
           '[known_gaps]',
-          'atoms_missing_slots = ["checkbox", "pagination-next", "pagination-previous", "switch", "tooltip-trigger"]',
+          'atoms_missing_slots = ["checkbox", "switch", "tooltip-trigger"]',
           'atoms_extra_slots = ["dialog-backdrop"]',
-          'atoms_slot_count_differs = ["pagination-link"]', '']
+          'atoms_slot_count_differs = []', '']
 open(ROOT + '/design-kit/catalog.toml', 'w').write('\n'.join(lines))
 print('catalog.toml', len(core), 'core', len(ext), 'css')

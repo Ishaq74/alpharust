@@ -50,3 +50,22 @@ Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authent
   `concordia_keeps_its_files_verbatim…` compare les fichiers Concordia à l'original.
 * **e2e réels** : `e2e_astro_design_system_plain_and_tailwind` (palette + `astro check` + build) et les e2e plateforme
   (Starwind + thème, Concordia + thème) vérifient `src/styles/` après installation.
+
+### Design kit partagé et parité du catalogue (ADR 0014)
+
+* **Unitaires** (`src/scaffold/catalog.rs`, `cargo test catalog`) — le contrat `templates/layers/design-kit/catalog.toml`
+  contre les fichiers réels :
+  * 23 composants `core` et 23 `css`, slots uniques ; chaque composant a sa feuille `css/components/<nom>.css`, importée par
+    `index.css`, qui ne cible que des slots du contrat ;
+  * core : chaque slot est présent dans les atomes CSS pur, les composants Blade et les balises Django ;
+  * css : mêmes fichiers, mêmes `data-slot` et mêmes exports (hors `*Variants`) que l'atome Starwind d'atomic ;
+  * chaque dossier d'atomes d'atomic est déclaré ; les pages `/components` (4 cibles) et `/components/advanced` (Starwind et
+    CSS) importent chaque composant ; le kit CSS d'Astro installe les 46 feuilles, `utilities.css` et `ds.js` ;
+  * branchement Laravel (refus de Breeze) et Wagtail (insertion idempotente, échec si l'ancre manque).
+* **Générateur à jour** (CI) : `python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers`.
+* **e2e réels** : `ALPHARUST_E2E=1 cargo test --release --test generators design_kit -- --test-threads=1` (Laravel : Vite compile
+  le kit, slots étendus compris, puis `php artisan test` ; Wagtail : `manage.py check` et tests, pages `/components/`).
+* **Runtime** (preuves) : `parity.py starwind=URL concordia=URL laravel=URL wagtail=URL` compare les `data-slot` rendus par
+  les quatre pages `/components` (écarts tolérés : `[known_gaps]`) ; `interact.py` ouvre et pilote les composants de
+  `/components/advanced` dans les deux kits (dialogue, panneau, menu, select, OTP, curseur, radio, carrousel, barre latérale,
+  toast, thème) et relève les erreurs de console. Scripts : `docs/screenshots/scripts/`.

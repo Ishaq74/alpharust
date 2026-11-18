@@ -80,6 +80,13 @@ Plateforme Astro (thème WCAG en direct, projets orchestrés, TUI, site Concordi
 ![TUI : projets](docs/screenshots/tui-projects.png)
 ![Site généré : Concordia + Better Auth](docs/screenshots/generated-concordia-dashboard.png)
 
+Design kit partagé (ADR 0014) : mêmes composants en Starwind (gauche) et en CSS pur (droite), puis Laravel (Blade) et Wagtail (Django) :
+
+![Composants avancés : Starwind et CSS pur côte à côte](docs/screenshots/phase6-sbs-advanced.png)
+![Catalogue /components : Starwind et CSS pur](docs/screenshots/phase6-sbs-components.png)
+![Laravel : composants Blade](docs/screenshots/phase6-laravel-components.png)
+![Wagtail : balises Django](docs/screenshots/phase6-wagtail-components.png)
+
 ## Fonctionnalités
 
 - **Règles** Markdown + frontmatter YAML (`rules/`), validées et auto-testées par leurs exemples — [`docs/rule-format.md`](docs/rule-format.md), [`docs/writing-rules.md`](docs/writing-rules.md).
@@ -87,7 +94,7 @@ Plateforme Astro (thème WCAG en direct, projets orchestrés, TUI, site Concordi
 - **Tiers** : secrets et mauvaises configurations pour AWS, GCP, GitHub, Slack, OpenAI, Twilio, Azure, SendGrid, Postmark, Brevo, Stripe, Adyen, Square, Braintree, Paddle, Auth0, Clerk, Supabase, Firebase, MongoDB, Redis, PlanetScale…
 - **Profils** (`core`, `starter`, `strict`, `web`, `ecommerce`, `cms`, `secrets`, `third-party`) — [`docs/profiles.md`](docs/profiles.md).
 - **Configuration** `.alpharust.toml` (profil, exclusions, désactivation, sévérités, `fail_on`), suppression `alpharust-ignore`, **cache** des règles — [`docs/configuration.md`](docs/configuration.md).
-- **Plateforme Astro** : Starwind (outil officiel + les 46 composants d'atomic) ou Concordia (CSS pur), design system `src/styles` identique pour tous les kits, thème WCAG, Drizzle + PostgreSQL/SQLite, Better Auth, i18n, Docker, CI, préréglages et orchestration (`alpharust projects`, `alpharust run`) — [`docs/platform.md`](docs/platform.md).
+- **Plateforme Astro** : Starwind (outil officiel + les 46 composants d'atomic) ou les **mêmes 46 composants en CSS pur** (Concordia), design kit partagé avec Laravel (Blade) et Wagtail (Django) généré par `tools/dsgen`, design system `src/styles` identique pour tous les kits, thème WCAG, Drizzle + PostgreSQL/SQLite, Better Auth, i18n, Docker, CI, préréglages et orchestration (`alpharust projects`, `alpharust run`) — [`docs/platform.md`](docs/platform.md).
 - **Générateurs** : outil officiel → installation → couche de modèles → vérification réelle (types, build, tests, lint) ; Astro (npm/pnpm/yarn/bun, Tailwind, MDX, sitemap, React/Vue/Svelte, TypeScript), Laravel (Breeze, Pest), Wagtail, Rust — [`docs/generators.md`](docs/generators.md).
 
 ![Tests](docs/screenshots/cli-tests.png)
@@ -105,7 +112,7 @@ cargo test --all-targets
 La CI (`.github/workflows/ci.yml`) exécute ces étapes, puis génère **pour de vrai** des projets Astro, Laravel, Wagtail et Rust
 (`ALPHARUST_E2E=1 cargo test --test generators e2e`).
 Voir [`docs/tests.md`](docs/tests.md), [`docs/arborescence.md`](docs/arborescence.md), les décisions dans [`adr/`](adr/README.md)
-(dernier en date : ADR 0011) et la feuille de route dans [`todos/`](todos/).
+(dernier en date : ADR 0014) et la feuille de route dans [`todos/`](todos/).
 
 ## License
 

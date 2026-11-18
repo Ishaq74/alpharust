@@ -58,7 +58,7 @@ src/styles/                      CSS simple · Tailwind · Starwind          Con
 │   └── site.css                 pont vers les variables du gabarit        idem, branché sur les jetons Concordia
 ├── themes/theme.css             palette de marque WCAG (--brand-*)        palette de marque WCAG (--color-*)
 └── components/
-    ├── layout.css · button.css · custom.css                              layout.css · custom.css + 23 fichiers du catalogue
+    ├── layout.css · button.css · custom.css                              layout.css · custom.css + 46 fichiers du catalogue + utilities.css
     ├── card.css                 (CSS simple, Tailwind, Starwind)         retro/modern/futuristic/initial.css (verbatim, couche `concordia`)
     └── input · textarea · select · badge · alert · dialog · tabs · table · tooltip .css   (Starwind seul)
 ```
@@ -78,7 +78,8 @@ partagé** (`templates/layers/design-kit`), le même que celui de Laravel et de 
 4. **Concordia** : jetons de `tokens/components.css` ou règles dans `components/custom.css`, variantes = fichiers `components/<variante>.css`.
 
 `tokens/site.css` relie les variables du gabarit AlphaRust (`--bg`, `--text`, `--brand`…) aux jetons du kit : le site suit donc
-le thème sans réécriture. La page `/components` (Starwind **et** Concordia) montre les 23 composants du catalogue avec vos jetons.
+le thème sans réécriture. La page `/components` (Starwind **et** Concordia) montre les 23 composants core avec vos jetons, `/components/advanced`
+les 23 autres (dialogues, menus, select, OTP, carrousel, barre latérale, toasts…).
 
 ## Design kit partagé : Astro, Laravel, Wagtail (ADR 0014)
 
@@ -98,8 +99,14 @@ la génération, puis `php artisan test` (dont `ComponentsTest`). Wagtail : fich
 `urls.py` et `base.html` sont branchés par insertion après une ancre, avec échec explicite si le squelette a changé.
 
 Personnaliser (identique partout) : couleurs dans `themes/theme.css`, allure d'un composant par un jeton de `tokens/components.css`,
-le reste dans `components/custom.css`. Parité : `src/scaffold/catalog.rs` (voir `docs/tests.md`). Limites : 23 composants sur 46
-en CSS ; `--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
+le reste dans `components/custom.css`. Parité : `src/scaffold/catalog.rs` (voir `docs/tests.md`).
+
+Les **46** composants d'atomic existent en CSS pur pour Astro (23 « core » + 23 « css » dans `catalog.toml`) : mêmes fichiers,
+props, `data-slot` et événements Starwind (`starwind-select:change`, `window.__starwind__.toast`…). Ils sont **générés** par
+`tools/dsgen/gen_ds.py` (CSS pur Astro, Blade, Django et `catalog.toml`) ; la CI régénère et échoue sur tout écart. Pour changer
+un composant : modifier `tools/dsgen/` (ou la feuille `design-kit/css/components/<nom>.css`), lancer `python3 tools/dsgen/gen_ds.py`,
+puis `cargo test catalog`. Limites : Blade et Django couvrent les 23 composants core (les feuilles des 23 autres sont livrées) ;
+`--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
 
 ## Starwind : ce qui vient d'atomic
 
