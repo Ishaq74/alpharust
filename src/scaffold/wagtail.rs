@@ -16,6 +16,8 @@ pub struct WagtailOptions {
     pub migrate: bool,
     /// Catalogue de composants du design kit partagé (application Django `ds`, balises `{% ds_… %}`, `/components/`).
     pub ui: bool,
+    /// Kit Tailwind + Starwind (`--ui starwind`), compilé par la CLI autonome de Tailwind.
+    pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
 }
@@ -26,6 +28,7 @@ impl Default for WagtailOptions {
             packages: vec![],
             migrate: true,
             ui: false,
+            starwind: false,
             theme: None,
         }
     }
@@ -48,7 +51,7 @@ impl WagtailOptions {
             }
         }
         if self.theme.is_some() && !self.ui {
-            bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+            bail!("--theme-* s'applique au design kit : ajoutez --ui css ou --ui starwind");
         }
         if let Some(t) = &self.theme {
             t.validate()?;
@@ -165,13 +168,17 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (config qualité, docs, tests, .gitignore)",
         Internal::Layer(if o.ui {
-            vec![
+            let mut v = vec![
                 "common",
                 "wagtail",
                 "ui-django",
                 "wagtail-ds",
                 "site-wagtail",
-            ]
+            ];
+            if o.starwind {
+                v.push("wagtail-starwind");
+            }
+            v
         } else {
             vec!["common", "wagtail"]
         }),
@@ -195,8 +202,16 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "design-wire",
             Phase::Configure,
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
-            Internal::WagtailDesign,
+            Internal::WagtailDesign(o.starwind),
         ));
+        if o.starwind {
+            steps.push(Step::internal(
+                "tailwind",
+                Phase::Install,
+                "Compiler le kit Starwind (CLI autonome Tailwind : tailwind/input.css → static/css/tailwind.css)",
+                Internal::TailwindStandalone,
+            ));
+        }
     }
     if o.ui {
         // Migrations des applications du site (layout, site_settings, flex, service, blog, contact, home) :
@@ -338,8 +353,7 @@ mod tests {
         let o = WagtailOptions {
             packages: vec!["psycopg[binary]".into()],
             migrate: false,
-            ui: false,
-            theme: None,
+            ..Default::default()
         };
         let mut r = Request::new(Framework::Wagtail, "x");
         r.options = Options::Wagtail(o.clone());
@@ -351,6 +365,35 @@ mod tests {
             Action::Run(c) => assert!(c.args.contains(&"psycopg[binary]".to_string())),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn starwind_kit_is_compiled_by_the_tailwind_standalone_cli() {
+        let o = WagtailOptions {
+            ui: true,
+            starwind: true,
+            ..Default::default()
+        };
+        let mut r = Request::new(Framework::Wagtail, "x");
+        r.options = Options::Wagtail(o.clone());
+        let s = steps(&r, &o);
+        let layer = s.iter().find(|s| s.id == "layer").unwrap();
+        assert!(
+            matches!(&layer.action, Action::Do(Internal::Layer(v)) if v.contains(&"wagtail-starwind"))
+        );
+        assert!(s
+            .iter()
+            .any(|s| matches!(s.action, Action::Do(Internal::WagtailDesign(true)))));
+        let tw = s
+            .iter()
+            .position(|s| s.id == "tailwind")
+            .expect("étape CLI Tailwind");
+        assert!(tw > s.iter().position(|s| s.id == "design-kit").unwrap());
+        let css = WagtailOptions {
+            ui: true,
+            ..Default::default()
+        };
+        assert!(!steps(&r, &css).iter().any(|s| s.id == "tailwind"));
     }
 
     #[test]

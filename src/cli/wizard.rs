@@ -201,6 +201,16 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                     "Catalogue de composants (design kit CSS, page /components) ?",
                     false,
                 )?;
+            let starwind = ui
+                && select(
+                    &theme,
+                    "Kit de composants",
+                    &[
+                        (false, "CSS pur (design kit)".to_string()),
+                        (true, "Tailwind + Starwind".to_string()),
+                    ],
+                    0,
+                )?;
             Options::Laravel(LaravelOptions {
                 starter,
                 dark,
@@ -208,6 +218,7 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 database,
                 frontend,
                 ui,
+                starwind,
                 theme: None,
             })
         }
@@ -230,10 +241,21 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 "Catalogue de composants (design kit CSS, page /components/) ?",
                 false,
             )?;
+            let starwind = ui
+                && select(
+                    &theme,
+                    "Kit de composants",
+                    &[
+                        (false, "CSS pur (design kit)".to_string()),
+                        (true, "Tailwind + Starwind".to_string()),
+                    ],
+                    0,
+                )?;
             Options::Wagtail(WagtailOptions {
                 packages: extra.split_whitespace().map(String::from).collect(),
                 migrate,
                 ui,
+                starwind,
                 theme: None,
             })
         }

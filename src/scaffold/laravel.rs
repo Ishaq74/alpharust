@@ -103,6 +103,8 @@ pub struct LaravelOptions {
     pub frontend: bool,
     /// Catalogue de composants du design kit partagé (Blade, CSS pur, Vite + Tailwind v4) et page `/components`.
     pub ui: bool,
+    /// Kit Tailwind + Starwind (`--ui starwind`) au lieu du kit CSS : mêmes composants, classes des atomes d'atomic.
+    pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
 }
@@ -116,6 +118,7 @@ impl Default for LaravelOptions {
             database: Database::Sqlite,
             frontend: false,
             ui: false,
+            starwind: false,
             theme: None,
         }
     }
@@ -130,7 +133,7 @@ impl LaravelOptions {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
         }
         if self.theme.is_some() && !self.ui {
-            anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+            anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css ou --ui starwind");
         }
         if let Some(t) = &self.theme {
             t.validate()?;
@@ -153,6 +156,7 @@ impl LaravelOptions {
             ("breeze", self.starter != Starter::None),
             ("sqlite", self.database == Database::Sqlite),
             ("ui", self.ui),
+            ("starwind", self.ui && self.starwind),
         ]
     }
 }
@@ -285,13 +289,17 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (pages, modèle, migration, tests, docs)",
         Internal::Layer(if o.ui {
-            vec![
+            let mut v = vec![
                 "common",
                 "laravel",
                 "ui-blade",
                 "laravel-ds",
                 "site-laravel",
-            ]
+            ];
+            if o.starwind {
+                v.push("laravel-starwind");
+            }
+            v
         } else {
             vec!["common", "laravel"]
         }),
@@ -394,6 +402,26 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn starwind_kit_adds_its_layer_and_flag() {
+        let o = LaravelOptions {
+            ui: true,
+            starwind: true,
+            ..Default::default()
+        };
+        assert!(o.flags().contains(&("starwind", true)));
+        let mut r = Request::new(super::super::Framework::Laravel, "x");
+        r.options = super::super::Options::Laravel(o.clone());
+        let s = steps(&r, &o);
+        let layer = s.iter().find(|s| s.id == "layer").unwrap();
+        match &layer.action {
+            super::super::Action::Do(Internal::Layer(v)) => {
+                assert_eq!(v.last(), Some(&"laravel-starwind"))
+            }
+            _ => panic!(),
+        }
+    }
+
     use super::*;
     use crate::scaffold::{Action, Framework, Options};
 

@@ -841,6 +841,11 @@ from vitrine.write import write_all as write_site
 write_site(ROOT)
 print('site-astro + site-laravel + site-wagtail ok')
 
+# ---------- kit Tailwind + Starwind pour Laravel et Wagtail (classes tv() des atomes d'atomic) ----------
+import starwind_server
+starwind_server.write()
+print('laravel-starwind + wagtail-starwind ok')
+
 # ---------- catalog.toml ----------
 import glob
 slot_of = {}

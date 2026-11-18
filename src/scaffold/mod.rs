@@ -248,7 +248,9 @@ pub enum Internal {
     /// Copie le design kit partagé (`templates/layers/design-kit`) vers l'arborescence du framework.
     DesignKit(DesignTarget),
     /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue).
-    WagtailDesign,
+    WagtailDesign(bool),
+    /// Wagtail + Starwind : télécharge la CLI autonome de Tailwind (`.tailwind/`) et compile `tailwind/input.css`.
+    TailwindStandalone,
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,

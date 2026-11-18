@@ -246,25 +246,25 @@ struct GenOpts {
     #[arg(
         long,
         value_name = "none|starwind|concordia|css",
-        help = "kit d'interface — astro : starwind (Tailwind) ou concordia (CSS) ; laravel, wagtail : css (catalogue de composants)"
+        help = "kit d'interface — astro : starwind (Tailwind) ou concordia (CSS) ; laravel, wagtail : css (design kit CSS) ou starwind (Tailwind + classes Starwind), même catalogue et même site"
     )]
     ui: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur primaire de marque (WCAG)"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur primaire de marque (WCAG)"
     )]
     theme_primary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur secondaire de marque"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur secondaire de marque"
     )]
     theme_secondary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur d'accent de marque"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur d'accent de marque"
     )]
     theme_accent: Option<String>,
     #[arg(
@@ -352,13 +352,15 @@ fn parse_opt<T>(
     }
 }
 
-/// `--ui` pour Laravel et Wagtail : `css` (catalogue du design kit) ou `none`.
-fn parse_catalog_ui(v: &Option<String>) -> Result<bool> {
+/// `--ui` pour Laravel et Wagtail : `css` (design kit en CSS pur), `starwind` (même catalogue, Tailwind + classes
+/// Starwind) ou `none`. Renvoie (catalogue, starwind).
+fn parse_catalog_ui(v: &Option<String>) -> Result<(bool, bool)> {
     match v.as_deref() {
-        None | Some("none") => Ok(false),
-        Some("css") => Ok(true),
+        None | Some("none") => Ok((false, false)),
+        Some("css") | Some("concordia") => Ok((true, false)),
+        Some("starwind") => Ok((true, true)),
         Some(other) => {
-            bail!("valeur invalide pour --ui : `{other}` (attendu pour laravel et wagtail : none, css)")
+            bail!("valeur invalide pour --ui : `{other}` (attendu pour laravel et wagtail : none, css, starwind)")
         }
     }
 }
@@ -504,16 +506,18 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.dark = o.dark;
             l.pest = o.pest;
             l.frontend = o.frontend;
-            l.ui = parse_catalog_ui(&o.ui)?;
+            (l.ui, l.starwind) = parse_catalog_ui(&o.ui)?;
             l.theme = theme_from(o);
             l.validate()?;
             Options::Laravel(l)
         }
         Framework::Wagtail => {
+            let (ui, starwind) = parse_catalog_ui(&o.ui)?;
             let w = WagtailOptions {
                 packages: o.packages.clone(),
                 migrate: !o.no_migrate,
-                ui: parse_catalog_ui(&o.ui)?,
+                ui,
+                starwind,
                 theme: theme_from(o),
             };
             w.validate()?;

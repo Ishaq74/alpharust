@@ -566,7 +566,7 @@ mod tests {
         )
         .unwrap();
         for _ in 0..2 {
-            crate::scaffold::internal::patch_wagtail_design(p, "demo").unwrap();
+            crate::scaffold::internal::patch_wagtail_design(p, "demo", false).unwrap();
         }
         let settings = fs::read_to_string(p.join("demo/settings/base.py")).unwrap();
         assert_eq!(settings.matches("\"ds\",").count(), 1);
@@ -584,6 +584,6 @@ mod tests {
         assert_eq!(base.matches("ds/favicon.svg").count(), 1);
         // un squelette modifié est signalé, jamais patché à l'aveugle
         fs::write(p.join("demo/urls.py"), "urlpatterns = []\n").unwrap();
-        assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo").is_err());
+        assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo", false).is_err());
     }
 }

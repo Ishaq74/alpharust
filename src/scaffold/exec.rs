@@ -181,7 +181,13 @@ pub fn run(
     on_line: &mut dyn FnMut(&str),
 ) -> std::io::Result<Outcome> {
     let resolved: PathBuf = if program.starts_with("./") {
-        cwd.join(program)
+        // chemin absolu : avec un `--path` relatif, Command résoudrait le programme une seconde fois depuis current_dir
+        let p = cwd.join(program);
+        if p.is_relative() {
+            std::env::current_dir()?.join(p)
+        } else {
+            p
+        }
     } else {
         super::tools::which(program).unwrap_or_else(|| PathBuf::from(program))
     };

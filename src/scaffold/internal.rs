@@ -119,7 +119,10 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
                 ctx.flag(k, on);
             }
         }
-        Options::Wagtail(_) => {}
+        Options::Wagtail(o) => {
+            ctx.flag("ui", o.ui);
+            ctx.flag("starwind", o.ui && o.starwind);
+        }
         Options::Rust(o) => {
             ctx.flag("bin", o.kind == super::rust::CrateKind::Bin);
             ctx.flag("lib", o.kind == super::rust::CrateKind::Lib);
@@ -350,7 +353,12 @@ fn run_internal(
         Internal::DesignTheme(t, dt) => write_design_theme(target, t, *dt).map(Some),
         Internal::StarwindConfig => patch_starwind_config(target).map(Some),
         Internal::DesignKit(dt) => write_design_kit(target, *dt).map(Some),
-        Internal::WagtailDesign => patch_wagtail_design(target, &req.name).map(Some),
+        Internal::WagtailDesign(starwind) => {
+            patch_wagtail_design(target, &req.name, *starwind).map(Some)
+        }
+        Internal::TailwindStandalone => {
+            tailwind_standalone(target, &req.name, cancel, on_line).map(Some)
+        }
         Internal::PackageScripts(scripts) => patch_package_scripts(target, scripts).map(Some),
         Internal::LaravelEnv(db) => patch_laravel_env(target, *db, &req.name).map(Some),
         Internal::LaravelRoutes => patch_laravel_routes(target).map(Some),
@@ -679,7 +687,7 @@ fn insert_after(text: &str, anchor: &str, add: &str, what: &str) -> Result<Strin
 }
 
 /// Wagtail : application `ds`, route `/components/`, feuille de style et script du catalogue.
-pub fn patch_wagtail_design(target: &Path, name: &str) -> Result<String> {
+pub fn patch_wagtail_design(target: &Path, name: &str, starwind: bool) -> Result<String> {
     let pkg = Vars::new(name)?.pkg;
     let edit = |rel: String, anchor: &str, add: &str| -> Result<()> {
         let path = target.join(&rel);
@@ -700,7 +708,12 @@ pub fn patch_wagtail_design(target: &Path, name: &str) -> Result<String> {
     edit(
         format!("{pkg}/templates/base.html"),
         "{# Global stylesheets #}",
-        "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/index.css' %}\">\n",
+        if starwind {
+            // kit Starwind : sortie de la CLI Tailwind (tailwind/input.css), à la place du kit CSS
+            "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'css/tailwind.css' %}\">\n"
+        } else {
+            "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/index.css' %}\">\n"
+        },
     )?;
     edit(
         format!("{pkg}/templates/base.html"),
@@ -874,6 +887,105 @@ fn append_requirements(target: &Path, pkgs: &[String]) -> Result<String> {
     }
     fs::write(&path, text)?;
     Ok(format!("{added} paquet(s) ajouté(s)"))
+}
+
+/// Version de la CLI autonome de Tailwind (même version majeure que `tailwindcss` côté Laravel et Astro).
+pub const TAILWIND_VERSION: &str = "v4.3.5";
+// alpharust-ignore: no-hardcoded-urls (assets officiels des releases Tailwind)
+const TAILWIND_RELEASES: &str = "https://github.com/tailwindlabs/tailwindcss/releases/download";
+
+/// Nom du binaire de la CLI autonome pour la plateforme courante (assets des releases tailwindlabs/tailwindcss).
+pub fn tailwind_asset() -> Result<&'static str> {
+    Ok(match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("linux", "x86_64") => "tailwindcss-linux-x64",
+        ("linux", "aarch64") => "tailwindcss-linux-arm64",
+        ("macos", "x86_64") => "tailwindcss-macos-x64",
+        ("macos", "aarch64") => "tailwindcss-macos-arm64",
+        ("windows", "x86_64") => "tailwindcss-windows-x64.exe",
+        (os, arch) => bail!("pas de CLI autonome Tailwind pour {os}/{arch}"),
+    })
+}
+
+/// Wagtail + Starwind : télécharge la CLI autonome de Tailwind dans `.tailwind/` (une fois) puis compile
+/// `tailwind/input.css` vers `<pkg>/static/css/tailwind.css` (doc : https://tailwindcss.com/blog/standalone-cli). alpharust-ignore: no-hardcoded-urls
+fn tailwind_standalone(
+    target: &Path,
+    name: &str,
+    cancel: &AtomicBool,
+    on_line: &mut dyn FnMut(&str),
+) -> Result<String> {
+    let pkg = Vars::new(name)?.pkg;
+    let asset = tailwind_asset()?;
+    let target = &fs::canonicalize(target)?; // chemins absolus : curl et la CLI tournent dans le projet
+    let dir = target.join(".tailwind");
+    fs::create_dir_all(&dir)?;
+    let bin = dir.join(if cfg!(windows) {
+        "tailwindcss.exe"
+    } else {
+        "tailwindcss"
+    });
+    if !bin.is_file() {
+        let url = format!("{TAILWIND_RELEASES}/{TAILWIND_VERSION}/{asset}");
+        on_line(&format!("téléchargement de {url}"));
+        let out = exec::run(
+            "curl",
+            &[
+                "-fsSL".into(),
+                "-o".into(),
+                bin.display().to_string(),
+                url.clone(),
+            ],
+            target,
+            cancel,
+            std::time::Duration::from_secs(300),
+            on_line,
+        )?;
+        if !out.success {
+            let _ = fs::remove_file(&bin);
+            bail!("téléchargement de la CLI Tailwind impossible ({url})");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&bin, fs::Permissions::from_mode(0o755))?;
+        }
+    }
+    let output = format!("{pkg}/static/css/tailwind.css");
+    let out = exec::run(
+        &bin.display().to_string(),
+        &[
+            "-i".into(),
+            "tailwind/input.css".into(),
+            "-o".into(),
+            output.clone(),
+            "--minify".into(),
+        ],
+        target,
+        cancel,
+        std::time::Duration::from_secs(300),
+        on_line,
+    )?;
+    if !out.success {
+        bail!("la CLI Tailwind a échoué sur tailwind/input.css");
+    }
+    let gi = target.join(".gitignore");
+    let text = fs::read_to_string(&gi).unwrap_or_default();
+    if !text.lines().any(|l| l.trim() == ".tailwind/") {
+        fs::write(
+            &gi,
+            format!(
+                "{text}{}.tailwind/\n",
+                if text.ends_with('\n') || text.is_empty() {
+                    ""
+                } else {
+                    "\n"
+                }
+            ),
+        )?;
+    }
+    Ok(format!(
+        "CLI Tailwind {TAILWIND_VERSION} ({asset}) : {output}"
+    ))
 }
 
 fn freeze(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -> Result<String> {

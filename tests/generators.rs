@@ -421,8 +421,7 @@ fn invalid_requests_are_rejected_before_any_work() {
     w.options = Options::Wagtail(WagtailOptions {
         packages: vec!["bad;rm -rf /".into()],
         migrate: true,
-        ui: false,
-        theme: None,
+        ..Default::default()
     });
     assert!(w.validate().is_err(), "spécification pip invalide");
 }
