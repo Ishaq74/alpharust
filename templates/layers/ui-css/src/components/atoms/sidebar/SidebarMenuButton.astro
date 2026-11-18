@@ -1,0 +1,56 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import Tooltip from "../tooltip/Tooltip.astro";
+import TooltipContent from "../tooltip/TooltipContent.astro";
+import TooltipTrigger from "../tooltip/TooltipTrigger.astro";
+
+type Props = HTMLAttributes<"button"> &
+  Omit<HTMLAttributes<"a">, "type"> & {
+    asChild?: boolean;
+    isActive?: boolean;
+    /** Libellé affiché en info-bulle quand la barre est repliée en icônes. */
+    tooltip?: string;
+    variant?: "default" | "outline";
+    size?: "default" | "sm" | "lg";
+  };
+
+const { asChild = false, isActive = false, tooltip, variant = "default", size, class: className, ...rest } = Astro.props;
+
+const Tag = rest.href ? "a" : "button";
+const buttonDataAttrs = {
+  "data-slot": "sidebar-menu-button",
+  "data-sidebar": "menu-button",
+  "data-size": size || "default",
+  "data-variant": variant,
+  "data-active": isActive,
+  "aria-current": isActive && rest.href ? ("page" as const) : undefined,
+};
+---
+
+{
+  tooltip ? (
+    <Tooltip data-sidebar-tooltip>
+      <TooltipTrigger>
+        {asChild ? (
+          <div class={className} {...buttonDataAttrs} data-as-child>
+            <slot />
+          </div>
+        ) : (
+          <Tag class={className} type={Tag === "button" ? "button" : undefined} {...buttonDataAttrs} {...rest}>
+            <slot />
+          </Tag>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="right">{tooltip}</TooltipContent>
+    </Tooltip>
+  ) : asChild ? (
+    <div class={className} {...buttonDataAttrs} data-as-child>
+      <slot />
+    </div>
+  ) : (
+    <Tag class={className} type={Tag === "button" ? "button" : undefined} {...buttonDataAttrs} {...rest}>
+      <slot />
+    </Tag>
+  )
+}

@@ -8,6 +8,6 @@ type Props = HTMLAttributes<"figure"> & {
 const { size = "md", class: className, ...rest } = Astro.props;
 ---
 
-<figure class={className} data-slot="avatar" data-size={size} {...rest}>
+<figure class={className} {...rest} data-slot="avatar" data-size={size}>
   <slot />
 </figure>

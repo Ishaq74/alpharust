@@ -1,0 +1,19 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import Skeleton from "../skeleton/Skeleton.astro";
+
+type Props = HTMLAttributes<"div"> & {
+  showIcon?: boolean;
+  /** Largeur du texte simulé (défaut : aléatoire entre 50 et 90 %). */
+  width?: string;
+};
+
+const { showIcon = false, width, class: className, ...rest } = Astro.props;
+const skeletonWidth = width ?? `${Math.floor(Math.random() * 40) + 50}%`;
+---
+
+<div class={className} data-sidebar="menu-skeleton" {...rest} data-slot="sidebar-menu-skeleton">
+  {showIcon && <Skeleton data-sidebar="menu-skeleton-icon" />}
+  <Skeleton data-sidebar="menu-skeleton-text" style={`--skeleton-width: ${skeletonWidth}`} />
+</div>

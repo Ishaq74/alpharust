@@ -9,6 +9,6 @@ type Props = Omit<HTMLAttributes<"div">, "role" | "hidden"> & {
 const { value, defaultActive = false, class: className, ...rest } = Astro.props;
 ---
 
-<div role="tabpanel" class={className} hidden={!defaultActive} data-slot="tabs-content" data-value={value} {...rest}>
+<div role="tabpanel" class={className} hidden={!defaultActive} {...rest} data-slot="tabs-content" data-value={value}>
   <slot />
 </div>

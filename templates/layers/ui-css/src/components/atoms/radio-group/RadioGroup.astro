@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"fieldset"> & {
+  value?: string;
+  defaultValue?: string;
+  legend?: string;
+  disabled?: boolean;
+  orientation?: "horizontal" | "vertical";
+};
+
+const { value, defaultValue, legend, disabled = false, orientation = "vertical", class: className, ...rest } = Astro.props;
+---
+
+<fieldset
+  class={className}
+  role="radiogroup"
+  data-value={value || defaultValue}
+  data-orientation={orientation}
+  disabled={disabled}
+  {...rest}
+  data-slot="radio-group"
+>
+  {legend && <legend class="sr-only">{legend}</legend>}
+  <slot />
+</fieldset>

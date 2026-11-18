@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"span">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<span class={className} aria-hidden="true" data-slot="pagination-ellipsis" {...rest}>
+<span class={className} aria-hidden="true" {...rest} data-slot="pagination-ellipsis">
   <slot>…</slot>
 </span>

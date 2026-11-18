@@ -12,6 +12,6 @@ const { id, label, checked, size = "md", variant = "default", class: className, 
 ---
 
 <div data-slot="checkbox" data-size={size} data-variant={variant}>
-  <input type="checkbox" id={id} class={className} checked={checked} data-slot="checkbox-input" {...rest} />
+  <input type="checkbox" id={id} class={className} checked={checked} {...rest} data-slot="checkbox-input" />
   {label && <label for={id} data-slot="checkbox-label">{label}</label>}
 </div>

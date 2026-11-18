@@ -1,0 +1,5 @@
+/* Bascule de thème — theme-toggle (une toggle) : soleil en clair, lune en sombre ; ds.js pose data-theme sur <html> et le mémorise. */
+[data-slot='theme-toggle'] [data-theme-icon-wrapper] { display: inline-flex; }
+[data-slot='theme-toggle'] [data-theme-icon='dark'],
+[data-slot='theme-toggle'][data-state='on'] [data-theme-icon='light'] { display: none; }
+[data-slot='theme-toggle'][data-state='on'] [data-theme-icon='dark'] { display: block; }

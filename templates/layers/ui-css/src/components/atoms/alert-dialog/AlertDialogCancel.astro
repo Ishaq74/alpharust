@@ -1,0 +1,22 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"button"> & {
+  /** Habille un élément enfant au lieu de rendre son propre <button>. */
+  asChild?: boolean;
+};
+
+const { asChild = false, class: className, ...rest } = Astro.props;
+---
+
+{
+  asChild ? (
+    <div class={className} data-slot="alert-dialog-cancel" data-as-child>
+      <slot />
+    </div>
+  ) : (
+    <button type="button" class={className} data-variant="outline" {...rest} data-slot="alert-dialog-cancel">
+      <slot />
+    </button>
+  )
+}

@@ -10,4 +10,4 @@ type Props = HTMLAttributes<"textarea"> & {
 const { size = "md", class: className, defaultValue, ...rest } = Astro.props;
 ---
 
-<textarea class={className} data-slot="textarea" data-size={size} {...rest}>{defaultValue ?? ''}</textarea>
+<textarea class={className} {...rest} data-slot="textarea" data-size={size}>{defaultValue ?? ''}</textarea>

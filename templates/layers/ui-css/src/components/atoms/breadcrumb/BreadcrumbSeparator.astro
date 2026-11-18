@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"li">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<li class={className} role="presentation" aria-hidden="true" data-slot="breadcrumb-separator" {...rest}>
+<li class={className} role="presentation" aria-hidden="true" {...rest} data-slot="breadcrumb-separator">
   <slot>›</slot>
 </li>

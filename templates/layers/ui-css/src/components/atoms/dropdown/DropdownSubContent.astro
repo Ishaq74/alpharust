@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  animationDuration?: number;
+};
+
+const { animationDuration = 150, class: className, ...rest } = Astro.props;
+---
+
+<div
+  class={className}
+  data-sub-content
+  role="menu"
+  data-side="right"
+  data-align="start"
+  data-state="closed"
+  tabindex="-1"
+  aria-orientation="vertical"
+  hidden
+  style={{ "--ds-duration": `${animationDuration}ms` }}
+  {...rest}
+  data-slot="dropdown-content"
+>
+  <slot />
+</div>

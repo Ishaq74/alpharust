@@ -1,0 +1,4 @@
+/* Rapport largeur/hauteur — aspect-ratio-wrapper (padding-bottom calculé) > aspect-ratio (remplit le cadre). */
+[data-slot='aspect-ratio-wrapper'] { position: relative; width: 100%; }
+[data-slot='aspect-ratio'] { position: absolute; inset: 0; width: 100%; height: 100%; }
+[data-slot='aspect-ratio'] > :is(img, video, iframe) { width: 100%; height: 100%; object-fit: cover; }

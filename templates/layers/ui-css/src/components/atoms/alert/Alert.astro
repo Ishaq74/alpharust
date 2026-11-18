@@ -11,6 +11,6 @@ const { variant = "default", class: className, ...rest } = Astro.props;
 const inferredRole = rest.role ?? (variant === "error" || variant === "warning" ? "alert" : "status");
 ---
 
-<div class={className} role={inferredRole} data-slot="alert" data-variant={variant} {...rest}>
+<div class={className} role={inferredRole} {...rest} data-slot="alert" data-variant={variant}>
   <slot />
 </div>

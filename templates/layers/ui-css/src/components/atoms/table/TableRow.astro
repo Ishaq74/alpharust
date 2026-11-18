@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"tr">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<tr class={className} data-slot="table-row" {...rest}>
+<tr class={className} {...rest} data-slot="table-row">
   <slot />
 </tr>

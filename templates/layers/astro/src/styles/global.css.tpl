@@ -68,6 +68,7 @@
 @@end@@
 @@if concordia@@
 /* Composants du design kit partagé : même balisage ([data-slot]) que Starwind, Blade et Django. */
+@import "./components/utilities.css";
 @import "./components/accordion.css";
 @import "./components/alert.css";
 @import "./components/avatar.css";
@@ -91,5 +92,29 @@
 @import "./components/tabs.css";
 @import "./components/textarea.css";
 @import "./components/tooltip.css";
+/* Composants étendus (mêmes noms et data-slot que les 23 autres atomes d'atomic). */
+@import "./components/alert-dialog.css";
+@import "./components/aspect-ratio.css";
+@import "./components/button-group.css";
+@import "./components/carousel.css";
+@import "./components/collapsible.css";
+@import "./components/container.css";
+@import "./components/dropdown.css";
+@import "./components/dropzone.css";
+@import "./components/image.css";
+@import "./components/input-group.css";
+@import "./components/input-otp.css";
+@import "./components/item.css";
+@import "./components/popover.css";
+@import "./components/prose.css";
+@import "./components/radio-group.css";
+@import "./components/select.css";
+@import "./components/sheet.css";
+@import "./components/sidebar.css";
+@import "./components/slider.css";
+@import "./components/theme-toggle.css";
+@import "./components/toast.css";
+@import "./components/toggle.css";
+@import "./components/video.css";
 @@end@@
 @import "./components/custom.css";

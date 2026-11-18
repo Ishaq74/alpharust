@@ -9,7 +9,7 @@ const { size = "md", class: className, ...rest } = Astro.props;
 ---
 
 <div data-slot="native-select-wrapper">
-  <select class={className} data-slot="native-select" data-size={size} {...rest}>
+  <select class={className} {...rest} data-slot="native-select" data-size={size}>
     <slot />
   </select>
   <span data-slot="native-select-icon" aria-hidden="true"></span>

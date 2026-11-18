@@ -11,4 +11,4 @@ type Props = Omit<HTMLAttributes<"progress">, "value" | "max"> & {
 const { class: className, value, max = 100, variant = "default", ...rest } = Astro.props;
 ---
 
-<progress class={className} value={value} max={max} data-slot="progress" data-variant={variant} {...rest}></progress>
+<progress class={className} value={value} max={max} {...rest} data-slot="progress" data-variant={variant}></progress>

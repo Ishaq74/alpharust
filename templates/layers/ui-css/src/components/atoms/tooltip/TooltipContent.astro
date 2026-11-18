@@ -8,6 +8,6 @@ type Props = HTMLAttributes<"span"> & {
 const { side = "top", class: className, ...rest } = Astro.props;
 ---
 
-<span class={className} role="tooltip" data-slot="tooltip-content" data-side={side} {...rest}>
+<span class={className} role="tooltip" {...rest} data-slot="tooltip-content" data-side={side}>
   <slot />
 </span>

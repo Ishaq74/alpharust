@@ -1,0 +1,14 @@
+---
+import type { ComponentProps } from "astro/types";
+import Button from "../button/Button.astro";
+
+type Props = Omit<ComponentProps<typeof Button>, "size"> & {
+  size?: "sm" | "icon-sm";
+};
+
+const { type = "button", variant = "ghost", size = "sm", class: className, ...rest } = Astro.props;
+---
+
+<Button type={type} data-size={size} size={size === "sm" ? "sm" : "icon-sm"} variant={variant} class={className} data-input-group-button {...rest}>
+  <slot />
+</Button>

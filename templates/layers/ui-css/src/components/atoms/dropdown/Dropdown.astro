@@ -1,0 +1,22 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  /** Ouvre le menu au survol (en plus du clic). */
+  openOnHover?: boolean;
+  /** Délai de fermeture après le survol (ms). */
+  closeDelay?: number;
+};
+
+const { openOnHover = false, closeDelay = 200, class: className, ...rest } = Astro.props;
+---
+
+<div
+  class={className}
+  data-open-on-hover={openOnHover ? "true" : undefined}
+  data-close-delay={closeDelay}
+  {...rest}
+  data-slot="dropdown"
+>
+  <slot />
+</div>

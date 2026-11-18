@@ -1,0 +1,25 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"dialog"> & {
+  /** Durée des animations d'ouverture et de fermeture (ms). */
+  animationDuration?: number;
+};
+
+const { animationDuration = 200, class: className, ...rest } = Astro.props;
+---
+
+<!-- Fond : le ::backdrop natif du <dialog> fait le travail ; l'élément reste pour la parité du balisage. -->
+<slot name="backdrop">
+  <div data-state="closed" data-slot="alert-dialog-backdrop" aria-hidden="true"></div>
+</slot>
+<dialog
+  class={className}
+  data-state="closed"
+  role="alertdialog"
+  style={{ "--ds-duration": `${animationDuration}ms` }}
+  {...rest}
+  data-slot="alert-dialog-content"
+>
+  <slot />
+</dialog>

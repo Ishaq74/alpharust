@@ -11,11 +11,11 @@ const { asChild = false, class: className, ...rest } = Astro.props;
 
 {
   asChild ? (
-    <span class={className} data-slot="dialog-close" data-as-child {...rest}>
+    <span class={className} {...rest} data-slot="dialog-close" data-as-child>
       <slot />
     </span>
   ) : (
-    <button type="button" class={className} data-slot="dialog-close" {...rest}>
+    <button type="button" class={className} {...rest} data-slot="dialog-close">
       <slot />
     </button>
   )

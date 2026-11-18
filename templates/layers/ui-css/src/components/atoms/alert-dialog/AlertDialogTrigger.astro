@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"button">, "type"> & {
+  /** `id` du conteneur à ouvrir ; inutile à l'intérieur de celui-ci. */
+  for?: string;
+  /** Habille un élément enfant (ex. <Button>) au lieu de rendre son propre <button>. */
+  asChild?: boolean;
+};
+
+const { for: target, asChild = false, class: className, ...rest } = Astro.props;
+---
+
+{
+  asChild ? (
+    <div class={className} data-slot="alert-dialog-trigger" data-dialog-for={target} data-as-child>
+      <slot />
+    </div>
+  ) : (
+    <button type="button" class={className} aria-haspopup="dialog" data-dialog-for={target} {...rest} data-slot="alert-dialog-trigger">
+      <slot />
+    </button>
+  )
+}

@@ -1,0 +1,31 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import DropzoneFilesList from "./DropzoneFilesList.astro";
+import DropzoneLoadingIndicator from "./DropzoneLoadingIndicator.astro";
+import DropzoneUploadIndicator from "./DropzoneUploadIndicator.astro";
+
+type Props = HTMLAttributes<"input"> & {
+  /** Affiche l'indicateur de chargement. */
+  isUploading?: boolean;
+};
+
+const { isUploading = false, id, class: className, ...rest } = Astro.props;
+---
+
+<label
+  id={id}
+  tabindex="0"
+  class={className}
+  data-slot="dropzone"
+  data-drag-active="false"
+  data-has-files="false"
+  data-is-uploading={String(isUploading)}
+>
+  <slot>
+    <DropzoneUploadIndicator />
+    <DropzoneLoadingIndicator />
+    <DropzoneFilesList />
+  </slot>
+  <input tabindex="-1" type="file" class="sr-only" {...rest} />
+</label>

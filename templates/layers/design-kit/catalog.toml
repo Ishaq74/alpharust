@@ -146,10 +146,124 @@ kind = "core"
 parts = ["Tooltip", "TooltipContent", "TooltipTrigger"]
 slots = ["tooltip", "tooltip-content", "tooltip-trigger"]
 
-# Composants d'atomic (Starwind) pas encore déclinés en CSS pur / Blade / Django.
-# Tout nouveau composant doit être ajouté ici ou dans [[component]] : le test échoue sinon.
-[extended]
-starwind_only = ["alert-dialog", "aspect-ratio", "button-group", "carousel", "collapsible", "container", "dropdown", "dropzone", "image", "input-group", "input-otp", "item", "popover", "prose", "radio-group", "select", "sheet", "sidebar", "slider", "theme-toggle", "toast", "toggle", "video"]
+# Composants « étendus » : atomes Starwind ET équivalents CSS pur (Astro) aux mêmes noms, props et data-slot.
+# Leur style vit dans design-kit/css/components (donc aussi servi à Laravel et Wagtail) ;
+# Blade et Django couvrent le catalogue core. Tout dossier d'atomes doit être core ou css (test de parité).
+
+[[component]]
+name = "alert-dialog"
+kind = "css"
+slots = ["alert-dialog", "alert-dialog-action", "alert-dialog-backdrop", "alert-dialog-cancel", "alert-dialog-content", "alert-dialog-description", "alert-dialog-footer", "alert-dialog-header", "alert-dialog-title", "alert-dialog-trigger"]
+
+[[component]]
+name = "aspect-ratio"
+kind = "css"
+slots = ["aspect-ratio", "aspect-ratio-wrapper"]
+
+[[component]]
+name = "button-group"
+kind = "css"
+slots = ["button-group", "button-group-separator", "button-group-text"]
+
+[[component]]
+name = "carousel"
+kind = "css"
+slots = ["carousel", "carousel-container", "carousel-content", "carousel-item", "carousel-next", "carousel-previous"]
+
+[[component]]
+name = "collapsible"
+kind = "css"
+slots = ["collapsible", "collapsible-content", "collapsible-trigger"]
+
+[[component]]
+name = "container"
+kind = "css"
+slots = ["container"]
+
+[[component]]
+name = "dropdown"
+kind = "css"
+slots = ["dropdown", "dropdown-content", "dropdown-item", "dropdown-label", "dropdown-separator", "dropdown-sub", "dropdown-trigger"]
+
+[[component]]
+name = "dropzone"
+kind = "css"
+slots = ["dropzone", "dropzone-files-list", "dropzone-loading-indicator", "dropzone-upload-indicator"]
+
+[[component]]
+name = "image"
+kind = "css"
+slots = ["image"]
+
+[[component]]
+name = "input-group"
+kind = "css"
+slots = ["input-group", "input-group-addon", "input-group-control"]
+
+[[component]]
+name = "input-otp"
+kind = "css"
+slots = ["input-otp", "input-otp-group", "input-otp-separator", "input-otp-slot"]
+
+[[component]]
+name = "item"
+kind = "css"
+slots = ["item", "item-actions", "item-content", "item-description", "item-footer", "item-group", "item-header", "item-media", "item-separator", "item-title"]
+
+[[component]]
+name = "popover"
+kind = "css"
+slots = ["popover", "popover-content", "popover-description", "popover-header", "popover-title", "popover-trigger"]
+
+[[component]]
+name = "prose"
+kind = "css"
+slots = ["prose"]
+
+[[component]]
+name = "radio-group"
+kind = "css"
+slots = ["radio-group", "radio-group-item", "radio-group-item-control", "radio-group-item-wrapper"]
+
+[[component]]
+name = "select"
+kind = "css"
+slots = ["select", "select-content", "select-empty", "select-item", "select-label", "select-search", "select-search-wrapper", "select-separator", "select-trigger", "select-value"]
+
+[[component]]
+name = "sheet"
+kind = "css"
+slots = ["dialog-backdrop", "sheet", "sheet-close", "sheet-content", "sheet-description", "sheet-footer", "sheet-header", "sheet-title"]
+
+[[component]]
+name = "sidebar"
+kind = "css"
+slots = ["sidebar", "sidebar-container", "sidebar-content", "sidebar-footer", "sidebar-gap", "sidebar-group", "sidebar-group-content", "sidebar-group-label", "sidebar-header", "sidebar-inner", "sidebar-input", "sidebar-inset", "sidebar-menu", "sidebar-menu-action", "sidebar-menu-badge", "sidebar-menu-button", "sidebar-menu-item", "sidebar-menu-skeleton", "sidebar-menu-sub", "sidebar-menu-sub-button", "sidebar-menu-sub-item", "sidebar-mobile", "sidebar-provider", "sidebar-rail", "sidebar-separator", "sidebar-trigger"]
+
+[[component]]
+name = "slider"
+kind = "css"
+slots = ["slider", "slider-control", "slider-range", "slider-thumb", "slider-track"]
+
+[[component]]
+name = "theme-toggle"
+kind = "css"
+slots = ["theme-toggle"]
+
+[[component]]
+name = "toast"
+kind = "css"
+slots = ["toast", "toast-close", "toast-content", "toast-description", "toast-title", "toast-viewport"]
+
+[[component]]
+name = "toggle"
+kind = "css"
+slots = ["toggle"]
+
+[[component]]
+name = "video"
+kind = "css"
+slots = ["video"]
 
 # Écarts connus entre le DOM rendu par les atomes Starwind (dépôt atomic, repris tels quels) et le contrat.
 # Mesurés par le script de parité runtime (docs/tests.md) ; tout autre écart est une erreur.

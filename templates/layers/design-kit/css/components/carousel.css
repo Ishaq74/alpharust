@@ -1,0 +1,51 @@
+/*
+ * Carrousel — carousel (role="region", aria-roledescription) > carousel-content > carousel-container > carousel-item ;
+ * carousel-previous / carousel-next. Défilement natif (scroll-snap) : fonctionne au doigt, à la molette et au clavier ;
+ * ds.js ajoute les boutons, les flèches et désactive les boutons en bout de course. Jeton : --carousel-gap
+ */
+[data-slot='carousel'] { position: relative; }
+[data-slot='carousel-content'] { overflow: hidden; border-radius: var(--radius, 0.5rem); }
+[data-slot='carousel-container'] {
+  display: flex;
+  gap: var(--carousel-gap, 1rem);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+[data-slot='carousel-container']::-webkit-scrollbar { display: none; }
+[data-slot='carousel'][data-axis='y'] [data-slot='carousel-container'] { flex-direction: column; height: 100%; overflow: hidden auto; scroll-snap-type: y mandatory; }
+[data-slot='carousel-item'] { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
+[data-slot='carousel-previous'],
+[data-slot='carousel-next'] {
+  position: absolute;
+  top: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm, none);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+[data-slot='carousel-previous'] { inset-inline-start: -1.25rem; }
+[data-slot='carousel-next'] { inset-inline-end: -1.25rem; }
+[data-slot='carousel-previous']:hover,
+[data-slot='carousel-next']:hover { background: var(--surface-2); }
+[data-slot='carousel-previous']:focus-visible,
+[data-slot='carousel-next']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='carousel-previous']:disabled,
+[data-slot='carousel-next']:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-slot='carousel-previous'] svg,
+[data-slot='carousel-next'] svg { width: 1rem; height: 1rem; }
+[dir='rtl'] [data-slot='carousel-previous'] svg,
+[dir='rtl'] [data-slot='carousel-next'] svg { transform: scaleX(-1); }
+[data-slot='carousel'][data-axis='y'] [data-slot='carousel-previous'] { top: -1.25rem; left: 50%; transform: translateX(-50%) rotate(90deg); }
+[data-slot='carousel'][data-axis='y'] [data-slot='carousel-next'] { top: auto; bottom: -1.25rem; left: 50%; transform: translateX(-50%) rotate(90deg); }

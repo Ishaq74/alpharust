@@ -1,0 +1,15 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"button"> & {
+  variant?: "default" | "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg" | "icon-sm" | "icon" | "icon-lg";
+};
+
+const { size = "icon-sm", variant = "ghost", class: className, ...rest } = Astro.props;
+---
+
+<button type="button" class={className} data-variant={variant} data-size={size} data-sidebar="trigger" aria-label="Toggle Sidebar" aria-expanded="true" {...rest} data-slot="sidebar-trigger">
+  <slot name="icon"><svg xmlns="http://www.w3.org/2000/svg" width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon="layout-sidebar"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16"/></svg></slot>
+  <span class="sr-only">Toggle Sidebar</span>
+</button>

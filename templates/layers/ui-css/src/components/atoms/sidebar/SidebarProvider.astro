@@ -1,0 +1,30 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  defaultOpen?: boolean;
+  /** Raccourci clavier (Ctrl/Cmd + touche) pour replier la barre. */
+  keyboardShortcut?: string;
+};
+
+const { defaultOpen = true, keyboardShortcut = "b", class: className, style, ...rest } = Astro.props;
+
+const styleObj = typeof style === "object" && style ? (style as Record<string, string>) : {};
+const mergedStyle = {
+  "--sidebar-width": styleObj["--sidebar-width"] ?? "18rem",
+  "--sidebar-width-icon": styleObj["--sidebar-width-icon"] ?? "3.5rem",
+  ...styleObj,
+};
+---
+
+<div
+  class={className}
+  data-state={defaultOpen ? "expanded" : "collapsed"}
+  data-mobile-open="false"
+  data-keyboard-shortcut={keyboardShortcut}
+  style={mergedStyle}
+  {...rest}
+  data-slot="sidebar-provider"
+>
+  <slot />
+</div>

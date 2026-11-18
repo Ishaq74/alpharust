@@ -8,6 +8,6 @@ type Props = HTMLAttributes<"label"> & {
 const { size = "md", class: className, ...rest } = Astro.props;
 ---
 
-<label class={className} data-slot="label" data-size={size} {...rest}>
+<label class={className} {...rest} data-slot="label" data-size={size}>
   <slot />
 </label>

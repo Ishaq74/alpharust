@@ -7,6 +7,8 @@ exclude = [
   "rules/**",
   "tests/**",
   "templates/**",
+  # sources des atomes CSS pur (texte de templates : SVG xmlns, URL d'embed vidéo d'atomic)
+  "tools/dsgen/ext_astro*.py",
   "sites/**",
   "docs/screenshots/**",
 ]

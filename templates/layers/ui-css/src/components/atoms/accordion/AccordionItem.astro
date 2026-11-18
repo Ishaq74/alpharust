@@ -8,6 +8,6 @@ type Props = HTMLAttributes<"details"> & {
 const { value, class: className, ...rest } = Astro.props;
 ---
 
-<details class={className} data-slot="accordion-item" data-value={value} {...rest}>
+<details class={className} {...rest} data-slot="accordion-item" data-value={value}>
   <slot />
 </details>

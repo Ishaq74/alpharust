@@ -1,0 +1,39 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  animationDuration?: number;
+};
+
+const {
+  side = "bottom",
+  align = "center",
+  sideOffset = 4,
+  animationDuration = 150,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledBy,
+  class: className,
+  ...rest
+} = Astro.props;
+---
+
+<div
+  class={className}
+  data-side={side}
+  data-align={align}
+  data-side-offset={sideOffset}
+  data-state="closed"
+  role="dialog"
+  aria-label={ariaLabel}
+  aria-labelledby={ariaLabelledBy}
+  tabindex="-1"
+  hidden
+  style={{ "--ds-offset": `${sideOffset}px`, "--ds-duration": `${animationDuration}ms` }}
+  {...rest}
+  data-slot="popover-content"
+>
+  <slot />
+</div>

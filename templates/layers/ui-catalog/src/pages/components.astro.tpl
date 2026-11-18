@@ -37,6 +37,8 @@ const pixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAA
   <p class="meta">
     Catalogue du kit <strong>@@kit@@</strong> (<code>src/components/atoms</code>). L'allure se règle dans
     <code>src/styles/tokens/components.css</code>, <code>src/styles/components/*.css</code> et <code>themes/theme.css</code>.
+    Les 23 autres composants (dialogues, menus, select, carrousel, barre latérale…) sont sur
+    <a href="/components/advanced">la page des composants avancés</a>.
   </p>
 
   <section aria-labelledby="c-buttons" data-demo="button">

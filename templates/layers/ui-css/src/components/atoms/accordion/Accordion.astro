@@ -11,6 +11,6 @@ type Props = HTMLAttributes<"div"> & {
 const { type = "single", defaultValue, class: className, ...rest } = Astro.props;
 ---
 
-<div class={className} data-slot="accordion" data-type={type} data-default={defaultValue} {...rest}>
+<div class={className} {...rest} data-slot="accordion" data-type={type} data-default={defaultValue}>
   <slot />
 </div>

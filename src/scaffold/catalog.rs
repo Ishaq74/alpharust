@@ -1,6 +1,8 @@
 //! Parité du catalogue de composants : un contrat (`templates/layers/design-kit/catalog.toml`),
 //! quatre réalisations (Starwind/Tailwind, CSS pur Astro, Blade, balises Django) et des tests qui
 //! comparent le contrat aux fichiers réels. Rien n'est supposé : chaque test lit les templates embarqués.
+//! Composants `core` : les quatre cibles. Composants `css` : atomes Starwind + équivalents CSS pur (Astro),
+//! style partagé dans design-kit (donc servi aussi à Laravel et Wagtail). Générateur : `tools/dsgen/gen_ds.py`.
 
 #[cfg(test)]
 mod tests {
@@ -16,11 +18,19 @@ mod tests {
 
     struct Component {
         name: String,
+        kind: String,
         slots: Vec<String>,
         atom_only: Vec<String>,
     }
 
-    fn catalog() -> (Vec<Component>, Vec<String>) {
+    impl Component {
+        fn is_core(&self) -> bool {
+            self.kind == "core"
+        }
+    }
+
+    /// Tous les composants du contrat (core puis css).
+    fn catalog() -> Vec<Component> {
         let raw = layer::files("design-kit")
             .into_iter()
             .find(|(p, _)| p == "catalog.toml")
@@ -43,11 +53,17 @@ mod tests {
             .iter()
             .map(|c| Component {
                 name: c["name"].as_str().unwrap().to_string(),
+                kind: c["kind"].as_str().unwrap().to_string(),
                 slots: strings(c, "slots"),
                 atom_only: strings(c, "atom_only"),
             })
             .collect();
-        (comps, strings(&v["extended"], "starwind_only"))
+        comps
+    }
+
+    /// Catalogue core : décliné dans les quatre cibles (Starwind, CSS pur, Blade, Django).
+    fn core() -> Vec<Component> {
+        catalog().into_iter().filter(Component::is_core).collect()
     }
 
     /// Un nom de slot apparaît entre guillemets (`"x"` ou `'x'`) : quelle que soit la syntaxe de la cible.
@@ -110,9 +126,11 @@ mod tests {
     }
 
     #[test]
-    fn catalog_lists_23_core_components_with_unique_slots() {
-        let (comps, _) = catalog();
-        assert_eq!(comps.len(), 23);
+    fn catalog_lists_23_core_and_23_css_components_with_unique_slots() {
+        let comps = catalog();
+        assert_eq!(comps.iter().filter(|c| c.is_core()).count(), 23);
+        assert_eq!(comps.iter().filter(|c| c.kind == "css").count(), 23);
+        assert!(comps.iter().all(|c| c.is_core() || c.kind == "css"));
         let mut seen = BTreeSet::new();
         for c in &comps {
             assert!(!c.slots.is_empty(), "{} sans slot", c.name);
@@ -130,8 +148,8 @@ mod tests {
     }
 
     #[test]
-    fn every_core_component_has_css_and_every_slot_is_styled() {
-        let (comps, _) = catalog();
+    fn every_component_has_css_and_every_slot_is_styled() {
+        let comps = catalog();
         let kit: Vec<(String, &str)> = layer::files("design-kit");
         let kit_slots: BTreeSet<&str> = comps
             .iter()
@@ -173,7 +191,7 @@ mod tests {
 
     #[test]
     fn css_astro_blade_and_django_cover_every_slot() {
-        let (comps, _) = catalog();
+        let comps = core();
         let django = layer_tree("ui-django");
         for c in &comps {
             let astro = concat_layer_dir("ui-css", &format!("src/components/atoms/{}/", c.name));
@@ -204,8 +222,62 @@ mod tests {
     }
 
     #[test]
+    fn css_components_mirror_atomic_files_and_slots() {
+        let atomic = layer::files("ui-atomic");
+        let css = layer::files("ui-css");
+        let names = |files: &[(String, &str)], dir: &str| -> BTreeSet<String> {
+            let prefix = format!("src/components/atoms/{dir}/");
+            files
+                .iter()
+                .filter_map(|(p, _)| p.strip_prefix(&prefix).map(String::from))
+                .collect()
+        };
+        for c in catalog().iter().filter(|c| !c.is_core()) {
+            // mêmes fichiers (composants, index.ts, types et scripts) que l'atome Starwind
+            assert_eq!(
+                names(&atomic, &c.name),
+                names(&css, &c.name),
+                "fichiers de {}",
+                c.name
+            );
+            let astro = concat_layer_dir("ui-css", &format!("src/components/atoms/{}/", c.name));
+            let atom = concat_layer_dir("ui-atomic", &format!("src/components/atoms/{}/", c.name));
+            for s in &c.slots {
+                let has = |t: &str| {
+                    t.contains(&format!("data-slot=\"{s}\""))
+                        || t.contains(&format!("\"data-slot\": \"{s}\""))
+                };
+                assert!(has(&astro), "CSS pur {} : slot {s}", c.name);
+                assert!(has(&atom), "Starwind {} : slot {s}", c.name);
+            }
+            // mêmes exports publics (hors objets *Variants, propres à tailwind-variants)
+            let index = |files: &[(String, &str)]| -> String {
+                let p = format!("src/components/atoms/{}/index.ts", c.name);
+                files
+                    .iter()
+                    .find(|(f, _)| *f == p)
+                    .map(|(_, b)| *b)
+                    .unwrap_or_default()
+                    .to_string()
+            };
+            let (ia, ic) = (index(&atomic), index(&css));
+            let exported = |src: &str| -> BTreeSet<String> {
+                let body = src.split("export {").nth(1).unwrap_or_default();
+                body.split('}')
+                    .next()
+                    .unwrap_or_default()
+                    .split(',')
+                    .map(|n| n.trim().trim_start_matches("type ").to_string())
+                    .filter(|n| !n.is_empty() && !n.ends_with("Variants"))
+                    .collect()
+            };
+            assert_eq!(exported(&ia), exported(&ic), "exports de {}", c.name);
+        }
+    }
+
+    #[test]
     fn starwind_atoms_use_only_contract_slots_and_every_atom_is_classified() {
-        let (comps, starwind_only) = catalog();
+        let comps = catalog();
         let allowed: BTreeSet<String> = comps
             .iter()
             .flat_map(|c| c.slots.iter().chain(c.atom_only.iter()).cloned())
@@ -233,28 +305,25 @@ mod tests {
                 );
             }
         }
-        // chaque atome est soit « core » (catalogue partagé), soit « starwind_only » (déclaré)
+        // chaque atome est déclaré au contrat (core ou css) : aucun composant Starwind sans équivalent CSS pur
         for d in &dirs {
             assert!(
-                comps.iter().any(|c| &c.name == d) || starwind_only.contains(d),
-                "atome `{d}` ni core ni starwind_only"
+                comps.iter().any(|c| &c.name == d),
+                "atome `{d}` absent de catalog.toml"
             );
         }
         for c in &comps {
             assert!(
                 dirs.contains(&c.name),
-                "composant core `{}` absent des atomes Starwind",
+                "composant `{}` absent des atomes Starwind",
                 c.name
             );
-        }
-        for s in &starwind_only {
-            assert!(dirs.contains(s), "starwind_only `{s}` absent des atomes");
         }
     }
 
     #[test]
     fn catalogue_pages_show_every_core_component_in_all_four_targets() {
-        let (comps, _) = catalog();
+        let comps = core();
         let sw = astro(UiKit::Starwind);
         let cc = astro(UiKit::Concordia);
         let lv = laravel();
@@ -281,11 +350,27 @@ mod tests {
                 c.name
             );
         }
+        // composants étendus : page commune aux deux kits Astro, liée depuis /components
+        for (kit, dir) in [("Starwind", &sw), ("CSS", &cc)] {
+            let page = dir.path().join("src/pages/components/advanced.astro");
+            let page =
+                fs::read_to_string(&page).unwrap_or_else(|_| panic!("{kit} : advanced.astro"));
+            for c in catalog().iter().filter(|c| !c.is_core()) {
+                assert!(
+                    page.contains(&format!("@atoms/{}'", c.name)),
+                    "{kit} avancé : {}",
+                    c.name
+                );
+            }
+        }
+        assert!(
+            page_sw.contains("/components/advanced") && page_cc.contains("/components/advanced")
+        );
     }
 
     #[test]
     fn astro_css_kit_installs_components_script_and_keeps_custom_css() {
-        let (comps, _) = catalog();
+        let comps = catalog();
         let cc = astro(UiKit::Concordia);
         let styles = cc.path().join("src/styles/components");
         for c in &comps {
@@ -308,6 +393,16 @@ mod tests {
                 "global.css n'importe pas {}",
                 c.name
             );
+        }
+        assert!(global.contains("./components/utilities.css"));
+        let js = fs::read_to_string(cc.path().join("src/scripts/ds.js")).unwrap();
+        for f in [
+            "initSelects",
+            "initSidebars",
+            "initCarousels",
+            "__starwind__",
+        ] {
+            assert!(js.contains(f), "ds.js : {f}");
         }
         // Concordia garde ses fichiers dans une couche : les composants du kit passent après
         assert!(global.contains("layer(concordia)"));

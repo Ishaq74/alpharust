@@ -1,0 +1,15 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"button"> & {
+  showOnHover?: boolean;
+  variant?: "default" | "primary" | "secondary" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg" | "icon-sm" | "icon" | "icon-lg";
+};
+
+const { showOnHover = false, variant = "ghost", size = "icon-sm", class: className, ...rest } = Astro.props;
+---
+
+<button type="button" class={className} data-variant={variant} data-size={size} data-show-on-hover={showOnHover ? "" : undefined} data-sidebar="menu-action" {...rest} data-slot="sidebar-menu-action">
+  <slot />
+</button>

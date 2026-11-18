@@ -8,4 +8,4 @@ type Props = HTMLAttributes<"input"> & {
 const { size = "md", class: className, ...rest } = Astro.props;
 ---
 
-<input class={className} data-slot="input" data-size={size} {...rest} />
+<input class={className} {...rest} data-slot="input" data-size={size} />

@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"a">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<a class={className} aria-label="Go to next page" data-slot="pagination-next" {...rest}>
+<a class={className} aria-label="Go to next page" {...rest} data-slot="pagination-next">
   <slot>Next ›</slot>
 </a>

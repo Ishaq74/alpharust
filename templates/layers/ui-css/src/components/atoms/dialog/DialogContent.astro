@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"dialog">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<dialog class={className} data-slot="dialog-content" {...rest}>
+<dialog class={className} {...rest} data-slot="dialog-content">
   <slot />
 </dialog>

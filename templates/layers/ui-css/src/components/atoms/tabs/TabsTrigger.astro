@@ -16,9 +16,9 @@ const { value, defaultActive = false, class: className, ...rest } = Astro.props;
   class={className}
   aria-selected={defaultActive ? "true" : "false"}
   tabindex={defaultActive ? 0 : -1}
-  data-slot="tabs-trigger"
+  {...rest} data-slot="tabs-trigger"
   data-value={value}
-  {...rest}
+ 
 >
   <slot />
 </button>

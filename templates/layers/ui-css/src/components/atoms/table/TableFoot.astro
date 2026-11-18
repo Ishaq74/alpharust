@@ -6,6 +6,6 @@ type Props = HTMLAttributes<"tfoot">;
 const { class: className, ...rest } = Astro.props;
 ---
 
-<tfoot class={className} data-slot="table-foot" {...rest}>
+<tfoot class={className} {...rest} data-slot="table-foot">
   <slot />
 </tfoot>

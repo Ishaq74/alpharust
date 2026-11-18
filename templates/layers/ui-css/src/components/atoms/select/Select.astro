@@ -1,0 +1,16 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  name?: string;
+  defaultValue?: string;
+  required?: boolean;
+};
+
+const { name, defaultValue, required, class: className, ...rest } = Astro.props;
+---
+
+<div class={className} data-name={name} data-value={defaultValue} data-required={required} {...rest} data-slot="select">
+  <slot />
+  {name && <input type="hidden" name={name} value={defaultValue ?? ""} required={required} data-select-input />}
+</div>
