@@ -175,11 +175,13 @@ fn features(framework: Framework, o: &Value) -> Vec<String> {
             if o["pest"].as_bool() == Some(true) {
                 f.push("Pest".into());
             }
+            site_features(o, &mut f);
         }
         Framework::Wagtail => {
             for p in list("packages") {
                 f.push(p);
             }
+            site_features(o, &mut f);
         }
         Framework::Rust => {
             if let Some(k) = s("kind") {
@@ -188,6 +190,23 @@ fn features(framework: Framework, o: &Value) -> Vec<String> {
         }
     }
     f
+}
+
+/// Site vitrine Laravel / Wagtail : kit, comptes, jeu d'icônes.
+fn site_features(o: &Value, f: &mut Vec<String>) {
+    if o["ui"].as_bool() == Some(true) {
+        f.push(if o["starwind"].as_bool() == Some(true) {
+            "UI starwind".into()
+        } else {
+            "UI css".into()
+        });
+    }
+    if o["auth"].as_bool() == Some(true) {
+        f.push("auth".into());
+    }
+    if let Some(icons) = o["icons"].as_str() {
+        f.push(format!("icônes {icons}"));
+    }
 }
 
 fn git_state(dir: &Path) -> Option<GitState> {

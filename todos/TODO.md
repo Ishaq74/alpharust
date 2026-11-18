@@ -45,16 +45,21 @@
 - [x] Spec partagée `tools/dsgen/vitrine` : pages, menu, sections, contenus, formulaire ; rendu Astro, Blade, Django
 - [x] Astro (Starwind et CSS), Wagtail (modèle wagtail-cms : snippets, réglages, StreamField, `seed_site`), Laravel (modèle manecms)
 - [x] `--theme-*` pour Laravel et Wagtail, contrôle de parité (`site_parity.py`, `site_interact.py`) et planches
-- [ ] Langue anglaise et sélecteur de langue dans le gabarit commun (Astro a déjà l'i18n, pas Laravel ni Wagtail)
-- [ ] Liens compte / connexion dans l'en-tête quand `--auth` (Astro) ou Breeze / admin Wagtail
-- [ ] Kit Tailwind + Starwind côté Laravel et Wagtail (aujourd'hui CSS pur seulement)
 
-## Idées pour la suite
-- [ ] Générateur WordPress (wp-cli) — reporté, voir ADR 0012
-- [ ] Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
-- [ ] Vérification `docker build` en CI (le Dockerfile généré n'est pas construit aujourd'hui)
-- [ ] Export zip d'un projet généré depuis la GUI
-- [ ] Générateur Next.js (les règles `frameworks/nextjs` existent déjà)
-- [ ] Checkers JS/TS basés sur un vrai parseur (tree-sitter)
-- [ ] Mode `--fix` pour les règles à correction triviale
-- [ ] Publication du binaire (releases GitHub) et `cargo install alpharust`
+## Langues, comptes, 6 combinaisons (ADR 0016)
+- [x] Kit Tailwind + Starwind côté Laravel et Wagtail (`--ui starwind`) : 6 combinaisons au rendu identique
+- [x] Anglais et sélecteur de langue dans les trois frameworks (i18n officielle de chacun), depuis la spec partagée
+- [x] Comptes (`--auth`) : Better Auth, Laravel Fortify, auth Django ; liens « Connexion » / « Mon compte » dans l'en-tête
+- [x] Icônes MDI par défaut, drapeaux Circle Flags, `--icons <jeu Iconify>`
+- [x] Preuves : `site_parity.py` (19 pages × 6), `site_auth.py` (78/78), planches `docs/screenshots/phase10-*`
+- [x] README complet (tous profils), docs et ADR à jour
+
+## Pistes hors périmètre (idées non engagées, aucune tâche ouverte)
+- Générateur WordPress (wp-cli) — reporté, voir ADR 0012
+- Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
+- Vérification `docker build` en CI (le Dockerfile généré n'est pas construit aujourd'hui)
+- Export zip d'un projet généré depuis la GUI
+- Générateur Next.js (les règles `frameworks/nextjs` existent déjà)
+- Checkers JS/TS basés sur un vrai parseur (tree-sitter)
+- Mode `--fix` pour les règles à correction triviale
+- Publication du binaire (releases GitHub) et `cargo install alpharust`
