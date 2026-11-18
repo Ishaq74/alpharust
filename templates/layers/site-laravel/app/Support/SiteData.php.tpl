@@ -54,6 +54,21 @@ final class SiteData
         return $u !== self::href('/') && str_starts_with($p.'/', $u.'/') ? 'true' : null;
     }
 
+    /** @var array<string, array{body: string, width: int, height: int}>|null */
+    private static ?array $icons = null;
+
+    /**
+     * Icône du site par son nom logique (resources/data/icons.json, partagé avec Astro et Wagtail).
+     *
+     * @return array{body: string, width: int, height: int}|null
+     */
+    public static function icon(string $name): ?array
+    {
+        self::$icons ??= json_decode((string) file_get_contents(resource_path('data/icons.json')), true)['icons'];
+
+        return self::$icons[$name] ?? null;
+    }
+
     /** @return list<array<string, mixed>> */
     public function services(): array
     {
@@ -85,6 +100,7 @@ final class SiteData
                 'code' => $code,
                 'label' => $l['label'],
                 'name' => $l['name'],
+                'flag' => 'flag-'.$code,
                 'url' => self::href($rest, $code),
                 'current' => $code === $locale ? 'page' : null,
             ], array_keys(config('site.locales')), config('site.locales')),
@@ -110,8 +126,58 @@ final class SiteData
             'year' => (int) date('Y'),
             'copyright' => $s['copyright'],
             'copyright_line' => '© '.date('Y').' '.$s['name'].' · '.$s['copyright'],
+@@if auth@@
+            'account' => auth()->check()
+                ? ['url' => self::href(config('site.auth.routes.account')), 'label' => $s['ui']['account']]
+                : ['url' => self::href(config('site.auth.routes.sign_in')), 'label' => $s['ui']['sign_in']],
+@@else@@
+            'account' => null,
+@@end@@
         ];
     }
+@@if auth@@
+
+    /**
+     * Pages connexion / inscription (mêmes données qu'Astro et Wagtail) ; le mot de passe n'est jamais ré-affiché.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    public static function authPage(string $kind, ?string $error = null, array $values = []): array
+    {
+        $ui = trans('site.ui');
+        $other = $kind === 'sign_in' ? 'sign_up' : 'sign_in';
+
+        return [
+            'title' => $ui[$kind],
+            'lead' => $ui[$kind.'_lead'],
+            'submit' => $ui[$kind.'_submit'],
+            'error' => $error,
+            // Formulaire envoyé aux routes POST de Fortify (config/fortify.php : paths).
+            'action' => url(config('site.auth.routes.'.$kind)),
+            'fields' => array_map(fn (array $f) => $f + [
+                'id' => 'auth-'.$f['name'],
+                'label' => $ui['field_'.$f['name']],
+                'value' => $f['type'] === 'password' ? '' : (string) ($values[$f['name']] ?? ''),
+            ], config('site.auth.fields.'.$kind)),
+            'alt_text' => $ui[$kind === 'sign_in' ? 'no_account' : 'have_account'],
+            'alt_label' => $ui[$other],
+            'alt_url' => self::href(config('site.auth.routes.'.$other)),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function accountPage(\App\Models\User $user): array
+    {
+        return [
+            'title' => trans('site.ui.account'),
+            'lead' => trans('site.ui.account_lead'),
+            'name' => $user->name,
+            'email' => $user->email,
+            'logout_action' => url('/auth/sign-out'),
+        ];
+    }
+@@end@@
 
     /**
      * Sections d'une page avec listes et formulaire résolus.

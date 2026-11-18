@@ -245,6 +245,8 @@ pub struct AstroOptions {
     pub docker: bool,
     /// Workflow GitHub Actions (check, build, tests).
     pub ci: bool,
+    /// Site vitrine : jeu d'icônes Iconify (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
 }
 
 impl Default for AstroOptions {
@@ -266,6 +268,7 @@ impl Default for AstroOptions {
             css_variants: vec![],
             docker: false,
             ci: false,
+            icons: None,
         }
     }
 }
@@ -380,6 +383,16 @@ impl AstroOptions {
 
     pub fn validate(&self, install: bool) -> Result<()> {
         self.validate_platform(install)?;
+        if self.icons.is_some() && !self.vitrine() {
+            bail!("--icons s'applique au site vitrine : ajoutez --ui starwind ou --ui concordia");
+        }
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
+            }
+        }
         for i in &self.integrations {
             if !INTEGRATIONS.iter().any(|(n, _)| n == i) {
                 bail!(
@@ -785,6 +798,13 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         "Appliquer la couche AlphaRust (structure, thème, docs, config qualité)",
         Internal::Layer(layers),
     ));
+    if let Some(set) = o
+        .icons
+        .as_ref()
+        .filter(|s| o.vitrine() && s.as_str() != "mdi")
+    {
+        steps.push(super::site_icons_step(set));
+    }
     if o.template == Template::Alpharust {
         // Design kit partagé (Astro, Laravel, Wagtail) : jetons et composants CSS copiés, jamais réécrits.
         let (target, label) = match o.ui {

@@ -253,6 +253,8 @@ pub enum Internal {
     TailwindStandalone,
     /// Compile les catalogues gettext (`locale/*/LC_MESSAGES/*.po` -> `.mo`) sans GNU gettext.
     CompileMessages,
+    /// Site vitrine : jeu d'icônes Iconify (`--icons`) réécrit dans `icons.json` (MDI par défaut).
+    SiteIcons(String),
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,
@@ -693,6 +695,16 @@ pub fn next_steps(req: &Request, target: &Path) -> Vec<String> {
         ],
         Options::Rust(_) => vec![format!("cd {dir}"), "cargo run".into(), "cargo test".into()],
     }
+}
+
+/// Étape `--icons <jeu>` commune aux trois frameworks (site vitrine).
+pub(crate) fn site_icons_step(set: &str) -> Step {
+    Step::internal(
+        "icons",
+        Phase::Layer,
+        &format!("Jeu d'icônes du site : {set} (icons.json, repli MDI)"),
+        Internal::SiteIcons(set.to_string()),
+    )
 }
 
 #[cfg(test)]

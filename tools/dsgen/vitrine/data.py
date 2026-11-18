@@ -55,3 +55,12 @@ SITE, SERVICES, POSTS, PAGES, FIELDS, UI = (getattr(L[DEFAULT], k) for k in ('SI
 
 # Pages simples (sections seules) et leur adresse ; services/blog ont en plus des pages de détail.
 SIMPLE_PAGES = ['about', 'legal', 'privacy']
+
+# Comptes (--auth) : mêmes adresses et mêmes champs dans les trois frameworks (Better Auth, Fortify, auth Django).
+AUTH_ROUTES = {'sign_in': '/auth/sign-in', 'sign_up': '/auth/sign-up', 'account': '/auth/dashboard'}
+# champ : (nom, type, autocomplete) ; le libellé est site.ui.field_<nom>
+AUTH_FIELDS = {
+    'sign_in': [('email', 'email', 'email'), ('password', 'password', 'current-password')],
+    'sign_up': [('name', 'text', 'name'), ('email', 'email', 'email'), ('password', 'password', 'new-password')],
+}
+PASSWORD_MIN = 8

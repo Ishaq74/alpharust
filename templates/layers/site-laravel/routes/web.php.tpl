@@ -1,6 +1,9 @@
 @@meta mode=replace@@
 <?php
 
+@@if auth@@
+use App\Http\Controllers\AccountController;
+@@end@@
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ServiceController;
@@ -25,6 +28,12 @@ foreach (array_keys(config('site.locales')) as $locale) {
             Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
             Route::get('/mentions-legales', [SiteController::class, 'page'])->defaults('key', 'legal')->name('legal');
             Route::get('/confidentialite', [SiteController::class, 'page'])->defaults('key', 'privacy')->name('privacy');
+@@if auth@@
+            // Comptes : pages du site ; les POST (connexion, inscription, déconnexion) sont les routes de Fortify.
+            Route::get('/auth/sign-in', [AccountController::class, 'signIn'])->name('auth.sign-in');
+            Route::get('/auth/sign-up', [AccountController::class, 'signUp'])->name('auth.sign-up');
+            Route::get('/auth/dashboard', [AccountController::class, 'show'])->name('auth.account');
+@@end@@
         });
 }
 

@@ -18,7 +18,7 @@
                             {% ds_dropdown open_on_hover=True class_="site-nav__dropdown" %}
                                 {% ds_dropdown_trigger class_="site-nav__link" aria_current=item.current %}
                                     {{ item.label }}
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                    {% site_icon "chevron-down" size=16 %}
                                 {% endds_dropdown_trigger %}
                                 {% ds_dropdown_content class_="site-nav__menu" %}
                                     {% ds_dropdown_item as_="a" href=item.url %}
@@ -41,6 +41,14 @@
             </ul>
         </nav>
         <div class="site-header__actions">
+            {% if site.account %}
+                {% ds_button href=site.account.url variant="ghost" size="sm" class_="site-header__account" %}
+                    {% site_icon "user" size=18 %}
+                    <span>
+                        {{ site.account.label }}
+                    </span>
+                {% endds_button %}
+            {% endif %}
             {% ds_button href=site.cta.url variant="primary" size="sm" class_="site-header__cta" %}
                 {{ site.cta.label }}
             {% endds_button %}
@@ -49,7 +57,10 @@
                     {% for lang in site.languages %}
                         <li>
                             <a class="site-lang__link" href="{{ lang.url }}" hreflang="{{ lang.code }}" lang="{{ lang.code }}"{% if lang.current %} aria-current="{{ lang.current }}"{% endif %} title="{{ lang.name }}">
-                                {{ lang.label }}
+                                {% site_icon lang.flag size=16 %}
+                                <span>
+                                    {{ lang.label }}
+                                </span>
                             </a>
                         </li>
                     {% endfor %}
@@ -59,7 +70,7 @@
             {% ds_sheet class_="site-header__mobile" %}
                 {% ds_sheet_trigger as_child=True %}
                     {% ds_button variant="ghost" size="icon" aria_label=site.ui.open_menu %}
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        {% site_icon "menu" size=22 %}
                     {% endds_button %}
                 {% endds_sheet_trigger %}
                 {% ds_sheet_content side="right" class_="site-mobile" %}
@@ -76,7 +87,7 @@
                                         {% ds_collapsible class_="site-mobile__group" %}
                                             {% ds_collapsible_trigger class_="site-mobile__link" %}
                                                 {{ item.label }}
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                                {% site_icon "chevron-down" size=16 %}
                                             {% endds_collapsible_trigger %}
                                             {% ds_collapsible_content %}
                                                 <ul class="site-mobile__sub">
@@ -105,6 +116,12 @@
                         </ul>
                     </nav>
                     {% ds_sheet_footer %}
+                        {% if site.account %}
+                            {% ds_button href=site.account.url variant="outline" class_="site-mobile__cta" %}
+                                {% site_icon "user" size=18 %}
+                                {{ site.account.label }}
+                            {% endds_button %}
+                        {% endif %}
                         {% ds_button href=site.cta.url variant="primary" class_="site-mobile__cta" %}
                             {{ site.cta.label }}
                         {% endds_button %}

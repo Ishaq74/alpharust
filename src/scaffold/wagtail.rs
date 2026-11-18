@@ -20,6 +20,10 @@ pub struct WagtailOptions {
     pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
+    /// Comptes du site (exige `ui`) : authentification Django, pages connexion / inscription / compte du site.
+    pub auth: bool,
+    /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
 }
 
 impl Default for WagtailOptions {
@@ -30,6 +34,8 @@ impl Default for WagtailOptions {
             ui: false,
             starwind: false,
             theme: None,
+            auth: false,
+            icons: None,
         }
     }
 }
@@ -48,6 +54,16 @@ impl WagtailOptions {
         for p in &self.packages {
             if !valid_pip_spec(p) {
                 bail!("paquet pip invalide : `{p}`");
+            }
+        }
+        if (self.auth || self.icons.is_some()) && !self.ui {
+            bail!("--auth et --icons s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        }
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
             }
         }
         if self.theme.is_some() && !self.ui {
@@ -190,6 +206,9 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Copier le design kit (ds/static/ds)",
             Internal::DesignKit(DesignTarget::Wagtail),
         ));
+        if let Some(set) = o.icons.as_ref().filter(|s| s.as_str() != "mdi") {
+            steps.push(super::site_icons_step(set));
+        }
         if let Some(t) = &o.theme {
             steps.push(Step::internal(
                 "theme",
@@ -400,6 +419,34 @@ mod tests {
             ..Default::default()
         };
         assert!(!steps(&r, &css).iter().any(|s| s.id == "tailwind"));
+    }
+
+    #[test]
+    fn auth_and_icons_need_the_site() {
+        assert!(WagtailOptions {
+            auth: true,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(WagtailOptions {
+            ui: true,
+            icons: Some("Bad Set".into()),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        let o = WagtailOptions {
+            ui: true,
+            auth: true,
+            icons: Some("tabler".into()),
+            ..Default::default()
+        };
+        assert!(o.validate().is_ok());
+        let r = Request::new(Framework::Wagtail, "x");
+        assert!(steps(&r, &o)
+            .iter()
+            .any(|s| matches!(&s.action, Action::Do(Internal::SiteIcons(set)) if set == "tabler")));
     }
 
     #[test]

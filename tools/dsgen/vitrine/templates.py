@@ -54,12 +54,15 @@ HEADER = [E('header', cls('site-header'), [
                     ])]),
             ])]),
         E('div', cls('site-header__actions'), [
+            If(V('site.account'), [C('Button', [('href', V('site.account.url')), ('variant', 'ghost'), ('size', 'sm'),
+                                                ('class', 'site-header__account')], [Icon('user', 18), E('span', [], [O(V('site.account.label'))])])]),
             C('Button', [('href', V('site.cta.url')), ('variant', 'primary'), ('size', 'sm'), ('class', 'site-header__cta')],
               [O(V('site.cta.label'))]),
             E('nav', [('class', 'site-lang'), ('aria-label', V('site.ui.language'))], [E('ul', cls('site-lang__list'), [
                 For('lang', V('site.languages'), [E('li', [], [
                     E('a', [('class', 'site-lang__link'), ('href', V('lang.url')), ('hreflang', V('lang.code')), ('lang', V('lang.code')),
-                            ('aria-current', Opt(V('lang.current'))), ('title', V('lang.name'))], [O(V('lang.label'))])])]),
+                            ('aria-current', Opt(V('lang.current'))), ('title', V('lang.name'))], [
+                        Icon(V('lang.flag'), 16), E('span', [], [O(V('lang.label'))])])])]),
             ])]),
             C('ThemeToggle', [('size', 'sm'), ('ariaLabel', V('site.ui.theme'))]),
             C('Sheet', [('class', 'site-header__mobile')], [
@@ -77,6 +80,8 @@ HEADER = [E('header', cls('site-header'), [
                                 ])]),
                         ])]),
                     C('SheetFooter', [], [
+                        If(V('site.account'), [C('Button', [('href', V('site.account.url')), ('variant', 'outline'), ('class', 'site-mobile__cta')],
+                                                     [Icon('user', 18), O(V('site.account.label'))])]),
                         C('Button', [('href', V('site.cta.url')), ('variant', 'primary'), ('class', 'site-mobile__cta')],
                           [O(V('site.cta.label'))])]),
                 ]),
@@ -318,6 +323,55 @@ POST_DETAIL = [
         ])]),
     ]),
 ]
+
+# ------------------------------------------------------------------ comptes (--auth) : connexion, inscription, compte
+# page : title, lead, error, action, submit, fields[{id,name,type,autocomplete,label,value}], alt_text, alt_label, alt_url
+AUTH_FORM = [E('section', cls('site-section site-auth'), [E('div', cls('site-container site-container--narrow'), [
+    C('Card', [('class', 'site-card site-auth__card')], [
+        C('CardHeader', [], [
+            E('h1', cls('site-auth__title'), [O(V('page.title'))]),
+            E('p', cls('site-lead'), [O(V('page.lead'))]),
+        ]),
+        C('CardContent', [], [
+            If(V('page.error'), [C('Alert', [('variant', 'error'), ('class', 'site-form__notice')], [
+                C('AlertTitle', [], [O(V('page.error'))])])]),
+            E('form', [('class', 'site-form'), ('method', 'post'), ('action', V('page.action'))], [
+                Csrf(),
+                E('input', [('type', 'hidden'), ('name', 'locale'), ('value', V('site.locale'))], void=True),
+                For('field', V('page.fields'), [E('div', cls('site-field'), [
+                    C('Label', [('for', V('field.id'))], [O(V('field.label'))]),
+                    C('Input', [('id', V('field.id')), ('name', V('field.name')), ('type', V('field.type')),
+                                ('autocomplete', V('field.autocomplete')), ('value', V('field.value')), ('required', True)]),
+                ])]),
+                C('Button', [('type', 'submit'), ('variant', 'primary'), ('class', 'site-block')], [O(V('page.submit'))]),
+            ]),
+        ]),
+        C('CardFooter', [('class', 'site-auth__alt')], [
+            E('span', [], [O(V('page.alt_text'))]),
+            E('a', [('href', V('page.alt_url'))], [O(V('page.alt_label'))]),
+        ]),
+    ]),
+])])]
+
+# page : title, lead, name, email, logout_action
+ACCOUNT = [E('section', cls('site-section site-auth'), [E('div', cls('site-container site-container--narrow'), [
+    C('Card', [('class', 'site-card site-auth__card')], [
+        C('CardHeader', [], [
+            E('span', cls('site-icon-box'), [Icon('user', 22)]),
+            E('h1', cls('site-auth__title'), [O(V('page.title'))]),
+            E('p', cls('site-lead'), [O(V('page.lead'))]),
+        ]),
+        C('CardContent', [], [E('dl', cls('site-auth__details'), [
+            E('dt', [], [O(V('site.ui.field_name'))]), E('dd', [], [O(V('page.name'))]),
+            E('dt', [], [O(V('site.ui.field_email'))]), E('dd', [], [O(V('page.email'))]),
+        ])]),
+        C('CardFooter', [], [E('form', [('method', 'post'), ('action', V('page.logout_action'))], [
+            Csrf(),
+            E('input', [('type', 'hidden'), ('name', 'locale'), ('value', V('site.locale'))], void=True),
+            C('Button', [('type', 'submit'), ('variant', 'outline')], [Icon('log-out', 16), O(V('site.ui.sign_out'))]),
+        ])]),
+    ]),
+])])]
 
 NOT_FOUND = [E('section', cls('site-section site-404'), [E('div', cls('site-container site-container--narrow'), [
     E('p', cls('site-404__code'), [T('404')]),

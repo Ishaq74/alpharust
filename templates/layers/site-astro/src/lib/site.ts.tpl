@@ -6,7 +6,7 @@ import raw from '../data/site.json';
 /** Lien normalisé : `current` vaut 'page' (page exacte), 'true' (rubrique) ou null — même règle partout. */
 export type Link = { label: string; url: string; current?: 'page' | 'true' | null };
 export type NavItem = Link & { children: Link[] | null };
-export type Language = { code: string; label: string; name: string; url: string; current: 'page' | null };
+export type Language = { code: string; label: string; name: string; flag: string; url: string; current: 'page' | null };
 export type Site = {
   locale: string;
   languages: Language[];
@@ -23,6 +23,7 @@ export type Site = {
   contact: Record<string, string>;
   year: number;
   copyright_line: string;
+  account: { url: string; label: string } | null;
   copyright: string;
 };
 // Les sections sont des objets de contenu libres (voir src/data/site.json) : un type par composant de sections/.
@@ -35,7 +36,13 @@ type Data = {
   contactFields: Record<string, any>[];
   ui: Record<string, string>;
 };
-const all = raw as unknown as { locales: { code: string; name: string; label: string }[]; default: string; data: Record<string, Data> };
+type AuthField = { name: string; type: string; autocomplete: string };
+const all = raw as unknown as {
+  locales: { code: string; name: string; label: string }[];
+  default: string;
+  data: Record<string, Data>;
+  auth: { routes: Record<'sign_in' | 'sign_up' | 'account', string>; fields: Record<string, AuthField[]>; passwordMin: number };
+};
 export const LOCALES = all.locales.map((l) => l.code);
 export const DEFAULT_LOCALE = all.default;
 
@@ -107,7 +114,10 @@ export async function getPosts(locale = DEFAULT_LOCALE) {
   }));
 }
 
-export async function getSite(pathname: string): Promise<Site> {
+/** Utilisateur connecté (Astro.locals.user avec --auth) : seuls le nom et l'e-mail servent au site. */
+export type SiteUser = { name: string; email: string } | null | undefined;
+
+export async function getSite(pathname: string, user?: SiteUser): Promise<Site> {
   const locale = localeOf(pathname);
   const d = data(locale);
   const s = d.site;
@@ -122,6 +132,7 @@ export async function getSite(pathname: string): Promise<Site> {
       code: l.code,
       label: l.label,
       name: l.name,
+      flag: `flag-${l.code}`,
       url: href(rest, l.code),
       current: l.code === locale ? 'page' : null,
     })),
@@ -148,8 +159,60 @@ export async function getSite(pathname: string): Promise<Site> {
     year: new Date().getFullYear(),
     copyright: s.copyright,
     copyright_line: `© ${new Date().getFullYear()} ${s.name} · ${s.copyright}`,
+@@if auth@@
+    account: user
+      ? { url: href(all.auth.routes.account, locale), label: d.ui.account }
+      : { url: href(all.auth.routes.sign_in, locale), label: d.ui.sign_in },
+@@else@@
+    account: null,
+@@end@@
   };
 }
+
+export type AuthKind = 'sign_in' | 'sign_up';
+export type AuthState = { error?: string | null; values?: Record<string, string> };
+
+/** Pages connexion / inscription (mêmes données que Laravel et Wagtail) ; le mot de passe n'est jamais ré-affiché. */
+export function authPage(kind: AuthKind, state: AuthState = {}, locale = DEFAULT_LOCALE) {
+  const ui = data(locale).ui;
+  const other: AuthKind = kind === 'sign_in' ? 'sign_up' : 'sign_in';
+  return {
+    title: ui[kind],
+    lead: ui[`${kind}_lead`],
+    submit: ui[`${kind}_submit`],
+    error: state.error ?? null,
+    action: href(all.auth.routes[kind], locale),
+    fields: all.auth.fields[kind].map((f) => ({
+      ...f,
+      id: `auth-${f.name}`,
+      label: ui[`field_${f.name}`],
+      value: f.type === 'password' ? '' : (state.values?.[f.name] ?? ''),
+    })),
+    alt_text: ui[kind === 'sign_in' ? 'no_account' : 'have_account'],
+    alt_label: ui[other],
+    alt_url: href(all.auth.routes[other], locale),
+  };
+}
+
+/** Page « Mon compte ». */
+export function accountPage(user: { name: string; email: string }, locale = DEFAULT_LOCALE) {
+  const ui = data(locale).ui;
+  return { title: ui.account, lead: ui.account_lead, name: user.name, email: user.email, logout_action: href(all.auth.routes.account, locale) };
+}
+
+/** Contrôle des formulaires de compte (mêmes règles que Laravel et Wagtail) : libellé d'erreur ou null. */
+export function validateAuth(kind: AuthKind, values: Record<string, string>, locale = DEFAULT_LOCALE): string | null {
+  const ui = data(locale).ui;
+  const v = (k: string) => (values[k] ?? '').trim();
+  if (all.auth.fields[kind].some((f) => !v(f.name))) return ui.err_required;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('email'))) return ui.invalid_email;
+  if (kind === 'sign_up' && (values.password ?? '').length < all.auth.passwordMin) return ui.err_password;
+  return null;
+}
+
+/** Libellé d'une erreur de compte (`err_credentials`, `err_exists`…). */
+export const uiText = (key: string, locale = DEFAULT_LOCALE) => data(locale).ui[key] ?? key;
+export const AUTH_ROUTES = all.auth.routes;
 
 export type ContactState = { sent?: boolean; values?: Record<string, string>; errors?: Record<string, string> };
 

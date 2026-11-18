@@ -17,7 +17,7 @@
                             <x-ds.dropdown :open-on-hover="true" class="site-nav__dropdown">
                                 <x-ds.dropdown.trigger class="site-nav__link" :aria-current="$item['current'] ?? null">
                                     {{ $item['label'] ?? '' }}
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                    <x-site.icon name="chevron-down" :size="16" />
                                 </x-ds.dropdown.trigger>
                                 <x-ds.dropdown.content class="site-nav__menu">
                                     <x-ds.dropdown.item as="a" :href="$item['url'] ?? ''">
@@ -40,6 +40,14 @@
             </ul>
         </nav>
         <div class="site-header__actions">
+            @if (! empty($site['account']))
+                <x-ds.button :href="$site['account']['url'] ?? ''" variant="ghost" size="sm" class="site-header__account">
+                    <x-site.icon name="user" :size="18" />
+                    <span>
+                        {{ $site['account']['label'] ?? '' }}
+                    </span>
+                </x-ds.button>
+            @endif
             <x-ds.button :href="$site['cta']['url'] ?? ''" variant="primary" size="sm" class="site-header__cta">
                 {{ $site['cta']['label'] ?? '' }}
             </x-ds.button>
@@ -48,7 +56,10 @@
                     @foreach ($site['languages'] ?? [] as $lang)
                         <li>
                             <a class="site-lang__link" href="{{ $lang['url'] ?? '' }}" hreflang="{{ $lang['code'] ?? '' }}" lang="{{ $lang['code'] ?? '' }}" @if (! empty($lang['current']))aria-current="{{ $lang['current'] }}"@endif title="{{ $lang['name'] ?? '' }}">
-                                {{ $lang['label'] ?? '' }}
+                                <x-site.icon :name="$lang['flag'] ?? ''" :size="16" />
+                                <span>
+                                    {{ $lang['label'] ?? '' }}
+                                </span>
                             </a>
                         </li>
                     @endforeach
@@ -58,7 +69,7 @@
             <x-ds.sheet class="site-header__mobile">
                 <x-ds.sheet.trigger :as-child="true">
                     <x-ds.button variant="ghost" size="icon" :aria-label="$site['ui']['open_menu'] ?? ''">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <x-site.icon name="menu" :size="22" />
                     </x-ds.button>
                 </x-ds.sheet.trigger>
                 <x-ds.sheet.content side="right" class="site-mobile">
@@ -75,7 +86,7 @@
                                         <x-ds.collapsible class="site-mobile__group">
                                             <x-ds.collapsible.trigger class="site-mobile__link">
                                                 {{ $item['label'] ?? '' }}
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                                <x-site.icon name="chevron-down" :size="16" />
                                             </x-ds.collapsible.trigger>
                                             <x-ds.collapsible.content>
                                                 <ul class="site-mobile__sub">
@@ -104,6 +115,12 @@
                         </ul>
                     </nav>
                     <x-ds.sheet.footer>
+                        @if (! empty($site['account']))
+                            <x-ds.button :href="$site['account']['url'] ?? ''" variant="outline" class="site-mobile__cta">
+                                <x-site.icon name="user" :size="18" />
+                                {{ $site['account']['label'] ?? '' }}
+                            </x-ds.button>
+                        @endif
                         <x-ds.button :href="$site['cta']['url'] ?? ''" variant="primary" class="site-mobile__cta">
                             {{ $site['cta']['label'] ?? '' }}
                         </x-ds.button>

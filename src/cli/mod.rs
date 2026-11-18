@@ -279,8 +279,17 @@ struct GenOpts {
         help = "[astro, db postgres] URL PostgreSQL de développement (applique les migrations)"
     )]
     db_url: Option<String>,
-    #[arg(long, help = "[astro] authentification Better Auth (exige --db)")]
+    #[arg(
+        long,
+        help = "comptes du site : [astro] Better Auth (exige --db) ; [laravel] Fortify ; [wagtail] auth Django (exigent --ui)"
+    )]
     auth: bool,
+    #[arg(
+        long,
+        value_name = "JEU",
+        help = "[site vitrine] jeu d'icônes Iconify : mdi (défaut), lucide, ou tout jeu Iconify (tabler, ph…) ; drapeaux Circle Flags"
+    )]
+    icons: Option<String>,
     #[arg(
         long = "auth-plugin",
         value_delimiter = ',',
@@ -398,7 +407,8 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.css_variants.is_empty()
         || o.db_url.is_some()
-        || o.auth
+        || (o.auth && !matches!(framework, Framework::Laravel | Framework::Wagtail))
+        || (o.icons.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.auth_plugins.is_empty()
         || !o.i18n.is_empty()
         || o.docker
@@ -469,6 +479,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             }
             a.db_url = o.db_url.clone();
             a.auth = o.auth;
+            a.icons = o.icons.clone();
             a.auth_plugins = o.auth_plugins.clone();
             a.i18n = o.i18n.clone();
             a.css_variants = o.css_variants.clone();
@@ -508,6 +519,8 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.frontend = o.frontend;
             (l.ui, l.starwind) = parse_catalog_ui(&o.ui)?;
             l.theme = theme_from(o);
+            l.auth = o.auth;
+            l.icons = o.icons.clone();
             l.validate()?;
             Options::Laravel(l)
         }
@@ -519,6 +532,8 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
                 ui,
                 starwind,
                 theme: theme_from(o),
+                auth: o.auth,
+                icons: o.icons.clone(),
             };
             w.validate()?;
             Options::Wagtail(w)

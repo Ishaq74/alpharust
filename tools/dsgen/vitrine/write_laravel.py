@@ -2,7 +2,7 @@
 import os
 from . import data as D, templates as TPL, i18n as I18N
 from .ir import Blade
-from .icons import ICONS
+from .icons import icons_json
 
 GEN = '{{-- Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Wagtail. --}}\n'
 PHPGEN = '// Généré par tools/dsgen/vitrine (spec.py) : même contenu qu’Astro et Wagtail.\n'
@@ -23,7 +23,10 @@ def php(v, ind=0):
     raise TypeError(v)
 
 def config():
-    s = {'locale': D.DEFAULT, 'locales': {c: {'name': n, 'label': l} for c, n, l in I18N.LOCALES}}
+    s = {'locale': D.DEFAULT, 'locales': {c: {'name': n, 'label': l} for c, n, l in I18N.LOCALES},
+         # Comptes (--auth, Laravel Fortify) : mêmes adresses et champs qu'Astro et Wagtail.
+         'auth': {'routes': D.AUTH_ROUTES, 'fields': {k: [{'name': n, 'type': t, 'autocomplete': a} for n, t, a in v]
+                                                     for k, v in D.AUTH_FIELDS.items()}, 'password_min': D.PASSWORD_MIN}}
     return ("<?php\n\n" + PHPGEN + "// Langues du site (localisation officielle de Laravel, doc « localization »)\n"
             "// Le contenu (navigation, pied de page, pages, libellés) est dans lang/<langue>/site.php ; les services et\n"
             "// les articles sont en base, une ligne par langue (modèles Service et Post, database/seeders/SiteSeeder.php).\n\n"
@@ -38,10 +41,10 @@ def lang_file(loc):
     return ("<?php\n\n" + PHPGEN + f"// Textes du site en « {loc} » : lus par App\\Support\\SiteData via trans('site').\n\n"
             "return " + php(s) + ";\n")
 
-ICON = (GEN + "@props(['name', 'size' => 20])\n@php\n    // Tracés Lucide (ISC) : mêmes icônes qu’Astro (SiteIcon.astro) et Django ({% site_icon %}).\n    $paths = [\n"
-        + ''.join(f"        '{k}' => '{v}',\n" for k, v in ICONS.items())
-        + "    ];\n@endphp\n<svg width=\"{{ $size }}\" height=\"{{ $size }}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
-          "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"site-icon\">{!! $paths[$name] ?? '' !!}</svg>\n")
+ICON = (GEN + "{{-- Icônes du site : resources/data/icons.json (MDI par défaut, drapeaux Circle Flags), comme Astro et Django. --}}\n"
+        "@props(['name', 'size' => 20])\n@php($icon = \\App\\Support\\SiteData::icon($name))\n"
+        "@if ($icon)\n<svg width=\"{{ $size }}\" height=\"{{ $size }}\" viewBox=\"0 0 {{ $icon['width'] }} {{ $icon['height'] }}\" "
+        "fill=\"currentColor\" aria-hidden=\"true\" class=\"site-icon\">{!! $icon['body'] !!}</svg>\n@endif\n")
 
 LAYOUT = GEN + """{{-- Gabarit commun du site (modèle manecms : composant « shell » + partials head/header/footer). --}}
 @props(['title' => null, 'description' => null])
@@ -154,6 +157,21 @@ final class SiteData
         return $u !== self::href('/') && str_starts_with($p.'/', $u.'/') ? 'true' : null;
     }
 
+    /** @var array<string, array{body: string, width: int, height: int}>|null */
+    private static ?array $icons = null;
+
+    /**
+     * Icône du site par son nom logique (resources/data/icons.json, partagé avec Astro et Wagtail).
+     *
+     * @return array{body: string, width: int, height: int}|null
+     */
+    public static function icon(string $name): ?array
+    {
+        self::$icons ??= json_decode((string) file_get_contents(resource_path('data/icons.json')), true)['icons'];
+
+        return self::$icons[$name] ?? null;
+    }
+
     /** @return list<array<string, mixed>> */
     public function services(): array
     {
@@ -185,6 +203,7 @@ final class SiteData
                 'code' => $code,
                 'label' => $l['label'],
                 'name' => $l['name'],
+                'flag' => 'flag-'.$code,
                 'url' => self::href($rest, $code),
                 'current' => $code === $locale ? 'page' : null,
             ], array_keys(config('site.locales')), config('site.locales')),
@@ -210,8 +229,58 @@ final class SiteData
             'year' => (int) date('Y'),
             'copyright' => $s['copyright'],
             'copyright_line' => '© '.date('Y').' '.$s['name'].' · '.$s['copyright'],
+@@if auth@@
+            'account' => auth()->check()
+                ? ['url' => self::href(config('site.auth.routes.account')), 'label' => $s['ui']['account']]
+                : ['url' => self::href(config('site.auth.routes.sign_in')), 'label' => $s['ui']['sign_in']],
+@@else@@
+            'account' => null,
+@@end@@
         ];
     }
+@@if auth@@
+
+    /**
+     * Pages connexion / inscription (mêmes données qu'Astro et Wagtail) ; le mot de passe n'est jamais ré-affiché.
+     *
+     * @param  array<string, mixed>  $values
+     * @return array<string, mixed>
+     */
+    public static function authPage(string $kind, ?string $error = null, array $values = []): array
+    {
+        $ui = trans('site.ui');
+        $other = $kind === 'sign_in' ? 'sign_up' : 'sign_in';
+
+        return [
+            'title' => $ui[$kind],
+            'lead' => $ui[$kind.'_lead'],
+            'submit' => $ui[$kind.'_submit'],
+            'error' => $error,
+            // Formulaire envoyé aux routes POST de Fortify (config/fortify.php : paths).
+            'action' => url(config('site.auth.routes.'.$kind)),
+            'fields' => array_map(fn (array $f) => $f + [
+                'id' => 'auth-'.$f['name'],
+                'label' => $ui['field_'.$f['name']],
+                'value' => $f['type'] === 'password' ? '' : (string) ($values[$f['name']] ?? ''),
+            ], config('site.auth.fields.'.$kind)),
+            'alt_text' => $ui[$kind === 'sign_in' ? 'no_account' : 'have_account'],
+            'alt_label' => $ui[$other],
+            'alt_url' => self::href(config('site.auth.routes.'.$other)),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function accountPage(\\App\\Models\\User $user): array
+    {
+        return [
+            'title' => trans('site.ui.account'),
+            'lead' => trans('site.ui.account_lead'),
+            'name' => $user->name,
+            'email' => $user->email,
+            'logout_action' => url('/auth/sign-out'),
+        ];
+    }
+@@end@@
 
     /**
      * Sections d'une page avec listes et formulaire résolus.
@@ -289,11 +358,23 @@ PROVIDER = """<?php
 
 namespace App\\Providers;
 
+@@if auth@@
+use App\\Actions\\Fortify\\CreateNewUser;
+@@end@@
 use App\\Http\\Middleware\\SetSiteLocale;
+@@if auth@@
+use App\\Http\\Responses\\SiteAuthResponse;
+@@end@@
 use App\\View\\Composers\\SiteComposer;
 use Illuminate\\Support\\Facades\\App;
 use Illuminate\\Support\\Facades\\View;
 use Illuminate\\Support\\ServiceProvider;
+@@if auth@@
+use Laravel\\Fortify\\Contracts\\LoginResponse;
+use Laravel\\Fortify\\Contracts\\LogoutResponse;
+use Laravel\\Fortify\\Contracts\\RegisterResponse;
+use Laravel\\Fortify\\Fortify;
+@@end@@
 
 class SiteServiceProvider extends ServiceProvider
 {
@@ -303,7 +384,21 @@ class SiteServiceProvider extends ServiceProvider
         // Langue des routes du site (routes/web.php) : /en/… -> en (https://laravel.com/docs/localization). alpharust-ignore: no-hardcoded-urls
         $this->app['router']->aliasMiddleware('site.locale', SetSiteLocale::class);
         View::composer(['components.layouts.site', 'site.*', 'errors::404', 'errors.404'], SiteComposer::class);
+@@if auth@@
+        // Comptes : Fortify (config/fortify.php) traite les POST, le site affiche ses propres pages.
+        Fortify::createUsersUsing(CreateNewUser::class);
+@@end@@
     }
+@@if auth@@
+
+    public function register(): void
+    {
+        // Après connexion, inscription ou déconnexion : retour dans la langue du formulaire.
+        $this->app->singleton(LoginResponse::class, SiteAuthResponse::class);
+        $this->app->singleton(RegisterResponse::class, SiteAuthResponse::class);
+        $this->app->singleton(LogoutResponse::class, SiteAuthResponse::class);
+    }
+@@end@@
 }
 """
 
@@ -622,6 +717,9 @@ def seeder():
 ROUTES = """@@meta mode=replace@@
 <?php
 
+@@if auth@@
+use App\\Http\\Controllers\\AccountController;
+@@end@@
 use App\\Http\\Controllers\\BlogController;
 use App\\Http\\Controllers\\ContactController;
 use App\\Http\\Controllers\\ServiceController;
@@ -646,6 +744,12 @@ foreach (array_keys(config('site.locales')) as $locale) {
             Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
             Route::get('/mentions-legales', [SiteController::class, 'page'])->defaults('key', 'legal')->name('legal');
             Route::get('/confidentialite', [SiteController::class, 'page'])->defaults('key', 'privacy')->name('privacy');
+@@if auth@@
+            // Comptes : pages du site ; les POST (connexion, inscription, déconnexion) sont les routes de Fortify.
+            Route::get('/auth/sign-in', [AccountController::class, 'signIn'])->name('auth.sign-in');
+            Route::get('/auth/sign-up', [AccountController::class, 'signUp'])->name('auth.sign-up');
+            Route::get('/auth/dashboard', [AccountController::class, 'show'])->name('auth.account');
+@@end@@
         });
 }
 
@@ -774,6 +878,216 @@ class SetSiteLocale
 }
 """
 
+
+AUTH_META = '@@meta when=auth@@\n'
+
+FORTIFY_CONFIG = AUTH_META + """<?php
+
+use Laravel\\Fortify\\Features;
+
+// Laravel Fortify (authentification sans interface) : le site fournit ses pages (AccountController, vues site.auth
+// et site.account) ; Fortify traite les POST aux mêmes adresses qu'Astro et Wagtail.
+return [
+    'guard' => 'web',
+    'middleware' => ['web'],
+    'auth_middleware' => 'auth',
+    'passwords' => 'users',
+    'username' => 'email',
+    'email' => 'email',
+    'lowercase_usernames' => true,
+    'views' => false,
+    'home' => '/auth/dashboard',
+    'prefix' => '',
+    'domain' => null,
+    'limiters' => [
+        'login' => null,
+    ],
+    'paths' => [
+        'login' => '/auth/sign-in',
+        'logout' => '/auth/sign-out',
+        'register' => '/auth/sign-up',
+    ],
+    'features' => [
+        Features::registration(),
+    ],
+];
+"""
+
+CREATE_USER = AUTH_META + """<?php
+
+namespace App\\Actions\\Fortify;
+
+use App\\Models\\User;
+use Illuminate\\Support\\Facades\\Hash;
+use Illuminate\\Validation\\ValidationException;
+use Laravel\\Fortify\\Contracts\\CreatesNewUsers;
+
+/** Inscription (Fortify) : mêmes contrôles et messages qu'Astro (Better Auth) et Wagtail, dans le même ordre. */
+class CreateNewUser implements CreatesNewUsers
+{
+    /** @param  array<string, mixed>  $input */
+    public function create(array $input): User
+    {
+        $value = fn (string $k) => trim((string) ($input[$k] ?? ''));
+        $fail = fn (string $key) => throw ValidationException::withMessages(['form' => trans('site.ui.'.$key)]);
+        foreach (config('site.auth.fields.sign_up') as $f) {
+            if ($value($f['name']) === '') {
+                $fail('err_required');
+            }
+        }
+        if (! filter_var($value('email'), FILTER_VALIDATE_EMAIL)) {
+            $fail('invalid_email');
+        }
+        if (mb_strlen((string) $input['password']) < config('site.auth.password_min')) {
+            $fail('err_password');
+        }
+        $email = mb_strtolower($value('email'));
+        if (User::query()->where('email', $email)->exists()) {
+            $fail('err_exists');
+        }
+
+        return User::create([
+            'name' => $value('name'),
+            'email' => $email,
+            'password' => Hash::make((string) $input['password']),
+        ]);
+    }
+}
+"""
+
+AUTH_RESPONSE = AUTH_META + """<?php
+
+namespace App\\Http\\Responses;
+
+use App\\Support\\SiteData;
+use Illuminate\\Http\\RedirectResponse;
+use Laravel\\Fortify\\Contracts\\LoginResponse;
+use Laravel\\Fortify\\Contracts\\LogoutResponse;
+use Laravel\\Fortify\\Contracts\\RegisterResponse;
+
+/** Réponses de Fortify : « Mon compte » après connexion ou inscription, l'accueil après déconnexion, dans la langue du formulaire. */
+class SiteAuthResponse implements LoginResponse, LogoutResponse, RegisterResponse
+{
+    public function toResponse($request): RedirectResponse
+    {
+        $locale = (string) $request->input('locale');
+        $locale = array_key_exists($locale, config('site.locales')) ? $locale : config('site.locale');
+        $to = $request->routeIs('logout') ? '/' : config('site.auth.routes.account');
+
+        return redirect(SiteData::href($to, $locale));
+    }
+}
+"""
+
+ACCOUNT_CONTROLLER = AUTH_META + """<?php
+
+namespace App\\Http\\Controllers;
+
+use App\\Models\\User;
+use App\\Support\\SiteData;
+use Illuminate\\Http\\RedirectResponse;
+use Illuminate\\Http\\Request;
+use Illuminate\\View\\View;
+
+/** Pages de compte du site ; les formulaires sont traités par Fortify (config/fortify.php). */
+class AccountController extends Controller
+{
+    public function signIn(Request $request): View|RedirectResponse
+    {
+        if ($request->user()) {
+            return redirect(SiteData::href(config('site.auth.routes.account')));
+        }
+        // Erreur de Fortify (champ manquant, identifiants refusés) -> libellé du site, comme Astro et Wagtail.
+        $bag = $request->session()->get('errors')?->getBag('default');
+        $error = null;
+        if ($bag && $bag->any()) {
+            $email = trim((string) $request->old('email'));
+            $error = trans(match (true) {
+                $email === '' || $bag->has('password') => 'site.ui.err_required',
+                ! filter_var($email, FILTER_VALIDATE_EMAIL) => 'site.ui.invalid_email',
+                default => 'site.ui.err_credentials',
+            });
+        }
+
+        return view('site.auth', ['page' => SiteData::authPage('sign_in', $error, $request->old())]);
+    }
+
+    public function signUp(Request $request): View|RedirectResponse
+    {
+        if ($request->user()) {
+            return redirect(SiteData::href(config('site.auth.routes.account')));
+        }
+        $bag = $request->session()->get('errors')?->getBag('default');
+
+        return view('site.auth', ['page' => SiteData::authPage('sign_up', $bag?->first() ?: null, $request->old())]);
+    }
+
+    public function show(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return redirect(SiteData::href(config('site.auth.routes.sign_in')));
+        }
+
+        return view('site.account', ['page' => SiteData::accountPage($user)]);
+    }
+}
+"""
+
+AUTH_TEST = AUTH_META + """<?php
+
+namespace Tests\\Feature;
+
+use App\\Models\\User;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Tests\\TestCase;
+
+/** Comptes du site (Fortify) : mêmes pages, adresses et messages qu'Astro et Wagtail. */
+class AuthTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_the_header_links_to_the_sign_in_page(): void
+    {
+        $this->get('/')->assertOk()->assertSee('href="/auth/sign-in"', false)->assertSee('Connexion');
+        $this->get('/en')->assertOk()->assertSee('href="/en/auth/sign-in"', false)->assertSee('Sign in');
+    }
+
+    public function test_auth_pages_render_in_the_site_layout(): void
+    {
+        $this->get('/auth/sign-in')->assertOk()->assertSee('Accédez à votre espace client')->assertSee('site-header', false);
+        $this->get('/auth/sign-up')->assertOk()->assertSee('Créer mon compte')->assertSee('autocomplete="new-password"', false);
+        $this->get('/en/auth/sign-up')->assertOk()->assertSee('Create my account');
+        $this->get('/auth/dashboard')->assertRedirect('/auth/sign-in');
+    }
+
+    public function test_sign_up_sign_out_and_sign_in(): void
+    {
+        $this->post('/auth/sign-up', ['name' => 'Ada', 'email' => 'ada@example.com', 'password' => 'motdepasse', 'locale' => 'fr'])
+            ->assertRedirect('/auth/dashboard');
+        $this->assertAuthenticated();
+        $this->get('/auth/dashboard')->assertOk()->assertSee('ada@example.com')->assertSee('href="/auth/dashboard"', false);
+        $this->post('/auth/sign-out', ['locale' => 'en'])->assertRedirect('/en');
+        $this->assertGuest();
+        $this->post('/auth/sign-in', ['email' => 'ada@example.com', 'password' => 'motdepasse', 'locale' => 'en'])
+            ->assertRedirect('/en/auth/dashboard');
+        $this->assertAuthenticated();
+    }
+
+    public function test_errors_use_the_site_messages(): void
+    {
+        User::factory()->create(['email' => 'ada@example.com']);
+        $this->from('/auth/sign-in')->post('/auth/sign-in', ['email' => 'ada@example.com', 'password' => 'mauvais'])
+            ->assertRedirect('/auth/sign-in');
+        $this->get('/auth/sign-in')->assertSee('E-mail ou mot de passe incorrect.');
+        $this->from('/auth/sign-up')->post('/auth/sign-up', ['name' => 'Ada', 'email' => 'ada@example.com', 'password' => 'motdepasse']);
+        $this->get('/auth/sign-up')->assertSee('Un compte existe déjà avec cette adresse.');
+        $this->from('/auth/sign-up')->post('/auth/sign-up', ['name' => 'Bob', 'email' => 'bob@example.com', 'password' => 'court']);
+        $this->get('/auth/sign-up')->assertSee('Le mot de passe doit contenir au moins 8 caractères.');
+    }
+}
+"""
+
 ROOT_LAYERS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', 'templates', 'layers'))
 
 EXAMPLE_TEST = """@@meta mode=replace@@
@@ -821,6 +1135,7 @@ def files(cat, css):
         'resources/views/site/post.blade.php.tpl': detail_view(cat, TPL.POST_DETAIL),
         'resources/views/errors/404.blade.php.tpl': not_found(cat),
         'resources/css/site.css.tpl': css,
+        'resources/data/icons.json.tpl': icons_json(),
         # même icône que Wagtail (ds/static/ds/favicon.svg) ; Laravel ne fournit qu'un favicon.ico vide
         'public/favicon.svg.tpl': open(os.path.join(ROOT_LAYERS, 'wagtail-ds/ds/static/ds/favicon.svg')).read(),
     }
@@ -829,6 +1144,18 @@ def files(cat, css):
     for t, nodes in TPL.SECTIONS.items():
         out[f'resources/views/site/sections/{t}.blade.php.tpl'] = GEN + Blade(cat).nodes(nodes)
     for n, body in CONTROLLERS.items(): out[f'app/Http/Controllers/{n}.php.tpl'] = body
+    # Comptes (--auth) : Laravel Fortify.
+    out.update({
+        'config/fortify.php.tpl': FORTIFY_CONFIG,
+        'app/Actions/Fortify/CreateNewUser.php.tpl': CREATE_USER,
+        'app/Http/Responses/SiteAuthResponse.php.tpl': AUTH_RESPONSE,
+        'app/Http/Controllers/AccountController.php.tpl': ACCOUNT_CONTROLLER,
+        'tests/Feature/AuthTest.php.tpl': AUTH_TEST,
+        'resources/views/site/auth.blade.php.tpl': AUTH_META + "{{-- Connexion / inscription (comptes : --auth). --}}\n" + GEN
+            + "<x-layouts.site :title=\"$page['title']\">\n" + Blade(cat).nodes(TPL.AUTH_FORM, 1) + "</x-layouts.site>\n",
+        'resources/views/site/account.blade.php.tpl': AUTH_META + GEN
+            + "<x-layouts.site :title=\"$page['title']\">\n" + Blade(cat).nodes(TPL.ACCOUNT, 1) + "</x-layouts.site>\n",
+    })
     for n, body in MODELS.items(): out[f'app/Models/{n}.php.tpl'] = body
     for n, body in MIGRATIONS.items(): out[f'database/migrations/{n}.tpl'] = body
     # La couche n'est appliquée qu'avec --ui (voir src/scaffold/laravel.rs) : pas de condition par fichier.

@@ -634,8 +634,17 @@
 [data-slot="textarea"]:is([data-size="md"], :not([data-size])) { @apply min-h-10 px-3 py-2 text-base; }
 [data-slot="textarea"][data-size="lg"] { @apply min-h-12 px-4 py-3 text-lg; }
 
-/* theme-toggle/ThemeToggle.astro : themeToggle */
+/* theme-toggle/ThemeToggle.astro : themeToggle + règles de toggle */
+[data-slot="theme-toggle"] { @apply inline-flex items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 focus-visible:border-outline focus-visible:ring-outline/50 focus-visible:ring-3 transition-colors outline-none aria-invalid:ring-error/40 aria-invalid:border-error; }
+[data-slot="theme-toggle"]:is([data-variant="default"], :not([data-variant])) { @apply hover:bg-muted hover:text-muted-foreground bg-transparent; }
+[data-slot="theme-toggle"][data-variant="outline"] { @apply border-input hover:bg-accent hover:text-accent-foreground border bg-transparent shadow-xs; }
+[data-slot="theme-toggle"][data-size="sm"] { @apply h-9 min-w-9 px-2 text-sm; }
+[data-slot="theme-toggle"]:is([data-size="md"], :not([data-size])) { @apply h-11 min-w-11 px-2.5 text-base; }
+[data-slot="theme-toggle"][data-size="lg"] { @apply h-12 min-w-12 px-3 text-lg; }
 [data-slot="theme-toggle"] { @apply hover:border-muted-foreground hover:bg-transparent data-[state=on]:bg-transparent; }
+[data-slot="theme-toggle"] [data-theme-icon-wrapper] { @apply inline-flex size-5; }
+[data-slot="theme-toggle"] [data-theme-icon="dark"], [data-slot="theme-toggle"][data-state="on"] [data-theme-icon="light"] { @apply hidden; }
+[data-slot="theme-toggle"][data-state="on"] [data-theme-icon="dark"] { @apply block; }
 
 /* toast/ToastDescription.astro : toastDescription */
 [data-slot="toast-description"] { @apply text-muted-foreground text-sm; }

@@ -2,7 +2,7 @@
 import json
 from . import data as D, templates as TPL, i18n as I18N
 from .ir import Django
-from .icons import ICONS
+from .icons import icons_json
 
 GEN = '{# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel. #}\n'
 PYGEN = '# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.\n'
@@ -84,8 +84,12 @@ class {label}Config(AppConfig):
     name = "{name}"
 '''
 
-ICONS_PY = PYGEN + '"""Tracés Lucide (ISC) : mêmes icônes qu’Astro (SiteIcon.astro) et Blade (<x-site.icon>)."""\n\nICONS = {\n' + \
-    ''.join(f'    {json.dumps(k)}: {json.dumps(v)},\n' for k, v in ICONS.items()) + '}\n'
+ICONS_PY = PYGEN + '''"""Icônes du site : layout/icons.json (MDI par défaut, drapeaux Circle Flags), le même fichier qu’Astro et Laravel."""
+import json
+from pathlib import Path
+
+ICONS = json.loads((Path(__file__).parent / "icons.json").read_text(encoding="utf-8"))["icons"]
+'''
 
 SITE_TAGS = PYGEN + '''from django import template
 from django.utils.html import format_html
@@ -99,12 +103,16 @@ register = template.Library()
 @register.simple_tag
 def site_icon(name, size=20):
     """Icône du site par son nom (``{% site_icon "mail" 18 %}``)."""
+    icon = ICONS.get(name)
+    if not icon:
+        return ""
     return format_html(
-        '<svg width="{}" height="{}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon">{}</svg>',
+        '<svg width="{}" height="{}" viewBox="0 0 {} {}" fill="currentColor" aria-hidden="true" class="site-icon">{}</svg>',
         size,
         size,
-        mark_safe(ICONS.get(name, "")),
+        icon["width"],
+        icon["height"],
+        mark_safe(icon["body"]),
     )
 '''
 
@@ -340,8 +348,13 @@ def build_site(request):
     copyright = gettext(org.copyright) if org.copyright else ""
     return {
         "locale": code,
+@@if auth@@
+        "account": account(request),
+@@else@@
+        "account": None,
+@@end@@
         "languages": [
-            {"code": c, "label": LABELS.get(c, c.upper()), "name": n, "url": prefix(c) + rest, "current": "page" if c == code else None}
+            {"code": c, "label": LABELS.get(c, c.upper()), "name": n, "flag": f"flag-{c}", "url": prefix(c) + rest, "current": "page" if c == code else None}
             for c, n in settings.LANGUAGES
         ],
         "ui": {k: gettext(v) for k, v in UI.items()},
@@ -370,6 +383,18 @@ def build_site(request):
     }
 
 
+@@if auth@@
+AUTH_ROUTES = ''' + repr(D.AUTH_ROUTES) + '''
+
+
+def account(request):
+    """Lien de l'en-tête : « Mon compte » une fois connecté, sinon « Connexion »."""
+    if request.user.is_authenticated:
+        return {"url": localize(AUTH_ROUTES["account"]), "label": gettext(UI["account"])}
+    return {"url": localize(AUTH_ROUTES["sign_in"]), "label": gettext(UI["sign_in"])}
+
+
+@@end@@
 def site(request):
     return {"site": SimpleLazyObject(lambda: build_site(request))}
 '''
@@ -610,16 +635,41 @@ SECTION_BLOCKS = [
 '''
 
 HOME_MODELS = '@@meta mode=replace@@\n' + PYGEN + '''from wagtail.admin.panels import FieldPanel
+@@if auth@@
+from wagtail.contrib.routable_page.models import RoutablePageMixin, path
+@@end@@
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
+@@if auth@@
+from layout import auth
+@@end@@
 from streams.blocks import SECTION_BLOCKS
 
 
+@@if auth@@
+class HomePage(RoutablePageMixin, Page):
+@@else@@
 class HomePage(Page):
+@@end@@
     body = StreamField(SECTION_BLOCKS, blank=True, use_json_field=True, verbose_name="sections")
 
     content_panels = Page.content_panels + [FieldPanel("body")]
+@@if auth@@
+
+    # Comptes (authentification Django) : /auth/… sous l'accueil de chaque langue, comme Astro et Laravel.
+    @path("auth/sign-in/")
+    def sign_in(self, request):
+        return auth.sign_in(request)
+
+    @path("auth/sign-up/")
+    def sign_up(self, request):
+        return auth.sign_up(request)
+
+    @path("auth/dashboard/")
+    def account(self, request):
+        return auth.account(request)
+@@end@@
     # une page d’accueil par langue (racine du site et ses traductions)
 '''
 
@@ -1198,6 +1248,176 @@ class SiteTests(TestCase):
         self.assertEqual(Page.objects.count(), before)
 '''
 
+
+AUTH_META = '@@meta when=auth@@\n'
+
+AUTH_PY = AUTH_META + PYGEN + '''\"\"\"Comptes du site avec l'authentification de Django (django.contrib.auth).
+
+Pages servies par HomePage (RoutablePageMixin : /auth/sign-in/, /auth/sign-up/, /auth/dashboard/ dans chaque langue) ;
+mêmes données, contrôles et messages qu'Astro (Better Auth) et Laravel (Fortify).
+\"\"\"
+import re
+
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.utils.translation import gettext
+
+from layout.context_processors import AUTH_ROUTES, UI, localize
+
+AUTH_FIELDS = ''' + repr(D.AUTH_FIELDS) + '''
+PASSWORD_MIN = ''' + str(D.PASSWORD_MIN) + '''
+EMAIL = re.compile(r"^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
+
+def ui(key):
+    return gettext(UI[key])
+
+
+def auth_page(kind, error=None, values=None):
+    \"\"\"Connexion / inscription : le mot de passe n'est jamais ré-affiché.\"\"\"
+    values = values or {}
+    other = "sign_up" if kind == "sign_in" else "sign_in"
+    return {
+        "title": ui(kind),
+        "lead": ui(kind + "_lead"),
+        "submit": ui(kind + "_submit"),
+        "error": error,
+        "action": localize(AUTH_ROUTES[kind]),
+        "fields": [
+            {"name": n, "type": t, "autocomplete": a, "id": f"auth-{n}", "label": ui(f"field_{n}"),
+             "value": "" if t == "password" else values.get(n, "")}
+            for n, t, a in AUTH_FIELDS[kind]
+        ],
+        "alt_text": ui("no_account" if kind == "sign_in" else "have_account"),
+        "alt_label": ui(other),
+        "alt_url": localize(AUTH_ROUTES[other]),
+    }
+
+
+def validate(kind, values):
+    \"\"\"Mêmes règles, dans le même ordre, qu'Astro et Laravel : libellé d'erreur ou None.\"\"\"
+    def v(k):
+        return (values.get(k) or "").strip()
+
+    if any(not v(n) for n, _, _ in AUTH_FIELDS[kind]):
+        return ui("err_required")
+    if not EMAIL.match(v("email")):
+        return ui("invalid_email")
+    if kind == "sign_up" and len(values.get("password") or "") < PASSWORD_MIN:
+        return ui("err_password")
+    return None
+
+
+def render(request, template, page, error=None):
+    return TemplateResponse(request, template, {"page": page}, status=422 if error else 200)
+
+
+def done(request):
+    return HttpResponseRedirect(localize(AUTH_ROUTES["account"]))
+
+
+def sign_in(request):
+    if request.user.is_authenticated:
+        return done(request)
+    error, values = None, {}
+    if request.method == "POST":
+        values = request.POST
+        error = validate("sign_in", values)
+        if not error:
+            user = authenticate(request, username=values["email"].strip().lower(), password=values["password"])
+            if user is not None:
+                login(request, user)
+                return done(request)
+            error = ui("err_credentials")
+    return render(request, "layout/auth.html", auth_page("sign_in", error, values), error)
+
+
+def sign_up(request):
+    if request.user.is_authenticated:
+        return done(request)
+    error, values = None, {}
+    if request.method == "POST":
+        values = request.POST
+        error = validate("sign_up", values)
+        if not error:
+            email = values["email"].strip().lower()
+            users = get_user_model().objects
+            if users.filter(username=email).exists() or users.filter(email=email).exists():
+                error = ui("err_exists")
+            else:
+                user = users.create_user(
+                    username=email, email=email, password=values["password"], first_name=values["name"].strip()[:150]
+                )
+                login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+                return done(request)
+    return render(request, "layout/auth.html", auth_page("sign_up", error, values), error)
+
+
+def account(request):
+    \"\"\"« Mon compte » ; son formulaire POST déconnecte.\"\"\"
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(localize(AUTH_ROUTES["sign_in"]))
+    if request.method == "POST":
+        logout(request)
+        return HttpResponseRedirect(localize("/"))
+    user = request.user
+    page = {
+        "title": ui("account"),
+        "lead": ui("account_lead"),
+        "name": user.first_name or user.get_username(),
+        "email": user.email,
+        "logout_action": localize(AUTH_ROUTES["account"]),
+    }
+    return render(request, "layout/account.html", page)
+'''
+
+AUTH_TESTS = AUTH_META + PYGEN + '''from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import TestCase
+
+
+class AuthTests(TestCase):
+    \"\"\"Comptes (authentification Django) : mêmes pages, adresses et messages qu'Astro et Laravel.\"\"\"
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def test_the_header_links_to_the_sign_in_page(self):
+        self.assertContains(self.client.get("/"), 'href="/auth/sign-in/"')
+        self.assertContains(self.client.get("/en/"), 'href="/en/auth/sign-in/"')
+
+    def test_auth_pages_render_in_the_site_layout(self):
+        self.assertContains(self.client.get("/auth/sign-in/"), "Accédez à votre espace client.")
+        self.assertContains(self.client.get("/auth/sign-up/"), 'autocomplete="new-password"')
+        self.assertContains(self.client.get("/en/auth/sign-up/"), "Create my account")
+        self.assertRedirects(self.client.get("/auth/dashboard/"), "/auth/sign-in/", fetch_redirect_response=False)
+
+    def test_sign_up_sign_out_and_sign_in(self):
+        r = self.client.post("/auth/sign-up/", {"name": "Ada", "email": "Ada@example.com", "password": "motdepasse"})
+        self.assertRedirects(r, "/auth/dashboard/", fetch_redirect_response=False)
+        self.assertContains(self.client.get("/auth/dashboard/"), "ada@example.com")
+        self.assertRedirects(self.client.post("/en/auth/dashboard/"), "/en/", fetch_redirect_response=False)
+        r = self.client.post("/en/auth/sign-in/", {"email": "ada@example.com", "password": "motdepasse"})
+        self.assertRedirects(r, "/en/auth/dashboard/", fetch_redirect_response=False)
+
+    def test_errors_use_the_site_messages(self):
+        get_user_model().objects.create_user("ada@example.com", "ada@example.com", "motdepasse")
+        r = self.client.post("/auth/sign-in/", {"email": "ada@example.com", "password": "mauvais"})
+        self.assertContains(r, "E-mail ou mot de passe incorrect.", status_code=422)
+        r = self.client.post("/auth/sign-up/", {"name": "Ada", "email": "ada@example.com", "password": "motdepasse"})
+        self.assertContains(r, "Un compte existe déjà avec cette adresse.", status_code=422)
+        r = self.client.post("/en/auth/sign-up/", {"name": "Bob", "email": "bob@example.com", "password": "court"})
+        self.assertContains(r, "The password must be at least 8 characters.", status_code=422)
+'''
+
+
+def auth_template(cat, nodes):
+    return (AUTH_META + '{% extends "base.html" %}\n' + LOAD + GEN +
+            '{% block title %}{{ page.title }} · {{ site.name }}{% endblock %}\n{% block og_title %}{{ page.title }} · {{ site.name }}{% endblock %}\n'
+            '{% block content %}\n' + dj(cat, nodes) + '{% endblock %}\n')
+
 def po_file():
     """Catalogue gettext anglais (libellés d'interface et réglages) ; compilé en django.mo à la génération."""
     def q(t): return '"' + t.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') + '"'
@@ -1224,10 +1444,16 @@ def files(cat, css):
         'home/models.py.tpl': HOME_MODELS,
         'home/templates/home/home_page.html.tpl': '@@meta mode=replace@@\n' + stream_page('{% block title %}{{ site.name }}{% endblock %}\n{% block og_title %}{{ site.name }}{% endblock %}\n'),
         'home/test_site.py.tpl': TESTS,
+        # Comptes (--auth) : authentification Django.
+        'layout/auth.py.tpl': AUTH_PY,
+        'layout/templates/layout/auth.html.tpl': auth_template(cat, TPL.AUTH_FORM),
+        'layout/templates/layout/account.html.tpl': auth_template(cat, TPL.ACCOUNT),
+        'home/test_auth.py.tpl': AUTH_TESTS,
         'layout/__init__.py.tpl': '',
         'layout/apps.py.tpl': APP('layout', 'Layout'),
         'layout/models.py.tpl': LAYOUT_MODELS,
         'layout/icons.py.tpl': ICONS_PY,
+        'layout/icons.json.tpl': icons_json(),
         'layout/context_processors.py.tpl': CONTEXT,
         'layout/migrations/__init__.py.tpl': '',
         'layout/templatetags/__init__.py.tpl': '',

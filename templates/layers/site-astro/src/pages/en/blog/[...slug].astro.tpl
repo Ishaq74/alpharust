@@ -5,6 +5,7 @@ import { Badge } from '@atoms/badge';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@atoms/breadcrumb';
 import { Button } from '@atoms/button';
 import { Prose } from '@atoms/prose';
+import SiteIcon from '@/components/site/SiteIcon.astro';
 import { render } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import { crumbs, getPosts, getSite, href } from '@lib/site';
@@ -61,7 +62,7 @@ const site = await getSite(Astro.url.pathname);
         {page.title}
       </h1>
       <p class="site-meta">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <SiteIcon name="calendar" size={16} />
         <time datetime={page.date_iso}>
           {page.date_label}
         </time>
@@ -81,7 +82,7 @@ const site = await getSite(Astro.url.pathname);
       </Prose>
       <p class="site-article__back">
         <Button href={page.back_url} variant="outline">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          <SiteIcon name="arrow-left" size={16} />
           {site.ui.all_posts}
         </Button>
       </p>

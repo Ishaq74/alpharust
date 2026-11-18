@@ -61,6 +61,63 @@ msgstr "This field is required."
 msgid "Adresse e-mail invalide."
 msgstr "Invalid e-mail address."
 
+msgid "Connexion"
+msgstr "Sign in"
+
+msgid "Accédez à votre espace client."
+msgstr "Access your client area."
+
+msgid "Se connecter"
+msgstr "Sign in"
+
+msgid "Créer un compte"
+msgstr "Create an account"
+
+msgid "Quelques secondes suffisent."
+msgstr "It only takes a few seconds."
+
+msgid "Créer mon compte"
+msgstr "Create my account"
+
+msgid "Mon compte"
+msgstr "My account"
+
+msgid "Vous êtes connecté."
+msgstr "You are signed in."
+
+msgid "Se déconnecter"
+msgstr "Sign out"
+
+msgid "Nom"
+msgstr "Name"
+
+msgid "E-mail"
+msgstr "E-mail"
+
+msgid "Mot de passe"
+msgstr "Password"
+
+msgid "Pas encore de compte ?"
+msgstr "No account yet?"
+
+msgid "Déjà inscrit ?"
+msgstr "Already registered?"
+
+msgid "E-mail ou mot de passe incorrect."
+msgstr "Incorrect e-mail or password."
+
+msgid "Un compte existe déjà avec cette adresse."
+msgstr "An account already exists with this e-mail."
+
+msgid "Le mot de passe doit contenir au moins 8 caractères."
+msgstr "The password must be at least 8 characters."
+
+msgid "Tous les champs sont obligatoires."
+msgstr "All fields are required."
+
+msgid "Une erreur est survenue, réessayez."
+msgstr "Something went wrong, please try again."
+
 msgid "Des sites web rapides, accessibles et faciles à faire évoluer."
 msgstr "Fast, accessible websites that are easy to grow."
 

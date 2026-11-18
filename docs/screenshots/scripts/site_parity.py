@@ -29,7 +29,9 @@ REF = 'astro-css' if any(s[0] == 'astro-css' for s in STACKS) else STACKS[0][0]
 PAGES = ['/', '/a-propos', '/services', '/services/accessibilite', '/blog', '/blog/choisir-son-framework', '/contact',
          '/mentions-legales', '/confidentialite', '/page-inexistante',
          # anglais (même spec traduite : vitrine/i18n.py) et sélecteur de langue
-         '/en', '/en/a-propos', '/en/services/accessibilite', '/en/blog/choisir-son-framework', '/en/contact', '/en/page-inexistante']
+         '/en', '/en/a-propos', '/en/services/accessibilite', '/en/blog/choisir-son-framework', '/en/contact', '/en/page-inexistante',
+         # comptes (--auth : Better Auth, Fortify, auth Django), déconnecté
+         '/auth/sign-in', '/auth/sign-up', '/en/auth/sign-in']
 
 SIGNATURE = r"""() => {
   const txt = (e) => (e.textContent || '').replace(/\s+/g, ' ').trim();

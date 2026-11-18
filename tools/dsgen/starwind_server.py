@@ -91,6 +91,26 @@ def rules():
                             conds = f':is({conds}, :not([{attr}]))'
                         block.append(f'{sel}{conds} {{ @apply {" ".join(c)}; }}')
                 if len(block) > 1: out.append('\n'.join(block))
+    return compose(out)
+
+# Atomes composés : en Astro, <ThemeToggle> rend un <Toggle> (data-slot="toggle" remplacé par "theme-toggle") ; les
+# vues serveur n'ont qu'un élément, qui reçoit donc aussi les règles de la toggle, et l'icône soleil/lune selon l'état
+# (ce que font les classes group-data-[state=…]:data-ready:block des icônes Astro).
+COMPOSED = {'theme-toggle': 'toggle'}
+THEME_ICONS = '''[data-slot="theme-toggle"] [data-theme-icon-wrapper] { @apply inline-flex size-5; }
+[data-slot="theme-toggle"] [data-theme-icon="dark"], [data-slot="theme-toggle"][data-state="on"] [data-theme-icon="light"] { @apply hidden; }
+[data-slot="theme-toggle"][data-state="on"] [data-theme-icon="dark"] { @apply block; }'''
+
+def compose(blocks):
+    by_slot = {re.search(r'\[data-slot="([a-z0-9-]+)"\]', b.split('\n', 1)[1]).group(1): b for b in blocks}
+    out = []
+    for b in blocks:
+        slot = re.search(r'\[data-slot="([a-z0-9-]+)"\]', b.split('\n', 1)[1]).group(1)
+        if slot in COMPOSED:
+            inner = by_slot[COMPOSED[slot]].split('\n', 1)[1].replace(f'[data-slot="{COMPOSED[slot]}"]', f'[data-slot="{slot}"]')
+            head, rest = b.split('\n', 1)
+            b = f'{head[:-3]} + règles de {COMPOSED[slot]} */\n{inner}\n{rest}' + ('\n' + THEME_ICONS if slot == 'theme-toggle' else '')
+        out.append(b)
     return out
 
 THEME = '''/* Thème Starwind (sortie de `starwind init`, sans tw-animate-css ni @tailwindcss/forms) : jetons -> utilitaires. */

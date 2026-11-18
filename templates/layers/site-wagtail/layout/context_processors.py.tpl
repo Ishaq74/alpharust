@@ -17,7 +17,7 @@ from layout.models import FooterSettings, HeaderSettings
 from site_settings.models import ContactSettings, OrganisationSettings, SocialMediaSettings
 
 SOCIAL = [("github", "GitHub"), ("linkedin", "LinkedIn"), ("mastodon", "Mastodon")]
-UI = {'skip': 'Aller au contenu', 'main_nav': 'Navigation principale', 'mobile_nav': 'Navigation mobile', 'theme': 'Changer de thème', 'open_menu': 'Ouvrir le menu', 'social': 'Réseaux sociaux', 'language': 'Langue', 'contact': 'Contact', 'more': 'En savoir plus', 'more_label': 'En savoir plus : ', 'details': 'Coordonnées', 'included': 'Ce qui est inclus', 'all_posts': 'Tous les articles', 'home': 'Accueil', 'not_found': 'Page introuvable', 'not_found_text': 'La page demandée n’existe pas ou a été déplacée.', 'back_home': 'Retour à l’accueil', 'required': 'Ce champ est obligatoire.', 'invalid_email': 'Adresse e-mail invalide.'}
+UI = {'skip': 'Aller au contenu', 'main_nav': 'Navigation principale', 'mobile_nav': 'Navigation mobile', 'theme': 'Changer de thème', 'open_menu': 'Ouvrir le menu', 'social': 'Réseaux sociaux', 'language': 'Langue', 'contact': 'Contact', 'more': 'En savoir plus', 'more_label': 'En savoir plus : ', 'details': 'Coordonnées', 'included': 'Ce qui est inclus', 'all_posts': 'Tous les articles', 'home': 'Accueil', 'not_found': 'Page introuvable', 'not_found_text': 'La page demandée n’existe pas ou a été déplacée.', 'back_home': 'Retour à l’accueil', 'required': 'Ce champ est obligatoire.', 'invalid_email': 'Adresse e-mail invalide.', 'sign_in': 'Connexion', 'sign_in_lead': 'Accédez à votre espace client.', 'sign_in_submit': 'Se connecter', 'sign_up': 'Créer un compte', 'sign_up_lead': 'Quelques secondes suffisent.', 'sign_up_submit': 'Créer mon compte', 'account': 'Mon compte', 'account_lead': 'Vous êtes connecté.', 'sign_out': 'Se déconnecter', 'field_name': 'Nom', 'field_email': 'E-mail', 'field_password': 'Mot de passe', 'no_account': 'Pas encore de compte ?', 'have_account': 'Déjà inscrit ?', 'err_credentials': 'E-mail ou mot de passe incorrect.', 'err_exists': 'Un compte existe déjà avec cette adresse.', 'err_password': 'Le mot de passe doit contenir au moins 8 caractères.', 'err_required': 'Tous les champs sont obligatoires.', 'err_generic': 'Une erreur est survenue, réessayez.'}
 LABELS = {code: label for code, _, label in [('fr', 'Français', 'FR'), ('en', 'English', 'EN')]}
 
 
@@ -115,8 +115,13 @@ def build_site(request):
     copyright = gettext(org.copyright) if org.copyright else ""
     return {
         "locale": code,
+@@if auth@@
+        "account": account(request),
+@@else@@
+        "account": None,
+@@end@@
         "languages": [
-            {"code": c, "label": LABELS.get(c, c.upper()), "name": n, "url": prefix(c) + rest, "current": "page" if c == code else None}
+            {"code": c, "label": LABELS.get(c, c.upper()), "name": n, "flag": f"flag-{c}", "url": prefix(c) + rest, "current": "page" if c == code else None}
             for c, n in settings.LANGUAGES
         ],
         "ui": {k: gettext(v) for k, v in UI.items()},
@@ -145,5 +150,17 @@ def build_site(request):
     }
 
 
+@@if auth@@
+AUTH_ROUTES = {'sign_in': '/auth/sign-in', 'sign_up': '/auth/sign-up', 'account': '/auth/dashboard'}
+
+
+def account(request):
+    """Lien de l'en-tête : « Mon compte » une fois connecté, sinon « Connexion »."""
+    if request.user.is_authenticated:
+        return {"url": localize(AUTH_ROUTES["account"]), "label": gettext(UI["account"])}
+    return {"url": localize(AUTH_ROUTES["sign_in"]), "label": gettext(UI["sign_in"])}
+
+
+@@end@@
 def site(request):
     return {"site": SimpleLazyObject(lambda: build_site(request))}

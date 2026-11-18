@@ -487,7 +487,26 @@
         "not_found_text": "La page demandée n’existe pas ou a été déplacée.",
         "back_home": "Retour à l’accueil",
         "required": "Ce champ est obligatoire.",
-        "invalid_email": "Adresse e-mail invalide."
+        "invalid_email": "Adresse e-mail invalide.",
+        "sign_in": "Connexion",
+        "sign_in_lead": "Accédez à votre espace client.",
+        "sign_in_submit": "Se connecter",
+        "sign_up": "Créer un compte",
+        "sign_up_lead": "Quelques secondes suffisent.",
+        "sign_up_submit": "Créer mon compte",
+        "account": "Mon compte",
+        "account_lead": "Vous êtes connecté.",
+        "sign_out": "Se déconnecter",
+        "field_name": "Nom",
+        "field_email": "E-mail",
+        "field_password": "Mot de passe",
+        "no_account": "Pas encore de compte ?",
+        "have_account": "Déjà inscrit ?",
+        "err_credentials": "E-mail ou mot de passe incorrect.",
+        "err_exists": "Un compte existe déjà avec cette adresse.",
+        "err_password": "Le mot de passe doit contenir au moins 8 caractères.",
+        "err_required": "Tous les champs sont obligatoires.",
+        "err_generic": "Une erreur est survenue, réessayez."
       }
     },
     "en": {
@@ -963,8 +982,66 @@
         "not_found_text": "The requested page does not exist or has been moved.",
         "back_home": "Back to home",
         "required": "This field is required.",
-        "invalid_email": "Invalid e-mail address."
+        "invalid_email": "Invalid e-mail address.",
+        "sign_in": "Sign in",
+        "sign_in_lead": "Access your client area.",
+        "sign_in_submit": "Sign in",
+        "sign_up": "Create an account",
+        "sign_up_lead": "It only takes a few seconds.",
+        "sign_up_submit": "Create my account",
+        "account": "My account",
+        "account_lead": "You are signed in.",
+        "sign_out": "Sign out",
+        "field_name": "Name",
+        "field_email": "E-mail",
+        "field_password": "Password",
+        "no_account": "No account yet?",
+        "have_account": "Already registered?",
+        "err_credentials": "Incorrect e-mail or password.",
+        "err_exists": "An account already exists with this e-mail.",
+        "err_password": "The password must be at least 8 characters.",
+        "err_required": "All fields are required.",
+        "err_generic": "Something went wrong, please try again."
       }
     }
+  },
+  "auth": {
+    "routes": {
+      "sign_in": "/auth/sign-in",
+      "sign_up": "/auth/sign-up",
+      "account": "/auth/dashboard"
+    },
+    "fields": {
+      "sign_in": [
+        {
+          "name": "email",
+          "type": "email",
+          "autocomplete": "email"
+        },
+        {
+          "name": "password",
+          "type": "password",
+          "autocomplete": "current-password"
+        }
+      ],
+      "sign_up": [
+        {
+          "name": "name",
+          "type": "text",
+          "autocomplete": "name"
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "autocomplete": "email"
+        },
+        {
+          "name": "password",
+          "type": "password",
+          "autocomplete": "new-password"
+        }
+      ]
+    },
+    "passwordMin": 8
   }
 }

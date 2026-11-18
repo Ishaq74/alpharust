@@ -89,7 +89,7 @@
 /* Sélecteur de langue (FR / EN) : liens vers la même page dans l'autre langue. */
 .site-lang__list { display: flex; align-items: center; gap: 0.125rem; margin: 0; padding: 0; list-style: none; }
 .site-lang__link {
-  display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.5rem; border-radius: 0.5rem;
+  display: inline-flex; align-items: center; gap: 0.35rem; height: 2.25rem; padding: 0 0.5rem; border-radius: 0.5rem;
   font-size: 0.875rem; font-weight: 500; line-height: 1; color: var(--site-muted); text-decoration: none;
 }
 .site-lang__link:hover { color: var(--text); background: var(--site-soft); }
@@ -107,8 +107,9 @@
 .site-mobile__sub a { display: block; padding: 0.45rem 0.75rem; border-radius: 0.5rem; color: var(--site-muted); text-decoration: none; }
 .site-mobile__sub a:hover, .site-mobile__sub a[aria-current] { color: var(--text); background: var(--site-soft); }
 .site-mobile__cta { width: 100%; }
+.site-mobile__cta + .site-mobile__cta { margin-top: 0.5rem; }
 @media (max-width: 60rem) {
-  .site-nav, .site-header__cta { display: none; }
+  .site-nav, .site-header__cta, .site-header__account { display: none; }
   .site-header__mobile { display: block; }
 }
 
@@ -285,3 +286,15 @@ body.site-body [data-slot='button'][data-variant='ghost'] { color: var(--text); 
 body.site-body [data-slot='button'][data-variant='primary'] { border: 1px solid transparent; }
 body.site-body [data-slot='avatar'] { position: relative; display: inline-block; flex-shrink: 0; width: 2.5rem; height: 2.5rem; margin: 0; overflow: hidden; font-size: 0.875rem; line-height: 1.6; color: var(--text); background: var(--surface-2); border: 2px solid var(--border); border-radius: 9999px; }
 body.site-body [data-slot='avatar-fallback'] { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: inherit; font-weight: 500; line-height: inherit; background: transparent; border-radius: 9999px; }
+
+/* ---------- comptes (--auth) : connexion, inscription, compte ---------- */
+.site-auth .site-container--narrow { max-width: 28rem; }
+.site-auth__title { margin: 0; font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.site-auth .site-lead { margin: 0.35rem 0 0; font-size: 1rem; }
+.site-auth .site-icon-box { margin-bottom: 0.75rem; }
+.site-auth__card .site-form [type="submit"] { justify-self: stretch; }
+.site-auth__alt { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; font-size: 0.9rem; color: var(--site-muted); }
+.site-auth__alt a { color: var(--text); font-weight: 600; }
+.site-auth__details { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.25rem; margin: 0; }
+.site-auth__details dt { color: var(--site-muted); }
+.site-auth__details dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }

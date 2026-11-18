@@ -28,6 +28,26 @@ UI = {
     'back_home': {"fr": 'Retour à l’accueil', "en": 'Back to home'},
     'required': {"fr": 'Ce champ est obligatoire.', "en": 'This field is required.'},
     'invalid_email': {"fr": 'Adresse e-mail invalide.', "en": 'Invalid e-mail address.'},
+    # Comptes (--auth) : Better Auth (Astro), Fortify (Laravel), auth Django (Wagtail).
+    'sign_in': {"fr": 'Connexion', "en": 'Sign in'},
+    'sign_in_lead': {"fr": 'Accédez à votre espace client.', "en": 'Access your client area.'},
+    'sign_in_submit': {"fr": 'Se connecter', "en": 'Sign in'},
+    'sign_up': {"fr": 'Créer un compte', "en": 'Create an account'},
+    'sign_up_lead': {"fr": 'Quelques secondes suffisent.', "en": 'It only takes a few seconds.'},
+    'sign_up_submit': {"fr": 'Créer mon compte', "en": 'Create my account'},
+    'account': {"fr": 'Mon compte', "en": 'My account'},
+    'account_lead': {"fr": 'Vous êtes connecté.', "en": 'You are signed in.'},
+    'sign_out': {"fr": 'Se déconnecter', "en": 'Sign out'},
+    'field_name': {"fr": 'Nom', "en": 'Name'},
+    'field_email': {"fr": 'E-mail', "en": 'E-mail'},
+    'field_password': {"fr": 'Mot de passe', "en": 'Password'},
+    'no_account': {"fr": 'Pas encore de compte ?', "en": 'No account yet?'},
+    'have_account': {"fr": 'Déjà inscrit ?', "en": 'Already registered?'},
+    'err_credentials': {"fr": 'E-mail ou mot de passe incorrect.', "en": 'Incorrect e-mail or password.'},
+    'err_exists': {"fr": 'Un compte existe déjà avec cette adresse.', "en": 'An account already exists with this e-mail.'},
+    'err_password': {"fr": 'Le mot de passe doit contenir au moins 8 caractères.', "en": 'The password must be at least 8 characters.'},
+    'err_required': {"fr": 'Tous les champs sont obligatoires.', "en": 'All fields are required.'},
+    'err_generic': {"fr": 'Une erreur est survenue, réessayez.', "en": 'Something went wrong, please try again.'},
 }
 
 EN = {

@@ -18,7 +18,12 @@ interface Props {
 }
 
 const { title, description, bleed = false } = Astro.props;
+@@if auth@@
+// Lien « Connexion » ou « Mon compte » de l'en-tête (session lue par src/middleware.ts).
+const site = await getSite(Astro.url.pathname, Astro.locals.user);
+@@else@@
 const site = await getSite(Astro.url.pathname);
+@@end@@
 ---
 
 <!doctype html>

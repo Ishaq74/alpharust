@@ -211,6 +211,12 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                     ],
                     0,
                 )?;
+            let auth = ui
+                && confirm(
+                    &theme,
+                    "Comptes du site (Laravel Fortify : connexion, inscription, compte) ?",
+                    false,
+                )?;
             Options::Laravel(LaravelOptions {
                 starter,
                 dark,
@@ -220,6 +226,8 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 ui,
                 starwind,
                 theme: None,
+                auth,
+                icons: None,
             })
         }
         Framework::Wagtail => {
@@ -251,12 +259,20 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                     ],
                     0,
                 )?;
+            let auth = ui
+                && confirm(
+                    &theme,
+                    "Comptes du site (authentification Django : connexion, inscription, compte) ?",
+                    false,
+                )?;
             Options::Wagtail(WagtailOptions {
                 packages: extra.split_whitespace().map(String::from).collect(),
                 migrate,
                 ui,
                 starwind,
                 theme: None,
+                auth,
+                icons: None,
             })
         }
         Framework::Rust => {

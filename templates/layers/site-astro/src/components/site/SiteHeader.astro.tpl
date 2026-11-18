@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@atoms/coll
 import { Dropdown, DropdownContent, DropdownItem, DropdownTrigger } from '@atoms/dropdown';
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@atoms/sheet';
 import { ThemeToggle } from '@atoms/theme-toggle';
+import SiteIcon from '@/components/site/SiteIcon.astro';
 import type { Site } from '@lib/site';
 
 interface Props {
@@ -35,7 +36,7 @@ const { site } = Astro.props;
                   <Dropdown openOnHover class="site-nav__dropdown">
                     <DropdownTrigger class="site-nav__link" aria-current={item.current || undefined}>
                       {item.label}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                      <SiteIcon name="chevron-down" size={16} />
                     </DropdownTrigger>
                     <DropdownContent class="site-nav__menu">
                       <DropdownItem as="a" href={item.url}>
@@ -64,6 +65,16 @@ const { site } = Astro.props;
       </ul>
     </nav>
     <div class="site-header__actions">
+      {site.account && (
+        <Fragment>
+          <Button href={site.account.url} variant="ghost" size="sm" class="site-header__account">
+            <SiteIcon name="user" size={18} />
+            <span>
+              {site.account.label}
+            </span>
+          </Button>
+        </Fragment>
+      )}
       <Button href={site.cta.url} variant="primary" size="sm" class="site-header__cta">
         {site.cta.label}
       </Button>
@@ -73,7 +84,10 @@ const { site } = Astro.props;
             <Fragment>
               <li>
                 <a class="site-lang__link" href={lang.url} hreflang={lang.code} lang={lang.code} aria-current={lang.current || undefined} title={lang.name}>
-                  {lang.label}
+                  <SiteIcon name={lang.flag} size={16} />
+                  <span>
+                    {lang.label}
+                  </span>
                 </a>
               </li>
             </Fragment>
@@ -84,7 +98,7 @@ const { site } = Astro.props;
       <Sheet class="site-header__mobile">
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" aria-label={site.ui.open_menu}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <SiteIcon name="menu" size={22} />
           </Button>
         </SheetTrigger>
         <SheetContent side="right" class="site-mobile">
@@ -103,7 +117,7 @@ const { site } = Astro.props;
                         <Collapsible class="site-mobile__group">
                           <CollapsibleTrigger class="site-mobile__link">
                             {item.label}
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                            <SiteIcon name="chevron-down" size={16} />
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <ul class="site-mobile__sub">
@@ -138,6 +152,14 @@ const { site } = Astro.props;
             </ul>
           </nav>
           <SheetFooter>
+            {site.account && (
+              <Fragment>
+                <Button href={site.account.url} variant="outline" class="site-mobile__cta">
+                  <SiteIcon name="user" size={18} />
+                  {site.account.label}
+                </Button>
+              </Fragment>
+            )}
             <Button href={site.cta.url} variant="primary" class="site-mobile__cta">
               {site.cta.label}
             </Button>

@@ -107,6 +107,10 @@ pub struct LaravelOptions {
     pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
+    /// Comptes du site (exige `ui`) : Laravel Fortify, pages connexion / inscription / compte du site.
+    pub auth: bool,
+    /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
 }
 
 impl Default for LaravelOptions {
@@ -120,6 +124,8 @@ impl Default for LaravelOptions {
             ui: false,
             starwind: false,
             theme: None,
+            auth: false,
+            icons: None,
         }
     }
 }
@@ -131,6 +137,16 @@ impl LaravelOptions {
         }
         if self.dark && !self.starter.has_frontend() {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
+        }
+        if (self.auth || self.icons.is_some()) && !self.ui {
+            anyhow::bail!("--auth et --icons s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        }
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                anyhow::bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
+            }
         }
         if self.theme.is_some() && !self.ui {
             anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css ou --ui starwind");
@@ -157,6 +173,7 @@ impl LaravelOptions {
             ("sqlite", self.database == Database::Sqlite),
             ("ui", self.ui),
             ("starwind", self.ui && self.starwind),
+            ("auth", self.ui && self.auth),
         ]
     }
 }
@@ -273,6 +290,19 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             ));
         }
     }
+    if o.ui && o.auth {
+        // Comptes du site : Laravel Fortify (authentification sans interface ; pages fournies par le site).
+        steps.push(Step::run(
+            "fortify",
+            Phase::Install,
+            "Installer Laravel Fortify (comptes du site)",
+            Cmd::new(
+                "composer",
+                &["require", "laravel/fortify", "--no-interaction"],
+                Cwd::Project,
+            ),
+        ));
+    }
     if o.database != Database::Sqlite {
         steps.push(Step::internal(
             "env",
@@ -311,6 +341,9 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             "Copier le design kit (resources/css/design, resources/js/design)",
             Internal::DesignKit(DesignTarget::Laravel),
         ));
+        if let Some(set) = o.icons.as_ref().filter(|s| s.as_str() != "mdi") {
+            steps.push(super::site_icons_step(set));
+        }
         if let Some(t) = &o.theme {
             steps.push(Step::internal(
                 "theme",
@@ -438,6 +471,45 @@ mod tests {
             Action::Run(c) => c.display(),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn auth_installs_fortify_and_icons_rewrite_icons_json() {
+        let s = steps_with(|o| {
+            o.ui = true;
+            o.auth = true;
+            o.icons = Some("lucide".into());
+        });
+        assert_eq!(
+            display(&s, "fortify"),
+            "composer require laravel/fortify --no-interaction"
+        );
+        assert!(s
+            .iter()
+            .any(|s| matches!(&s.action, Action::Do(Internal::SiteIcons(set)) if set == "lucide")));
+        let o = LaravelOptions {
+            ui: true,
+            auth: true,
+            ..Default::default()
+        };
+        assert!(o.flags().contains(&("auth", true)));
+        // sans le site vitrine (--ui), ni comptes ni jeu d'icônes
+        assert!(steps_with(|o| o.auth = true)
+            .iter()
+            .all(|s| s.id != "fortify"));
+        assert!(LaravelOptions {
+            auth: true,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(LaravelOptions {
+            ui: true,
+            icons: Some("../x".into()),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
     }
 
     #[test]
