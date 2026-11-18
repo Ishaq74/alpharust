@@ -29,7 +29,7 @@ lien d'évitement, régions ARIA, `prefers-reduced-motion`.
 | Page | Contenu |
 |------|---------|
 | Tableau de bord | Compteurs (règles, profils, checkers, projets), état des chaînes d'outils, générations récentes, profils |
-| Générer un projet | Préréglages, choix du framework, briques plateforme (UI Starwind/Concordia, thème WCAG avec contraste **en direct**, base, auth, langues, Docker/CI), formulaire complet (toutes les options du générateur, incompatibilités appliquées en direct), **aperçu à droite** : commandes officielles exactes, outils détectés, équivalent en ligne de commande ; état mémorisé |
+| Générer un projet | Préréglages, choix du framework, briques plateforme (UI Starwind/Concordia ; case « Catalogue de composants (CSS) » pour Laravel et Wagtail, thème WCAG avec contraste **en direct**, base, auth, langues, Docker/CI), formulaire complet (toutes les options du générateur, incompatibilités appliquées en direct), **aperçu à droite** : commandes officielles exactes, outils détectés, équivalent en ligne de commande ; état mémorisé |
 | Génération (`#/jobs/<id>`) | **Progression en direct** (SSE) : barre, liste d'étapes avec durées, journal filtrable par étape, annulation, rapport final (fichiers, lint, commandes suivantes) |
 | Projets | Une carte par projet de `sites/` : framework, gestionnaire, git, briques, dépendances ; actions **Installer / Construire / Vérifier / Tester / Mettre à jour / Lint** (job en direct) |
 | Historique | Exécutions de la session (génération et tâches) avec statut et durée, journal rejouable |

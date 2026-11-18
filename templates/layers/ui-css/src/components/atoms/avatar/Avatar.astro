@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"figure"> & {
+  size?: "sm" | "md" | "lg";
+};
+
+const { size = "md", class: className, ...rest } = Astro.props;
+---
+
+<figure class={className} data-slot="avatar" data-size={size} {...rest}>
+  <slot />
+</figure>

@@ -5,6 +5,7 @@
 //! La même [`Request`] sert la CLI (flags et prompts), la TUI et la GUI.
 
 pub mod astro;
+pub mod catalog;
 pub mod exec;
 pub mod internal;
 pub mod laravel;
@@ -242,6 +243,10 @@ pub enum Internal {
     CssTheme(theme::ThemeColors, &'static str),
     /// `starwind.config.json` aligné sur atomic (dossiers `atoms` et `lib/starwind`).
     StarwindConfig,
+    /// Copie le design kit partagé (`templates/layers/design-kit`) vers l'arborescence du framework.
+    DesignKit(DesignTarget),
+    /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue).
+    WagtailDesign,
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,
@@ -251,6 +256,19 @@ pub enum Internal {
     Freeze,
     /// Ajoute des paquets à requirements.txt (Wagtail).
     Requirements(Vec<String>),
+}
+
+/// Destination du design kit partagé : une seule source, quatre arborescences.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DesignTarget {
+    /// Astro (CSS ou Tailwind seul) : jetons dans `src/styles/tokens/` (+ `tailwind.css` si Tailwind).
+    AstroTokens { tailwind: bool, starwind: bool },
+    /// Astro + Concordia : composants CSS dans `src/styles/components/`, script dans `src/scripts/`.
+    AstroComponents,
+    /// Laravel : `resources/css/design/` et `resources/js/design/`.
+    Laravel,
+    /// Wagtail : application `ds` (`ds/static/ds/css`, `ds/static/ds/js`).
+    Wagtail,
 }
 
 #[derive(Debug, Clone, PartialEq)]

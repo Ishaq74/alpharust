@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"a">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<a class={className} aria-label="Go to previous page" data-slot="pagination-previous" {...rest}>
+  <slot>‹ Previous</slot>
+</a>

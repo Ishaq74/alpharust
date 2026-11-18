@@ -1,5 +1,4 @@
-@@meta when=!official&!concordia@@
-@@if starwind@@
+@@meta when=!official&starwind@@
 /*
  * Couleurs — jeux « Fire Brand » du dépôt atomic (OKLCH, WCAG AAA vérifié), copiés tels quels par-dessus starwind.css.
  * Seules les couleurs primaires suivent la palette de marque `--brand-primary` (themes/theme.css) quand elle existe ;
@@ -123,49 +122,3 @@
   --sidebar-outline:               oklch(0.527  0.020  75  );
 }
 
-@@else@@
-/*
- * Couleurs — mêmes noms que Starwind/shadcn (--background, --foreground, --primary…), pour que le passage à Tailwind
- * ou Starwind ne change rien. La couleur primaire suit la palette de marque `--brand-primary` (themes/theme.css).
- */
-:root {
-  color-scheme: light dark;
-
-  --background: #ffffff;
-  --foreground: #151821;
-  --card: #f5f6fa;
-  --card-foreground: #151821;
-  --muted: #f5f6fa;
-  --muted-foreground: #4a5163;
-  --primary: var(--brand-primary, #3b4cca);
-  --primary-foreground: var(--on-brand-primary, #ffffff);
-  --border: #dde0ea;
-  --outline: #ff9f1a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --background: #0f1117;
-    --foreground: #eceef5;
-    --card: #181b25;
-    --card-foreground: #eceef5;
-    --muted: #181b25;
-    --muted-foreground: #a9b0c4;
-    --primary: var(--brand-primary, #8fa0ff);
-    --primary-foreground: var(--on-brand-primary, #0f1117);
-    --border: #2a2f3f;
-  }
-}
-
-:root[data-theme='dark'] {
-  --background: #0f1117;
-  --foreground: #eceef5;
-  --card: #181b25;
-  --card-foreground: #eceef5;
-  --muted: #181b25;
-  --muted-foreground: #a9b0c4;
-  --primary: var(--brand-primary, #8fa0ff);
-  --primary-foreground: var(--on-brand-primary, #0f1117);
-  --border: #2a2f3f;
-}
-@@end@@

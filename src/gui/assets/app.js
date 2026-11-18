@@ -377,8 +377,8 @@ const GEN_DEFAULT = () => ({
     ui: 'none', database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [],
     theme_on: false, theme: { primary: '#4f46e5', secondary: '#7c3aed', accent: '#ec4899' }, css_variants: [], docker: false, ci: false,
   },
-  laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false },
-  wagtail: { packages: '', migrate: true },
+  laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false, ui: false },
+  wagtail: { packages: '', migrate: true, ui: false },
   rust: { kind: 'bin', edition: '', deps: [] },
 });
 const UI_FW = ['react', 'vue', 'svelte'];
@@ -415,7 +415,7 @@ function buildRequest(G) {
     };
   }
   if (G.framework === 'laravel') return { ...base, ...G.laravel };
-  if (G.framework === 'wagtail') return { ...base, packages: G.wagtail.packages.split(/[\s,]+/).filter(Boolean), migrate: G.wagtail.migrate };
+  if (G.framework === 'wagtail') return { ...base, packages: G.wagtail.packages.split(/[\s,]+/).filter(Boolean), migrate: G.wagtail.migrate, ui: G.wagtail.ui };
   return { ...base, kind: G.rust.kind, edition: G.rust.edition || null, deps: G.rust.deps };
 }
 
@@ -453,10 +453,12 @@ function cliFor(G) {
     if (l.pest) add('--pest');
     if (l.database !== 'sqlite') add('--db', l.database);
     if (l.frontend) add('--frontend');
+    if (l.ui) add('--ui', 'css');
   } else if (G.framework === 'wagtail') {
     const pk = G.wagtail.packages.split(/[\s,]+/).filter(Boolean);
     if (pk.length) add('--package', shellQuote(pk.join(',')));
     if (!G.wagtail.migrate) add('--no-migrate');
+    if (G.wagtail.ui) add('--ui', 'css');
   } else {
     const r = G.rust;
     if (r.kind !== 'bin') add('--kind', r.kind);
@@ -868,6 +870,7 @@ function frameworkOptions(G, o, change) {
         h('label', { class: 'radio' }, h('input', { type: 'radio', name: 'starter', value: s.id, checked: l.starter === s.id, 'data-k': `st:${s.id}`, onchange: () => change(() => {
           l.starter = s.id;
           if (s.id === 'none') { l.dark = false; l.pest = false; }
+          if (s.id !== 'none') l.ui = false;
           if (s.id === 'breeze-api') l.dark = false;
         }, { rebuild: true }) }), h('span', {}, s.label))))),
       h('fieldset', {}, h('legend', {}, 'Base de données'), radioGroup('db', l.database, o.database, (v) => change(() => (l.database = v)), 'db'),
@@ -876,6 +879,7 @@ function frameworkOptions(G, o, change) {
         checkbox('Mode sombre (Breeze)', null, l.dark, (v) => change(() => (l.dark = v)), { key: 'dark', disabled: !hasKit || l.starter === 'breeze-api' }),
         checkbox('Pest au lieu de PHPUnit', 'Kit Breeze uniquement', l.pest, (v) => change(() => (l.pest = v)), { key: 'pest', disabled: !hasKit }),
         checkbox('Compiler le front (npm)', 'npm install && npm run build même sans kit', l.frontend, (v) => change(() => (l.frontend = v)), { key: 'frontend' }),
+        checkbox('Catalogue de composants (CSS)', 'Composants Blade <x-ds.*>, Vite + Tailwind v4, page /components — squelette sans Breeze', l.ui, (v) => change(() => (l.ui = v)), { key: 'ui', disabled: hasKit }),
       ),
     );
   }
@@ -889,6 +893,7 @@ function frameworkOptions(G, o, change) {
         h('input', { id: 'f-pkgs', type: 'text', value: w.packages, placeholder: 'django-debug-toolbar, psycopg[binary]', autocomplete: 'off', spellcheck: 'false', oninput: (e) => change(() => (w.packages = e.target.value)) }),
         h('p', { class: 'hint' }, 'Séparés par des espaces ou virgules ; ajoutés à requirements.txt. Un venv Python est toujours créé (.venv).')),
       checkbox('Exécuter les migrations', 'manage.py migrate (SQLite)', w.migrate, (v) => change(() => (w.migrate = v)), { key: 'migrate' }),
+      checkbox('Catalogue de composants (CSS)', 'Application ds : balises {% ds_* %}, fichiers statiques, page /components/', w.ui, (v) => change(() => (w.ui = v)), { key: 'ui' }),
       !G.install ? h('div', { class: 'callout warn' }, 'Wagtail exige l’installation : `wagtail start` a besoin de wagtail dans le venv.') : null,
     );
   }

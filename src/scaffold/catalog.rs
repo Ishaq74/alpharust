@@ -1,0 +1,447 @@
+//! Parité du catalogue de composants : un contrat (`templates/layers/design-kit/catalog.toml`),
+//! quatre réalisations (Starwind/Tailwind, CSS pur Astro, Blade, balises Django) et des tests qui
+//! comparent le contrat aux fichiers réels. Rien n'est supposé : chaque test lit les templates embarqués.
+
+#[cfg(test)]
+mod tests {
+    use crate::scaffold::astro::AstroOptions;
+    use crate::scaffold::internal::{build_ctx, write_design_kit};
+    use crate::scaffold::laravel::LaravelOptions;
+    use crate::scaffold::layer;
+    use crate::scaffold::platform::UiKit;
+    use crate::scaffold::wagtail::WagtailOptions;
+    use crate::scaffold::{plan, Action, Framework, Internal, Options, Request};
+    use std::collections::BTreeSet;
+    use std::fs;
+
+    struct Component {
+        name: String,
+        slots: Vec<String>,
+        atom_only: Vec<String>,
+    }
+
+    fn catalog() -> (Vec<Component>, Vec<String>) {
+        let raw = layer::files("design-kit")
+            .into_iter()
+            .find(|(p, _)| p == "catalog.toml")
+            .expect("catalog.toml")
+            .1;
+        let v: toml::Value = toml::from_str(raw).expect("catalog.toml valide");
+        let strings = |t: &toml::Value, k: &str| -> Vec<String> {
+            t.get(k)
+                .and_then(|a| a.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        let comps = v["component"]
+            .as_array()
+            .expect("[[component]]")
+            .iter()
+            .map(|c| Component {
+                name: c["name"].as_str().unwrap().to_string(),
+                slots: strings(c, "slots"),
+                atom_only: strings(c, "atom_only"),
+            })
+            .collect();
+        (comps, strings(&v["extended"], "starwind_only"))
+    }
+
+    /// Un nom de slot apparaît entre guillemets (`"x"` ou `'x'`) : quelle que soit la syntaxe de la cible.
+    fn quoted(text: &str, slot: &str) -> bool {
+        text.contains(&format!("\"{slot}\"")) || text.contains(&format!("'{slot}'"))
+    }
+
+    fn layer_tree(name: &str) -> String {
+        layer::files(name)
+            .iter()
+            .map(|(_, b)| *b)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn render(req: &Request) -> tempfile::TempDir {
+        let p = plan(req).expect("plan valide");
+        let ctx = build_ctx(req, &p);
+        let dir = tempfile::tempdir().unwrap();
+        for s in &p.steps {
+            match &s.action {
+                Action::Do(Internal::Layer(l)) => {
+                    layer::apply(l, &ctx, dir.path()).unwrap();
+                }
+                Action::Do(Internal::DesignKit(t)) => {
+                    write_design_kit(dir.path(), *t).unwrap();
+                }
+                _ => {}
+            }
+        }
+        dir
+    }
+
+    fn astro(ui: UiKit) -> tempfile::TempDir {
+        let o = AstroOptions {
+            ui,
+            ..Default::default()
+        };
+        let mut req = Request::new(Framework::Astro, "demo");
+        req.options = Options::Astro(o);
+        render(&req)
+    }
+
+    fn laravel() -> tempfile::TempDir {
+        let mut req = Request::new(Framework::Laravel, "demo");
+        req.options = Options::Laravel(LaravelOptions {
+            ui: true,
+            ..Default::default()
+        });
+        render(&req)
+    }
+
+    fn wagtail() -> tempfile::TempDir {
+        let mut req = Request::new(Framework::Wagtail, "demo");
+        req.options = Options::Wagtail(WagtailOptions {
+            ui: true,
+            ..Default::default()
+        });
+        render(&req)
+    }
+
+    #[test]
+    fn catalog_lists_23_core_components_with_unique_slots() {
+        let (comps, _) = catalog();
+        assert_eq!(comps.len(), 23);
+        let mut seen = BTreeSet::new();
+        for c in &comps {
+            assert!(!c.slots.is_empty(), "{} sans slot", c.name);
+            assert!(
+                c.slots
+                    .iter()
+                    .any(|s| *s == c.name || s.starts_with(&c.name)),
+                "{}",
+                c.name
+            );
+            for s in &c.slots {
+                assert!(seen.insert(s.clone()), "slot en double : {s}");
+            }
+        }
+    }
+
+    #[test]
+    fn every_core_component_has_css_and_every_slot_is_styled() {
+        let (comps, _) = catalog();
+        let kit: Vec<(String, &str)> = layer::files("design-kit");
+        let kit_slots: BTreeSet<&str> = comps
+            .iter()
+            .flat_map(|c| c.slots.iter().chain(c.atom_only.iter()).map(String::as_str))
+            .collect();
+        for c in &comps {
+            let css = kit
+                .iter()
+                .find(|(p, _)| *p == format!("css/components/{}.css", c.name))
+                .unwrap_or_else(|| panic!("css/components/{}.css manquant", c.name))
+                .1;
+            // au moins un slot du composant est stylé (un conteneur purement structurel peut n'avoir aucune règle)
+            assert!(
+                c.slots
+                    .iter()
+                    .any(|s| css.contains(&format!("[data-slot='{s}']"))),
+                "{}.css ne cible aucun slot du composant",
+                c.name
+            );
+            // et aucun slot cité n'est inventé
+            for slot in css.split("[data-slot='").skip(1) {
+                let slot = slot.split('\'').next().unwrap();
+                assert!(
+                    kit_slots.contains(slot),
+                    "{}.css cible [data-slot='{slot}'] hors contrat",
+                    c.name
+                );
+            }
+        }
+        let index = kit.iter().find(|(p, _)| p == "css/index.css").unwrap().1;
+        for c in &comps {
+            assert!(
+                index.contains(&format!("components/{}.css", c.name)),
+                "index.css n'importe pas {}",
+                c.name
+            );
+        }
+    }
+
+    #[test]
+    fn css_astro_blade_and_django_cover_every_slot() {
+        let (comps, _) = catalog();
+        let django = layer_tree("ui-django");
+        for c in &comps {
+            let astro = concat_layer_dir("ui-css", &format!("src/components/atoms/{}/", c.name));
+            let blade = concat_layer_dir(
+                "ui-blade",
+                &format!("resources/views/components/ds/{}/", c.name),
+            );
+            assert!(!astro.is_empty(), "Astro CSS : dossier {} absent", c.name);
+            assert!(!blade.is_empty(), "Blade : dossier {} absent", c.name);
+            for s in &c.slots {
+                assert!(
+                    quoted(&astro, s) || astro.contains(&format!("data-slot=\"{s}\"")),
+                    "Astro CSS : slot {s}"
+                );
+                assert!(quoted(&blade, s), "Blade : slot {s}");
+                assert!(quoted(&django, s), "Django : slot {s}");
+            }
+        }
+    }
+
+    fn concat_layer_dir(layer_name: &str, prefix: &str) -> String {
+        layer::files(layer_name)
+            .iter()
+            .filter(|(p, _)| p.starts_with(prefix))
+            .map(|(_, b)| *b)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn starwind_atoms_use_only_contract_slots_and_every_atom_is_classified() {
+        let (comps, starwind_only) = catalog();
+        let allowed: BTreeSet<String> = comps
+            .iter()
+            .flat_map(|c| c.slots.iter().chain(c.atom_only.iter()).cloned())
+            .collect();
+        let atoms_root = "src/components/atoms/";
+        let files = layer::files("ui-atomic");
+        let mut dirs = BTreeSet::new();
+        for (p, body) in &files {
+            let Some(rest) = p.strip_prefix(atoms_root) else {
+                continue;
+            };
+            let dir = rest.split('/').next().unwrap().to_string();
+            dirs.insert(dir.clone());
+            if !comps.iter().any(|c| c.name == dir) {
+                continue;
+            }
+            for slot in body.split("data-slot=\"").skip(1) {
+                let slot = slot.split('"').next().unwrap();
+                if slot.contains('{') || slot.contains('$') {
+                    continue;
+                }
+                assert!(
+                    allowed.contains(slot),
+                    "atome {dir} : slot `{slot}` hors contrat (ajoutez-le à atom_only ou au contrat)"
+                );
+            }
+        }
+        // chaque atome est soit « core » (catalogue partagé), soit « starwind_only » (déclaré)
+        for d in &dirs {
+            assert!(
+                comps.iter().any(|c| &c.name == d) || starwind_only.contains(d),
+                "atome `{d}` ni core ni starwind_only"
+            );
+        }
+        for c in &comps {
+            assert!(
+                dirs.contains(&c.name),
+                "composant core `{}` absent des atomes Starwind",
+                c.name
+            );
+        }
+        for s in &starwind_only {
+            assert!(dirs.contains(s), "starwind_only `{s}` absent des atomes");
+        }
+    }
+
+    #[test]
+    fn catalogue_pages_show_every_core_component_in_all_four_targets() {
+        let (comps, _) = catalog();
+        let sw = astro(UiKit::Starwind);
+        let cc = astro(UiKit::Concordia);
+        let lv = laravel();
+        let wg = wagtail();
+        let page_sw = fs::read_to_string(sw.path().join("src/pages/components.astro")).unwrap();
+        let page_cc = fs::read_to_string(cc.path().join("src/pages/components.astro")).unwrap();
+        let page_lv =
+            fs::read_to_string(lv.path().join("resources/views/pages/components.blade.php"))
+                .unwrap();
+        let page_wg =
+            fs::read_to_string(wg.path().join("ds/templates/ds/components.html")).unwrap();
+        for c in &comps {
+            let import = format!("@atoms/{}'", c.name);
+            assert!(page_sw.contains(&import), "page Starwind : {}", c.name);
+            assert!(page_cc.contains(&import), "page Concordia : {}", c.name);
+            assert!(
+                page_lv.contains(&format!("<x-ds.{}", c.name)),
+                "page Laravel : {}",
+                c.name
+            );
+            assert!(
+                page_wg.contains(&format!("ds_{}", c.name.replace('-', "_"))),
+                "page Wagtail : {}",
+                c.name
+            );
+        }
+    }
+
+    #[test]
+    fn astro_css_kit_installs_components_script_and_keeps_custom_css() {
+        let (comps, _) = catalog();
+        let cc = astro(UiKit::Concordia);
+        let styles = cc.path().join("src/styles/components");
+        for c in &comps {
+            assert!(
+                styles.join(format!("{}.css", c.name)).is_file(),
+                "{}",
+                c.name
+            );
+        }
+        assert!(styles.join("custom.css").is_file());
+        assert!(cc.path().join("src/scripts/ds.js").is_file());
+        assert!(cc
+            .path()
+            .join("src/components/atoms/button/Button.astro")
+            .is_file());
+        let global = fs::read_to_string(cc.path().join("src/styles/global.css")).unwrap();
+        for c in &comps {
+            assert!(
+                global.contains(&format!("./components/{}.css", c.name)),
+                "global.css n'importe pas {}",
+                c.name
+            );
+        }
+        // Concordia garde ses fichiers dans une couche : les composants du kit passent après
+        assert!(global.contains("layer(concordia)"));
+        // Starwind n'embarque pas les feuilles du kit (ses composants sont en Tailwind)
+        let sw = astro(UiKit::Starwind);
+        assert!(!sw
+            .path()
+            .join("src/styles/components/accordion.css")
+            .exists());
+        assert!(!sw.path().join("src/scripts/ds.js").exists());
+        assert!(sw.path().join("src/pages/components.astro").is_file());
+        assert!(!sw.path().join("src/pages/design.astro").exists());
+    }
+
+    #[test]
+    fn plain_and_tailwind_astro_take_their_tokens_from_the_kit() {
+        for tailwind in [false, true] {
+            let mut o = AstroOptions::default();
+            if tailwind {
+                o.integrations.push("tailwind".into());
+            }
+            let mut req = Request::new(Framework::Astro, "demo");
+            req.options = Options::Astro(o);
+            let d = render(&req);
+            let tokens = d.path().join("src/styles/tokens");
+            for f in ["colors", "typography", "spacing", "components", "site"] {
+                assert!(
+                    tokens.join(format!("{f}.css")).is_file(),
+                    "{f} (tailwind={tailwind})"
+                );
+            }
+            assert_eq!(tokens.join("tailwind.css").is_file(), tailwind);
+            assert!(!d.path().join("src/pages/components.astro").exists());
+        }
+    }
+
+    #[test]
+    fn laravel_kit_goes_to_resources_and_wires_routes_and_layout() {
+        let lv = laravel();
+        let root = lv.path();
+        for f in [
+            "resources/css/design/index.css",
+            "resources/css/design/components/button.css",
+            "resources/css/design/tokens/tailwind.css",
+            "resources/css/design/components/custom.css",
+            "resources/js/design/ds.js",
+            "resources/css/app.css",
+            "resources/js/app.js",
+            "resources/views/components/ds/button/button.blade.php",
+            "tests/Feature/ComponentsTest.php",
+        ] {
+            assert!(root.join(f).is_file(), "{f}");
+        }
+        let routes = fs::read_to_string(root.join("routes/pages.php")).unwrap();
+        assert!(routes.contains("/components"));
+        let layout =
+            fs::read_to_string(root.join("resources/views/components/site-layout.blade.php"))
+                .unwrap();
+        assert!(layout.contains("@vite(['resources/css/app.css', 'resources/js/app.js'])"));
+        assert!(layout.contains("public_path('build/manifest.json')"));
+        let app = fs::read_to_string(root.join("resources/css/app.css")).unwrap();
+        assert!(app.contains("@layer theme, base, ds, components, utilities;"));
+        assert!(app.contains("@import './design/index.css' layer(ds);"));
+        // sans --ui, ni route ni catalogue
+        let mut req = Request::new(Framework::Laravel, "demo");
+        req.options = Options::Laravel(LaravelOptions::default());
+        let plain = render(&req);
+        assert!(!fs::read_to_string(plain.path().join("routes/pages.php"))
+            .unwrap()
+            .contains("/components"));
+        assert!(!plain.path().join("resources/views/components/ds").exists());
+    }
+
+    #[test]
+    fn laravel_ui_refuses_breeze_starters() {
+        use crate::scaffold::laravel::Starter;
+        let o = LaravelOptions {
+            ui: true,
+            starter: Starter::BreezeBlade,
+            ..Default::default()
+        };
+        assert!(o.validate().is_err());
+    }
+
+    #[test]
+    fn wagtail_kit_is_an_app_with_static_files_and_gets_wired_idempotently() {
+        let wg = wagtail();
+        let root = wg.path();
+        for f in [
+            "ds/__init__.py",
+            "ds/apps.py",
+            "ds/templatetags/ds.py",
+            "ds/urls.py",
+            "ds/views.py",
+            "ds/tests.py",
+            "ds/templates/ds/components.html",
+            "ds/static/ds/css/index.css",
+            "ds/static/ds/css/components/tabs.css",
+            "ds/static/ds/js/ds.js",
+        ] {
+            assert!(root.join(f).is_file(), "{f}");
+        }
+        // squelette `wagtail start` minimal, puis branchement
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        fs::create_dir_all(p.join("demo/settings")).unwrap();
+        fs::create_dir_all(p.join("demo/templates")).unwrap();
+        fs::write(
+            p.join("demo/settings/base.py"),
+            "INSTALLED_APPS = [\n    \"home\",\n]\n",
+        )
+        .unwrap();
+        fs::write(
+            p.join("demo/urls.py"),
+            "urlpatterns = [\n    path(\"search/\", search_views.search, name=\"search\"),\n]\n",
+        )
+        .unwrap();
+        fs::write(
+            p.join("demo/templates/base.html"),
+            "{# Global stylesheets #}\n{# Global javascript #}\n",
+        )
+        .unwrap();
+        for _ in 0..2 {
+            crate::scaffold::internal::patch_wagtail_design(p, "demo").unwrap();
+        }
+        let settings = fs::read_to_string(p.join("demo/settings/base.py")).unwrap();
+        assert_eq!(settings.matches("\"ds\",").count(), 1);
+        let urls = fs::read_to_string(p.join("demo/urls.py")).unwrap();
+        assert_eq!(urls.matches("ds.urls").count(), 1);
+        let base = fs::read_to_string(p.join("demo/templates/base.html")).unwrap();
+        assert_eq!(base.matches("ds/css/index.css").count(), 1);
+        assert_eq!(base.matches("ds/js/ds.js").count(), 1);
+        // un squelette modifié est signalé, jamais patché à l'aveugle
+        fs::write(p.join("demo/urls.py"), "urlpatterns = []\n").unwrap();
+        assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo").is_err());
+    }
+}

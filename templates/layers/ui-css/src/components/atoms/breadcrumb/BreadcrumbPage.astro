@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"span">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<span class={className} aria-current="page" data-slot="breadcrumb-page" {...rest}>
+  <slot />
+</span>

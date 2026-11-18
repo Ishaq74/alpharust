@@ -45,7 +45,7 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `--site` | URL publique (exigée par `sitemap`, écrite dans `astro.config.mjs`) |
 | `--no-typecheck` | n'installe pas `@astrojs/check` |
 | `--preset` | `vitrine`, `blog-i18n`, `app-auth`, `saas-pg`, `concordia` (voir `alpharust presets`) |
-| `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant`) |
+| `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant` ; 23 composants CSS du catalogue partagé) |
 | `--theme-primary/-secondary/-accent` | palette de marque WCAG → `src/styles/themes/theme.css`, **tous les kits** |
 | `--db`, `--db-url` | `none`, `sqlite`, `postgres` (+ URL de développement : migrations appliquées) |
 | `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` |
@@ -60,8 +60,9 @@ Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
 | `--dark`, `--pest` | mode sombre Breeze, Pest au lieu de PHPUnit (exigent un kit) |
 | `--db` | `sqlite` (défaut : migrations + données d'exemple exécutées), `mysql`, `pgsql` |
 | `--frontend` | `npm install && npm run build` même sans kit |
+| `--ui` | `none`, `css` : catalogue de composants Blade (`<x-ds.*>`), Vite + Tailwind v4, page `/components` (squelette sans Breeze) |
 
-Wagtail : `--package` (paquets pip en plus), `--no-migrate`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
+Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css` (application `ds` : balises `{% ds_* %}`, page `/components/`). Rust : `--kind bin|lib`, `--edition`, `--dep`.
 
 ## Contrôles et garde-fous
 

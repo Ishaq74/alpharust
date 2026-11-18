@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"tr">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<tr class={className} data-slot="table-row" {...rest}>
+  <slot />
+</tr>

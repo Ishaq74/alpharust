@@ -1,0 +1,14 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  /** Valeur de l'onglet actif au départ. */
+  defaultValue?: string;
+};
+
+const { defaultValue, class: className, ...rest } = Astro.props;
+---
+
+<div class={className} data-slot="tabs" data-default={defaultValue} {...rest}>
+  <slot />
+</div>

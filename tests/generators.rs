@@ -147,6 +147,7 @@ fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
             "typecheck-deps",
             "scripts",
             "layer",
+            "design-kit",
             "site",
             "manifest",
             "check",
@@ -420,6 +421,7 @@ fn invalid_requests_are_rejected_before_any_work() {
     w.options = Options::Wagtail(WagtailOptions {
         packages: vec!["bad;rm -rf /".into()],
         migrate: true,
+        ui: false,
     });
     assert!(w.validate().is_err(), "spécification pip invalide");
 }
@@ -642,6 +644,56 @@ fn e2e_wagtail_in_a_venv() {
     assert_lint_clean(&t);
 }
 
+#[test]
+fn e2e_laravel_design_kit_builds_with_vite_and_passes_its_tests() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Laravel, "e2e-lv-kit");
+    req.options = Options::Laravel(LaravelOptions {
+        ui: true,
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    assert!(
+        t.join("public/build/manifest.json").is_file(),
+        "Vite a compilé le kit"
+    );
+    let css: String = std::fs::read_dir(t.join("public/build/assets"))
+        .unwrap()
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x == "css"))
+        .map(|e| read(&e.path()))
+        .collect();
+    assert!(
+        css.contains("data-slot"),
+        "les composants sont dans la feuille compilée"
+    );
+    for id in ["npm-build", "test"] {
+        assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
+    }
+    assert_lint_clean(&t);
+}
+
+#[test]
+fn e2e_wagtail_design_kit_serves_components_and_passes_its_tests() {
+    let _g = lock();
+    let mut req = Request::new(Framework::Wagtail, "e2e-wg-kit");
+    req.options = Options::Wagtail(WagtailOptions {
+        ui: true,
+        ..Default::default()
+    });
+    let Some((t, report, _keep)) = e2e(req) else {
+        return;
+    };
+    assert!(t.join("ds/static/ds/css/index.css").is_file());
+    assert!(read(&t.join("e2e_wg_kit/templates/base.html")).contains("ds/css/index.css"));
+    for id in ["design-wire", "check", "test"] {
+        assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
+    }
+    assert_lint_clean(&t);
+}
+
 fn step_ok(report: &Report, id: &str) {
     let s = report
         .steps
@@ -694,7 +746,7 @@ fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
         "src/styles/tokens/components.css",
         "src/styles/components/button.css",
         "src/styles/themes/theme.css",
-        "src/pages/design.astro",
+        "src/pages/components.astro",
         "src/lib/auth.ts",
         "src/database/schemas/auth.schema.ts",
         "src/pages/[lang]/auth/sign-in.astro",

@@ -1,4 +1,4 @@
-@@meta when=!official&!concordia@@
+@@meta when=!official&starwind@@
 /* Espacements, rayons, ombres et largeurs de lecture. */
 :root {
   --space-1: 0.25rem;
@@ -9,11 +9,7 @@
   --space-8: 2rem;
   --space-12: 3rem;
 
-@@if starwind@@
   --radius: 0.625rem; /* base des --radius-xs … --radius-3xl de Starwind */
-@@else@@
-  --radius: 0.75rem;
-@@end@@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.12);
 

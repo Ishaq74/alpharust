@@ -1,0 +1,22 @@
+/* Zone de texte — [data-slot='textarea'] ; data-size (sm, md, lg). Jeton : --textarea-border-radius */
+[data-slot='textarea'] {
+  display: block;
+  width: 100%;
+  min-height: 5rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--textarea-border-radius, var(--radius, 0.5rem));
+  box-shadow: var(--shadow-sm, none);
+  resize: vertical;
+}
+
+[data-slot='textarea'][data-size='sm'] { min-height: 4rem; padding: 0.25rem 0.5rem; font-size: 0.875rem; }
+[data-slot='textarea'][data-size='lg'] { min-height: 6rem; padding: 0.75rem 1rem; font-size: 1.125rem; }
+[data-slot='textarea']::placeholder { color: var(--text-muted); }
+[data-slot='textarea']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
+[data-slot='textarea']:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-slot='textarea'][aria-invalid='true'] { border-color: var(--tone-error); }

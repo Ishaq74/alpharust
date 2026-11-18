@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!concordia@@
 /*
  * Bouton — classe `.button` du gabarit (liens d'action des pages)
 @@if starwind@@

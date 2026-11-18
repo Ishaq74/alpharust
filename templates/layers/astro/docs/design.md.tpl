@@ -14,6 +14,26 @@ Kit : **@@kit@@**. Arborescence unique pour tous les kits (CSS simple, Tailwind,
 | `themes/theme.css` | palette de marque (WCAG) — @@if concordia@@`--color-primary|secondary|accent`@@else@@`--brand-primary|secondary|accent` et `--on-brand-*` (texte lisible)@@end@@ |
 | `components/*.css` | un fichier par composant ; `custom.css` pour le reste |
 
+@@if starwind|concordia@@
+## Catalogue de composants (`/components`)
+
+La page `/components` montre 23 composants avec vos jetons. Ils suivent le **même contrat de balisage** (`data-slot`,
+`data-variant`, `data-size`) que les versions Laravel (Blade) et Wagtail (Django) du design kit AlphaRust : un composant
+écrit pour l'un se retrouve à l'identique dans les autres.
+
+@@if starwind@@
+- Les composants sont ceux d'atomic (Starwind, Tailwind) dans `src/components/atoms/` ; ils exposent `data-slot` et, pour
+  `Button`, `Badge`, `Alert` et `Progress`, `data-variant`.
+- `components/*.css` les restylent via ces hooks, sans modifier `atoms/`.
+@@else@@
+- Les composants sont en CSS pur : `src/components/atoms/<composant>/*.astro` (mêmes noms et mêmes props qu'atomic) stylés par
+  `src/styles/components/<composant>.css`, qui ne lisent que les jetons du pont `tokens/site.css`.
+- Le comportement (onglets, dialogue, accordéon, interrupteur) vient de `src/scripts/ds.js`, chargé par `BaseLayout.astro`.
+- Les fichiers de Concordia (`initial.css`, variantes) sont chargés dans la couche CSS `concordia` : les composants du catalogue
+  passent après, sans conflit de spécificité. Les composants propres à Concordia restent dans `src/components/ui/` (page `/concordia`).
+@@end@@
+
+@@end@@
 ## Flux des valeurs
 
 ```text

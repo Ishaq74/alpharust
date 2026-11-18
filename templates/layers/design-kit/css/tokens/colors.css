@@ -1,0 +1,75 @@
+/*
+ * Couleurs — mêmes noms que shadcn/Starwind (--background, --foreground, --primary…).
+ * La couleur primaire suit la palette de marque `--brand-primary` (themes/theme.css, contrôlée WCAG).
+ * Les composants ne lisent pas ces noms directement : ils passent par le pont de tokens/site.css.
+ */
+:root {
+  color-scheme: light dark;
+
+  --background: #ffffff;
+  --foreground: #151821;
+  --card: #f5f6fa;
+  --card-foreground: #151821;
+  --muted: #eceef5;
+  --muted-foreground: #4a5163;
+  --primary: var(--brand-primary, #3b4cca);
+  --primary-foreground: var(--on-brand-primary, #ffffff);
+  --secondary: var(--brand-secondary, #6d28d9);
+  --secondary-foreground: var(--on-brand-secondary, #ffffff);
+  --info: #0369a1;
+  --info-foreground: #ffffff;
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --warning: #b45309;
+  --warning-foreground: #ffffff;
+  --error: #b91c1c;
+  --error-foreground: #ffffff;
+  --border: #dde0ea;
+  --outline: #ff9f1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --background: #0f1117;
+    --foreground: #eceef5;
+    --card: #181b25;
+    --card-foreground: #eceef5;
+    --muted: #222635;
+    --muted-foreground: #a9b0c4;
+    --primary: var(--brand-primary, #8fa0ff);
+    --primary-foreground: var(--on-brand-primary, #0f1117);
+    --secondary: var(--brand-secondary, #b79cff);
+    --secondary-foreground: var(--on-brand-secondary, #0f1117);
+    --info: #38bdf8;
+    --info-foreground: #0f1117;
+    --success: #4ade80;
+    --success-foreground: #0f1117;
+    --warning: #fbbf24;
+    --warning-foreground: #0f1117;
+    --error: #f87171;
+    --error-foreground: #0f1117;
+    --border: #2a2f3f;
+  }
+}
+
+:root[data-theme='dark'] {
+  --background: #0f1117;
+  --foreground: #eceef5;
+  --card: #181b25;
+  --card-foreground: #eceef5;
+  --muted: #222635;
+  --muted-foreground: #a9b0c4;
+  --primary: var(--brand-primary, #8fa0ff);
+  --primary-foreground: var(--on-brand-primary, #0f1117);
+  --secondary: var(--brand-secondary, #b79cff);
+  --secondary-foreground: var(--on-brand-secondary, #0f1117);
+  --info: #38bdf8;
+  --info-foreground: #0f1117;
+  --success: #4ade80;
+  --success-foreground: #0f1117;
+  --warning: #fbbf24;
+  --warning-foreground: #0f1117;
+  --error: #f87171;
+  --error-foreground: #0f1117;
+  --border: #2a2f3f;
+}

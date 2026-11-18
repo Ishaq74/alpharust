@@ -15,3 +15,4 @@
 | 0011 | Génération par outils officiels et GUI web en application d'une page | Accepté |
 | 0012 | Plateforme Astro composable et orchestration des projets | Accepté |
 | 0013 | Design system unifié et composants Starwind d'atomic | Accepté |
+| 0014 | Design kit partagé : Starwind, CSS pur, Laravel (Blade) et Wagtail (Django) | Accepté |

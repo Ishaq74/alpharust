@@ -4,7 +4,7 @@ use super::exec::{Cmd, Cwd};
 use super::platform::{self, Db, UiKit};
 use super::theme::{self, ThemeColors};
 use super::tools::{self, ToolStatus};
-use super::{Internal, Phase, Request, Step};
+use super::{DesignTarget, Internal, Phase, Request, Step};
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
@@ -757,11 +757,11 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
     if o.platform() || o.docker || o.ci {
         layers.push("platform");
     }
-    if o.ui == UiKit::Concordia {
-        layers.push("ui-concordia");
-    }
-    if o.ui == UiKit::Starwind {
-        layers.push("ui-atomic");
+    match o.ui {
+        // Concordia : sa base CSS + les composants CSS du catalogue partagé (même API que les atomes).
+        UiKit::Concordia => layers.extend(["ui-concordia", "ui-css", "ui-catalog"]),
+        UiKit::Starwind => layers.extend(["ui-atomic", "ui-catalog"]),
+        UiKit::None => {}
     }
     steps.push(Step::internal(
         "layer",
@@ -769,6 +769,35 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         "Appliquer la couche AlphaRust (structure, thème, docs, config qualité)",
         Internal::Layer(layers),
     ));
+    if o.template == Template::Alpharust {
+        // Design kit partagé (Astro, Laravel, Wagtail) : jetons et composants CSS copiés, jamais réécrits.
+        let (target, label) = match o.ui {
+            UiKit::Concordia => (
+                DesignTarget::AstroComponents,
+                "Copier les composants CSS du design kit (src/styles/components, src/scripts/ds.js)",
+            ),
+            UiKit::Starwind => (
+                DesignTarget::AstroTokens {
+                    tailwind: true,
+                    starwind: true,
+                },
+                "Copier les jetons communs du design kit (typographie, pont de jetons)",
+            ),
+            UiKit::None => (
+                DesignTarget::AstroTokens {
+                    tailwind: o.has("tailwind"),
+                    starwind: false,
+                },
+                "Copier les jetons du design kit (src/styles/tokens)",
+            ),
+        };
+        steps.push(Step::internal(
+            "design-kit",
+            Phase::Configure,
+            label,
+            Internal::DesignKit(target),
+        ));
+    }
     if let Some(site) = &o.site {
         steps.push(Step::internal(
             "site",
@@ -947,6 +976,7 @@ mod tests {
                 "typecheck-deps",
                 "scripts",
                 "layer",
+                "design-kit",
                 "manifest",
                 "check",
                 "build",
@@ -1185,7 +1215,17 @@ mod tests {
         assert!(s.iter().any(|x| x.id == "theme"));
         match &s.iter().find(|x| x.id == "layer").unwrap().action {
             Action::Do(Internal::Layer(l)) => {
-                assert_eq!(l, &vec!["common", "astro", "platform", "ui-concordia"]);
+                assert_eq!(
+                    l,
+                    &vec![
+                        "common",
+                        "astro",
+                        "platform",
+                        "ui-concordia",
+                        "ui-css",
+                        "ui-catalog"
+                    ]
+                );
             }
             _ => panic!("couche attendue"),
         }

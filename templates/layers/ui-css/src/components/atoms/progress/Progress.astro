@@ -1,0 +1,14 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"progress">, "value" | "max"> & {
+  /** Valeur courante ; omise = état indéterminé. */
+  value?: number;
+  max?: number;
+  variant?: "default" | "primary" | "secondary" | "info" | "success" | "warning" | "error";
+};
+
+const { class: className, value, max = 100, variant = "default", ...rest } = Astro.props;
+---
+
+<progress class={className} value={value} max={max} data-slot="progress" data-variant={variant} {...rest}></progress>

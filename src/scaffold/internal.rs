@@ -5,7 +5,7 @@ use super::exec::{self, Cmd, Cwd};
 use super::laravel::Database;
 use super::layer::{self, Ctx};
 use super::platform::Db;
-use super::{Action, Internal, LintSummary, Options, Plan, Request, Step, MANIFEST};
+use super::{Action, DesignTarget, Internal, LintSummary, Options, Plan, Request, Step, MANIFEST};
 use crate::generators::Vars;
 use anyhow::{anyhow, bail, Context, Result};
 use serde_json::{json, Value};
@@ -348,6 +348,8 @@ fn run_internal(
         } => patch_astro_config(target, *ssr, locales, *icons).map(Some),
         Internal::CssTheme(t, prefix) => write_css_theme(target, t, prefix).map(Some),
         Internal::StarwindConfig => patch_starwind_config(target).map(Some),
+        Internal::DesignKit(dt) => write_design_kit(target, *dt).map(Some),
+        Internal::WagtailDesign => patch_wagtail_design(target, &req.name).map(Some),
         Internal::PackageScripts(scripts) => patch_package_scripts(target, scripts).map(Some),
         Internal::LaravelEnv(db) => patch_laravel_env(target, *db, &req.name).map(Some),
         Internal::LaravelRoutes => patch_laravel_routes(target).map(Some),
@@ -576,6 +578,119 @@ pub fn write_css_theme(
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("theme.css"), css)?;
     t.summary()
+}
+
+/// Chemin de destination d'un fichier du design kit (`None` : pas copié pour cette cible).
+pub fn design_dest(dt: DesignTarget, rel: &str) -> Option<String> {
+    let tokens = [
+        "colors.css",
+        "typography.css",
+        "spacing.css",
+        "components.css",
+        "site.css",
+    ];
+    match dt {
+        DesignTarget::AstroTokens { tailwind, starwind } => {
+            let f = rel.strip_prefix("css/tokens/")?;
+            // Starwind garde ses propres jetons (couleurs, rayons, composants) : seule la typographie est commune.
+            let wanted = if starwind {
+                f == "typography.css"
+            } else {
+                tokens.contains(&f) || (tailwind && f == "tailwind.css")
+            };
+            wanted.then(|| format!("src/styles/tokens/{f}"))
+        }
+        DesignTarget::AstroComponents => {
+            if rel == "js/ds.js" {
+                return Some("src/scripts/ds.js".into());
+            }
+            let f = rel.strip_prefix("css/components/")?;
+            (f != "custom.css").then(|| format!("src/styles/components/{f}"))
+        }
+        DesignTarget::Laravel => match rel {
+            "js/ds.js" => Some("resources/js/design/ds.js".into()),
+            _ => rel
+                .strip_prefix("css/")
+                .map(|r| format!("resources/css/design/{r}")),
+        },
+        DesignTarget::Wagtail => match rel {
+            "js/ds.js" => Some("ds/static/ds/js/ds.js".into()),
+            _ => rel
+                .strip_prefix("css/")
+                .map(|r| format!("ds/static/ds/css/{r}")),
+        },
+    }
+}
+
+/// Copie le design kit partagé vers `target` ; ne réécrit jamais vos surcharges (`custom.css`, `theme.css`).
+pub fn write_design_kit(target: &Path, dt: DesignTarget) -> Result<String> {
+    let mut written = 0;
+    for (rel, body) in layer::files("design-kit") {
+        let Some(dest) = design_dest(dt, &rel) else {
+            continue;
+        };
+        let path = target.join(&dest);
+        let yours = dest.ends_with("components/custom.css") || dest.ends_with("themes/theme.css");
+        if yours && path.exists() {
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&path, body)?;
+        written += 1;
+    }
+    if written == 0 {
+        bail!("design kit : aucun fichier copié pour {dt:?}");
+    }
+    Ok(format!("{written} fichiers du design kit"))
+}
+
+/// Insère `add` après la première ligne contenant `anchor` ; erreur explicite si l'ancre manque.
+fn insert_after(text: &str, anchor: &str, add: &str, what: &str) -> Result<String> {
+    if text.contains(add.trim()) {
+        return Ok(text.to_string());
+    }
+    let Some(i) = text.find(anchor) else {
+        bail!(
+            "{what} : ancre `{}` introuvable (fichier modifié ?)",
+            anchor.trim()
+        );
+    };
+    let end = text[i..].find('\n').map_or(text.len(), |n| i + n + 1);
+    Ok(format!("{}{}{}", &text[..end], add, &text[end..]))
+}
+
+/// Wagtail : application `ds`, route `/components/`, feuille de style et script du catalogue.
+pub fn patch_wagtail_design(target: &Path, name: &str) -> Result<String> {
+    let pkg = Vars::new(name)?.pkg;
+    let edit = |rel: String, anchor: &str, add: &str| -> Result<()> {
+        let path = target.join(&rel);
+        let text = fs::read_to_string(&path).with_context(|| format!("lecture de {rel}"))?;
+        fs::write(&path, insert_after(&text, anchor, add, &rel)?)?;
+        Ok(())
+    };
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "INSTALLED_APPS = [",
+        "    \"ds\",\n",
+    )?;
+    edit(
+        format!("{pkg}/urls.py"),
+        "path(\"search/\"",
+        "    path(\"components/\", include(\"ds.urls\")),\n",
+    )?;
+    edit(
+        format!("{pkg}/templates/base.html"),
+        "{# Global stylesheets #}",
+        "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/index.css' %}\">\n",
+    )?;
+    edit(
+        format!("{pkg}/templates/base.html"),
+        "{# Global javascript #}",
+        "        <script type=\"text/javascript\" src=\"{% static 'ds/js/ds.js' %}\" defer></script>\n",
+    )?;
+    Ok("ds branchée : INSTALLED_APPS, /components/, ds/css/index.css, ds/js/ds.js".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.
@@ -1085,16 +1200,18 @@ mod tests {
         req.options = Options::Astro(o);
         let p = plan(&req).expect("plan valide");
         let ctx = build_ctx(&req, &p);
-        let layers = p
-            .steps
-            .iter()
-            .find_map(|s| match &s.action {
-                Action::Do(Internal::Layer(l)) => Some(l.clone()),
-                _ => None,
-            })
-            .expect("étape de couche");
         let dir = tempfile::tempdir().unwrap();
-        layer::apply(&layers, &ctx, dir.path()).unwrap();
+        for s in &p.steps {
+            match &s.action {
+                Action::Do(Internal::Layer(l)) => {
+                    layer::apply(l, &ctx, dir.path()).map(|_| ()).unwrap()
+                }
+                Action::Do(Internal::DesignKit(t)) => {
+                    write_design_kit(dir.path(), *t).unwrap();
+                }
+                _ => {}
+            }
+        }
         if let Some(t) = theme {
             write_css_theme(dir.path(), &t, prefix).unwrap();
         }

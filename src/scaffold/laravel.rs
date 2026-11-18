@@ -2,7 +2,7 @@
 
 use super::exec::{Cmd, Cwd};
 use super::tools::{self, ToolStatus};
-use super::{Internal, Phase, Request, Step};
+use super::{DesignTarget, Internal, Phase, Request, Step};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
@@ -101,6 +101,8 @@ pub struct LaravelOptions {
     pub database: Database,
     /// `npm install && npm run build` même sans kit de démarrage.
     pub frontend: bool,
+    /// Catalogue de composants du design kit partagé (Blade, CSS pur, Vite + Tailwind v4) et page `/components`.
+    pub ui: bool,
 }
 
 impl Default for LaravelOptions {
@@ -111,6 +113,7 @@ impl Default for LaravelOptions {
             pest: false,
             database: Database::Sqlite,
             frontend: false,
+            ui: false,
         }
     }
 }
@@ -123,17 +126,24 @@ impl LaravelOptions {
         if self.dark && !self.starter.has_frontend() {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
         }
+        if self.ui && self.starter != Starter::None {
+            anyhow::bail!(
+                "--ui css s'applique au squelette Laravel seul (--starter none) : \
+                 Breeze impose déjà ses propres vues et feuilles de style"
+            );
+        }
         Ok(())
     }
 
     fn needs_node(&self) -> bool {
-        self.starter.has_frontend() || self.frontend
+        self.starter.has_frontend() || self.frontend || self.ui
     }
 
     pub fn flags(&self) -> Vec<(&'static str, bool)> {
         vec![
             ("breeze", self.starter != Starter::None),
             ("sqlite", self.database == Database::Sqlite),
+            ("ui", self.ui),
         ]
     }
 }
@@ -234,19 +244,21 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             &format!("Installer le kit {}", o.starter.label()),
             Cmd::new("php", &a, Cwd::Project),
         ));
-    } else if o.frontend {
+    } else if o.frontend || o.ui {
         steps.push(Step::run(
             "npm-install",
             Phase::Install,
             "Installer les dépendances front (npm install)",
             Cmd::new("npm", &["install"], Cwd::Project),
         ));
-        steps.push(Step::run(
-            "npm-build",
-            Phase::Install,
-            "Compiler les assets (npm run build)",
-            Cmd::new("npm", &["run", "build"], Cwd::Project),
-        ));
+        if !o.ui {
+            steps.push(Step::run(
+                "npm-build",
+                Phase::Install,
+                "Compiler les assets (npm run build)",
+                Cmd::new("npm", &["run", "build"], Cwd::Project),
+            ));
+        }
     }
     if o.database != Database::Sqlite {
         steps.push(Step::internal(
@@ -263,8 +275,26 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
         "layer",
         Phase::Layer,
         "Appliquer la couche AlphaRust (pages, modèle, migration, tests, docs)",
-        Internal::Layer(vec!["common", "laravel"]),
+        Internal::Layer(if o.ui {
+            vec!["common", "laravel", "ui-blade", "laravel-ds"]
+        } else {
+            vec!["common", "laravel"]
+        }),
     ));
+    if o.ui {
+        steps.push(Step::internal(
+            "design-kit",
+            Phase::Layer,
+            "Copier le design kit (resources/css/design, resources/js/design)",
+            Internal::DesignKit(DesignTarget::Laravel),
+        ));
+        steps.push(Step::run(
+            "npm-build",
+            Phase::Install,
+            "Compiler les assets du design kit (npm run build : Vite + Tailwind v4)",
+            Cmd::new("npm", &["run", "build"], Cwd::Project),
+        ));
+    }
     steps.push(Step::internal(
         "routes",
         Phase::Configure,

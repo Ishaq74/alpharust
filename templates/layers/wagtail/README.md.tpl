@@ -27,6 +27,15 @@ python manage.py check          # contrôles Django
 alpharust lint                  # règles AlphaRust (profil « cms »)
 ```
 
+@@if ui@@
+## Composants
+
+Catalogue de 23 composants (`{% ds_button variant="primary" %}`…) sur la page `/components/`, dont le balisage (`data-slot`)
+est identique à celui des versions Astro et Laravel. Application Django `ds` : balises dans `ds/templatetags/ds.py`, style dans
+`ds/static/ds/css/` (jetons dans `tokens/`, un fichier par composant, vos surcharges dans `components/custom.css`).
+Détails : [`docs/design.md`](docs/design.md).
+
+@@end@@
 Voir [`docs/index.md`](docs/index.md).
 
 ## License

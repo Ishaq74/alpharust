@@ -1,0 +1,7 @@
+/*
+ * Vos surcharges de composants — ce fichier est importé en dernier et n'est jamais réécrit.
+ * Exemple : boutons en pilule, en majuscules.
+ *
+ *   :root { --button-border-radius: 9999px; --button-text-transform: uppercase; }
+ *   [data-slot='card'] { box-shadow: var(--shadow-md); }
+ */

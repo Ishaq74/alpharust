@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load ds %}
+{# Catalogue de composants : même contenu que la page Astro (/components) et la page Blade, mêmes data-slot. #}
+{% block title %}Composants{% endblock %}
+{% block title_suffix %}{% endblock %}
+
+{% block content %}
+<main class="ds-page">
+    <h1>Composants</h1>
+    <p class="meta">
+        Catalogue du kit <strong>Django</strong> (<code>{% templatetag openblock %} load ds {% templatetag closeblock %}</code>). L'allure se règle dans
+        <code>ds/static/ds/css/tokens/components.css</code>, <code>ds/static/ds/css/components/*.css</code> et <code>themes/theme.css</code>.
+    </p>
+
+    <section aria-labelledby="c-buttons" data-demo="button">
+        <h2 id="c-buttons">Boutons</h2>
+        <div class="row">
+            {% for variant in variants %}{% ds_button variant=variant %}{{ variant }}{% endds_button %}{% endfor %}
+        </div>
+        <div class="row">
+            {% ds_button size="sm" variant="primary" %}sm{% endds_button %}
+            {% ds_button size="md" variant="primary" %}md{% endds_button %}
+            {% ds_button size="lg" variant="primary" %}lg{% endds_button %}
+            {% ds_button variant="outline" href="#c-buttons" %}Lien{% endds_button %}
+            {% ds_button variant="primary" disabled=True %}Désactivé{% endds_button %}
+        </div>
+    </section>
+
+    <section aria-labelledby="c-badges" data-demo="badge">
+        <h2 id="c-badges">Badges</h2>
+        <div class="row">
+            {% for variant in variants %}{% ds_badge variant=variant %}{{ variant }}{% endds_badge %}{% endfor %}
+        </div>
+    </section>
+
+    <section aria-labelledby="c-alerts" data-demo="alert">
+        <h2 id="c-alerts">Alertes</h2>
+        <div class="stack">
+            {% ds_alert variant="info" %}
+                {% ds_alert_title %}Information{% endds_alert_title %}
+                {% ds_alert_description %}Les couleurs viennent de <code>tokens/colors.css</code>.{% endds_alert_description %}
+            {% endds_alert %}
+            {% ds_alert variant="success" %}{% ds_alert_title %}Succès{% endds_alert_title %}{% ds_alert_description %}L'opération a réussi.{% endds_alert_description %}{% endds_alert %}
+            {% ds_alert variant="warning" %}{% ds_alert_title %}Attention{% endds_alert_title %}{% ds_alert_description %}Vérifiez les données.{% endds_alert_description %}{% endds_alert %}
+            {% ds_alert variant="error" %}{% ds_alert_title %}Erreur{% endds_alert_title %}{% ds_alert_description %}Lisible en clair comme en sombre.{% endds_alert_description %}{% endds_alert %}
+        </div>
+    </section>
+
+    <section aria-labelledby="c-card" data-demo="card">
+        <h2 id="c-card">Carte</h2>
+        <div class="narrow">
+            {% ds_card %}
+                {% ds_card_header %}
+                    {% ds_card_title %}Carte{% endds_card_title %}
+                    {% ds_card_description %}Rayon : <code>--card-border-radius</code>{% endds_card_description %}
+                    {% ds_card_action %}{% ds_badge variant="primary" %}Nouveau{% endds_badge %}{% endds_card_action %}
+                {% endds_card_header %}
+                {% ds_card_content %}
+                    {% ds_label for="demo-name" %}Nom{% endds_label %}
+                    {% ds_input id="demo-name" placeholder="Votre nom" %}
+                {% endds_card_content %}
+                {% ds_card_footer %}
+                    {% ds_button variant="primary" %}Enregistrer{% endds_button %}
+                    {% ds_button variant="ghost" %}Annuler{% endds_button %}
+                {% endds_card_footer %}
+            {% endds_card %}
+        </div>
+    </section>
+
+    <section aria-labelledby="c-forms" data-demo="form">
+        <h2 id="c-forms">Formulaire</h2>
+        <div class="narrow stack">
+            <div class="stack-sm">
+                {% ds_label for="demo-email" %}Courriel{% endds_label %}
+                {% ds_input id="demo-email" type="email" placeholder="vous@exemple.fr" %}
+                {% ds_input size="sm" placeholder="Petit" aria_label="Petit champ" %}
+                {% ds_input size="lg" placeholder="Grand" aria_label="Grand champ" %}
+            </div>
+            <div class="stack-sm">
+                {% ds_label for="demo-msg" %}Message{% endds_label %}
+                {% ds_textarea id="demo-msg" placeholder="Écrivez ici…" %}{% endds_textarea %}
+            </div>
+            <div class="stack-sm">
+                {% ds_label for="demo-pick" %}Liste{% endds_label %}
+                {% ds_native_select id="demo-pick" %}
+                    {% ds_native_select_option value="a" %}Option A{% endds_native_select_option %}
+                    {% ds_native_select_option value="b" %}Option B{% endds_native_select_option %}
+                {% endds_native_select %}
+            </div>
+            {% ds_checkbox id="demo-check" label="J'accepte les conditions" variant="primary" checked=True %}
+            {% ds_switch id="demo-switch" label="Notifications" variant="primary" checked=True %}
+        </div>
+    </section>
+
+    <section aria-labelledby="c-feedback" data-demo="feedback">
+        <h2 id="c-feedback">Progression et chargement</h2>
+        <div class="narrow stack">
+            {% ds_progress value=60 variant="primary" aria_label="Progression" %}
+            {% ds_progress variant="success" aria_label="Chargement" %}
+            <div class="row">
+                {% ds_skeleton class_="sk" %}
+                {% ds_spinner %}
+                {% ds_avatar size="sm" %}{% ds_avatar_fallback %}AR{% endds_avatar_fallback %}{% endds_avatar %}
+                {% ds_avatar %}{% ds_avatar_image src=pixel alt="" %}{% ds_avatar_fallback %}AR{% endds_avatar_fallback %}{% endds_avatar %}
+                {% ds_avatar size="lg" %}{% ds_avatar_fallback %}AR{% endds_avatar_fallback %}{% endds_avatar %}
+            </div>
+        </div>
+    </section>
+
+    <section aria-labelledby="c-nav" data-demo="navigation">
+        <h2 id="c-nav">Navigation</h2>
+        {% ds_breadcrumb %}
+            {% ds_breadcrumb_list %}
+                {% ds_breadcrumb_item %}{% ds_breadcrumb_link href="/" %}Accueil{% endds_breadcrumb_link %}{% endds_breadcrumb_item %}
+                {% ds_breadcrumb_separator %}{% endds_breadcrumb_separator %}
+                {% ds_breadcrumb_item %}{% ds_breadcrumb_link href="#c-nav" %}Composants{% endds_breadcrumb_link %}{% endds_breadcrumb_item %}
+                {% ds_breadcrumb_separator %}{% endds_breadcrumb_separator %}
+                {% ds_breadcrumb_item %}{% ds_breadcrumb_page %}Navigation{% endds_breadcrumb_page %}{% endds_breadcrumb_item %}
+            {% endds_breadcrumb_list %}
+        {% endds_breadcrumb %}
+        {% ds_pagination %}
+            {% ds_pagination_content %}
+                {% ds_pagination_item %}{% ds_pagination_previous href="#c-nav" %}{% endds_pagination_previous %}{% endds_pagination_item %}
+                {% ds_pagination_item %}{% ds_pagination_link href="#c-nav" %}1{% endds_pagination_link %}{% endds_pagination_item %}
+                {% ds_pagination_item %}{% ds_pagination_link href="#c-nav" is_active=True %}2{% endds_pagination_link %}{% endds_pagination_item %}
+                {% ds_pagination_item %}{% ds_pagination_link href="#c-nav" %}3{% endds_pagination_link %}{% endds_pagination_item %}
+                {% ds_pagination_item %}{% ds_pagination_next href="#c-nav" %}{% endds_pagination_next %}{% endds_pagination_item %}
+            {% endds_pagination_content %}
+        {% endds_pagination %}
+    </section>
+
+    <section aria-labelledby="c-table" data-demo="table">
+        <h2 id="c-table">Tableau</h2>
+        {% ds_table %}
+            {% ds_table_caption %}Équipe{% endds_table_caption %}
+            {% ds_table_header %}
+                {% ds_table_row %}{% ds_table_head %}Nom{% endds_table_head %}{% ds_table_head %}Rôle{% endds_table_head %}{% ds_table_head %}Statut{% endds_table_head %}{% endds_table_row %}
+            {% endds_table_header %}
+            {% ds_table_body %}
+                {% ds_table_row %}{% ds_table_cell %}Ada{% endds_table_cell %}{% ds_table_cell %}Ingénieure{% endds_table_cell %}{% ds_table_cell %}{% ds_badge variant="success" %}Actif{% endds_badge %}{% endds_table_cell %}{% endds_table_row %}
+                {% ds_table_row %}{% ds_table_cell %}Linus{% endds_table_cell %}{% ds_table_cell %}Mainteneur{% endds_table_cell %}{% ds_table_cell %}{% ds_badge variant="warning" %}Absent{% endds_badge %}{% endds_table_cell %}{% endds_table_row %}
+            {% endds_table_body %}
+            {% ds_table_foot %}
+                {% ds_table_row %}{% ds_table_cell %}Total{% endds_table_cell %}{% ds_table_cell %}2{% endds_table_cell %}{% ds_table_cell %}{% endds_table_cell %}{% endds_table_row %}
+            {% endds_table_foot %}
+        {% endds_table %}
+    </section>
+
+    <section aria-labelledby="c-interactive" data-demo="interactive">
+        <h2 id="c-interactive">Composants interactifs</h2>
+        {% ds_tabs default_value="one" %}
+            {% ds_tabs_list %}
+                {% ds_tabs_trigger value="one" default_active=True %}Premier{% endds_tabs_trigger %}
+                {% ds_tabs_trigger value="two" %}Deuxième{% endds_tabs_trigger %}
+                {% ds_tabs_trigger value="three" %}Troisième{% endds_tabs_trigger %}
+            {% endds_tabs_list %}
+            {% ds_tabs_content value="one" default_active=True %}Contenu du premier onglet (flèches ← → pour naviguer).{% endds_tabs_content %}
+            {% ds_tabs_content value="two" %}Contenu du deuxième onglet.{% endds_tabs_content %}
+            {% ds_tabs_content value="three" %}Contenu du troisième onglet.{% endds_tabs_content %}
+        {% endds_tabs %}
+
+        {% ds_accordion type="single" default_value="a" %}
+            {% ds_accordion_item value="a" %}{% ds_accordion_trigger %}Qu'est-ce que le catalogue ?{% endds_accordion_trigger %}{% ds_accordion_content %}Un jeu de composants au même balisage en Astro, Laravel et Django.{% endds_accordion_content %}{% endds_accordion_item %}
+            {% ds_accordion_item value="b" %}{% ds_accordion_trigger %}Comment le personnaliser ?{% endds_accordion_trigger %}{% ds_accordion_content %}Par les jetons de <code>ds/static/ds/css/tokens</code>.{% endds_accordion_content %}{% endds_accordion_item %}
+        {% endds_accordion %}
+
+        <div class="row">
+            {% ds_dialog id="demo-dialog" %}
+                {% ds_dialog_trigger as_child=True %}{% ds_button variant="outline" %}Ouvrir la boîte de dialogue{% endds_button %}{% endds_dialog_trigger %}
+                {% ds_dialog_content %}
+                    {% ds_dialog_header %}
+                        {% ds_dialog_title %}Confirmer{% endds_dialog_title %}
+                        {% ds_dialog_description %}Cette action est réversible.{% endds_dialog_description %}
+                    {% endds_dialog_header %}
+                    {% ds_dialog_footer %}
+                        {% ds_dialog_close as_child=True %}{% ds_button variant="primary" %}Fermer{% endds_button %}{% endds_dialog_close %}
+                    {% endds_dialog_footer %}
+                {% endds_dialog_content %}
+            {% endds_dialog %}
+
+            {% ds_tooltip %}
+                {% ds_tooltip_trigger %}{% ds_button variant="outline" %}Survolez-moi{% endds_button %}{% endds_tooltip_trigger %}
+                {% ds_tooltip_content %}Info-bulle accessible au clavier{% endds_tooltip_content %}
+            {% endds_tooltip %}
+
+            {% ds_kbd_group %}{% ds_kbd %}Ctrl{% endds_kbd %}{% ds_kbd %}K{% endds_kbd %}{% endds_kbd_group %}
+        </div>
+        {% ds_separator %}
+    </section>
+</main>
+
+<style>
+    .ds-page { max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--space-4); }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .narrow { max-width: 28rem; }
+    .stack { display: grid; gap: var(--space-4); }
+    .stack-sm { display: grid; gap: var(--space-2); }
+    .sk { width: 6rem; height: 1rem; }
+    section { margin-bottom: var(--space-8); }
+</style>
+{% endblock %}

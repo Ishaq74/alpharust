@@ -53,5 +53,11 @@ const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
       <slot />
     </main>
     <Footer />
+@@if concordia@@
+    <script>
+      // Comportements du design kit (onglets, dialogue, accordéon…) : même script que Laravel et Wagtail.
+      import '../scripts/ds.js';
+    </script>
+@@end@@
   </body>
 </html>

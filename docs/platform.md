@@ -6,8 +6,8 @@ est ensuite **vérifié pour de vrai** (`astro check`, `astro build`, `vitest`, 
 
 | Brique | Option | Outil officiel / source | Ce qui est vérifié |
 |--------|--------|-------------------------|--------------------|
-| Tailwind + **Starwind UI** | `--ui starwind` | `starwind@latest init --defaults`, puis les **46 composants Starwind d'atomic** (`src/components/atoms`) + effets `wow/` + `lib/starwind` | `astro check` sur ~305 fichiers, build, `/design` |
-| **Concordia** (CSS pur) | `--ui concordia [--css-variant …] [--theme-*]` | copie fidèle du dépôt `Ishaq74/concordia` (jetons, variantes, **tous** les composants) | `astro check` sur les 80+ composants, page de démonstration `/components` |
+| Tailwind + **Starwind UI** | `--ui starwind` | `starwind@latest init --defaults`, puis les **46 composants Starwind d'atomic** (`src/components/atoms`) + effets `wow/` + `lib/starwind` | `astro check` sur ~305 fichiers, build, page `/components` |
+| **Concordia** (CSS pur) | `--ui concordia [--css-variant …] [--theme-*]` | copie fidèle du dépôt `Ishaq74/concordia` (jetons, variantes, **tous** les composants) | `astro check` sur les 80+ composants, pages `/components` (catalogue partagé) et `/concordia` (composants propres) |
 | Base de données | `--db sqlite\|postgres [--db-url …]` | `drizzle-orm` + `drizzle-kit generate` / `migrate` | migrations appliquées, test d'insertion/lecture |
 | Authentification | `--auth [--auth-plugin admin,username,organization]` | **Better Auth** ; schéma Drizzle produit par `auth@latest generate` | inscription, connexion, mauvais mot de passe (tests) + parcours navigateur |
 | Langues | `--i18n fr,en,es,ar` | routage i18n natif d'Astro (`prefixDefaultLocale: false`), arabe en RTL | parité des clés de messages (test) |
@@ -58,10 +58,14 @@ src/styles/                      CSS simple · Tailwind · Starwind          Con
 │   └── site.css                 pont vers les variables du gabarit        idem, branché sur les jetons Concordia
 ├── themes/theme.css             palette de marque WCAG (--brand-*)        palette de marque WCAG (--color-*)
 └── components/
-    ├── layout.css · button.css · custom.css                              + retro/modern/futuristic/initial.css (verbatim)
-    ├── card.css                 (hors Concordia)
+    ├── layout.css · button.css · custom.css                              layout.css · custom.css + 23 fichiers du catalogue
+    ├── card.css                 (CSS simple, Tailwind, Starwind)         retro/modern/futuristic/initial.css (verbatim, couche `concordia`)
     └── input · textarea · select · badge · alert · dialog · tabs · table · tooltip .css   (Starwind seul)
 ```
+
+Depuis l'ADR 0014, les jetons des kits « CSS simple » et « Tailwind seul » (`tokens/{colors,typography,spacing,components,site}.css`,
+`tailwind.css`) et les composants CSS de Concordia ne sont plus des modèles Astro : ils sont **copiés depuis le design kit
+partagé** (`templates/layers/design-kit`), le même que celui de Laravel et de Wagtail.
 
 **Comment personnaliser** (détail dans `docs/design.md` du projet) :
 
@@ -74,7 +78,28 @@ src/styles/                      CSS simple · Tailwind · Starwind          Con
 4. **Concordia** : jetons de `tokens/components.css` ou règles dans `components/custom.css`, variantes = fichiers `components/<variante>.css`.
 
 `tokens/site.css` relie les variables du gabarit AlphaRust (`--bg`, `--text`, `--brand`…) aux jetons du kit : le site suit donc
-le thème sans réécriture. La page `/design` (Starwind) et `/components` (Concordia) montrent les composants avec vos jetons.
+le thème sans réécriture. La page `/components` (Starwind **et** Concordia) montre les 23 composants du catalogue avec vos jetons.
+
+## Design kit partagé : Astro, Laravel, Wagtail (ADR 0014)
+
+Les composants d'atomic existent aussi en **CSS pur**, avec le même balisage (`data-slot`, `data-variant`, `data-size`), les mêmes
+noms et props, la même accessibilité (éléments natifs `<details>`, `<dialog>`, `<progress>`, onglets ARIA par `ds.js`). Une
+source (`templates/layers/design-kit`) alimente quatre cibles :
+
+| Cible | Option | Où | Utilisation |
+|-------|--------|----|-------------|
+| Astro + Starwind | `--ui starwind` | `src/components/atoms/` (Tailwind) | `<Button variant="primary">` |
+| Astro + CSS | `--ui concordia` | `src/components/atoms/` (CSS pur) + `src/styles/components/*.css` + `src/scripts/ds.js` | `<Button variant="primary">` (mêmes imports `@atoms/…`) |
+| Laravel | `generate laravel … --ui css` | `resources/views/components/ds/`, `resources/css/design/`, `resources/js/design/ds.js` | `<x-ds.button variant="primary">` ; page `/components` |
+| Wagtail | `generate wagtail … --ui css` | application `ds/` (`templatetags/ds.py`, `static/ds/`) | `{% ds_button variant="primary" %}…{% endds_button %}` ; page `/components/` |
+
+Laravel : Vite + Tailwind v4 (`@tailwindcss/vite`) du squelette officiel, kit dans la couche `ds` ; `npm run build` est exécuté par
+la génération, puis `php artisan test` (dont `ComponentsTest`). Wagtail : fichiers statiques Django, sans outil de build ; `INSTALLED_APPS`,
+`urls.py` et `base.html` sont branchés par insertion après une ancre, avec échec explicite si le squelette a changé.
+
+Personnaliser (identique partout) : couleurs dans `themes/theme.css`, allure d'un composant par un jeton de `tokens/components.css`,
+le reste dans `components/custom.css`. Parité : `src/scaffold/catalog.rs` (voir `docs/tests.md`). Limites : 23 composants sur 46
+en CSS ; `--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
 
 ## Starwind : ce qui vient d'atomic
 

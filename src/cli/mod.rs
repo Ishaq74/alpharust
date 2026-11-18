@@ -245,8 +245,8 @@ struct GenOpts {
     no_typecheck: bool,
     #[arg(
         long,
-        value_name = "none|starwind|concordia",
-        help = "[astro] kit d'interface : Starwind (Tailwind, officiel) ou CSS Concordia"
+        value_name = "none|starwind|concordia|css",
+        help = "kit d'interface — astro : starwind (Tailwind) ou concordia (CSS) ; laravel, wagtail : css (catalogue de composants)"
     )]
     ui: Option<String>,
     #[arg(
@@ -352,6 +352,17 @@ fn parse_opt<T>(
     }
 }
 
+/// `--ui` pour Laravel et Wagtail : `css` (catalogue du design kit) ou `none`.
+fn parse_catalog_ui(v: &Option<String>) -> Result<bool> {
+    match v.as_deref() {
+        None | Some("none") => Ok(false),
+        Some("css") => Ok(true),
+        Some(other) => {
+            bail!("valeur invalide pour --ui : `{other}` (attendu pour laravel et wagtail : none, css)")
+        }
+    }
+}
+
 /// Construit la demande depuis les flags ; refuse les options d'un autre framework.
 fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request> {
     let mut foreign: Vec<&str> = Vec::new();
@@ -362,7 +373,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || !o.integrations.is_empty()
         || o.site.is_some()
         || o.no_typecheck
-        || o.ui.is_some()
+        || (o.ui.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || o.theme_primary.is_some()
         || o.theme_secondary.is_some()
         || o.theme_accent.is_some()
@@ -489,11 +500,14 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.dark = o.dark;
             l.pest = o.pest;
             l.frontend = o.frontend;
+            l.ui = parse_catalog_ui(&o.ui)?;
+            l.validate()?;
             Options::Laravel(l)
         }
         Framework::Wagtail => Options::Wagtail(WagtailOptions {
             packages: o.packages.clone(),
             migrate: !o.no_migrate,
+            ui: parse_catalog_ui(&o.ui)?,
         }),
         Framework::Rust => {
             let kind = match o.kind.as_deref() {

@@ -2,7 +2,7 @@
 
 use super::exec::{Cmd, Cwd};
 use super::tools::{self, ToolStatus};
-use super::{Internal, Phase, Request, Step};
+use super::{DesignTarget, Internal, Phase, Request, Step};
 use crate::generators::Vars;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
@@ -14,6 +14,8 @@ pub struct WagtailOptions {
     pub packages: Vec<String>,
     /// `manage.py migrate` après la création.
     pub migrate: bool,
+    /// Catalogue de composants du design kit partagé (application Django `ds`, balises `{% ds_… %}`, `/components/`).
+    pub ui: bool,
 }
 
 impl Default for WagtailOptions {
@@ -21,6 +23,7 @@ impl Default for WagtailOptions {
         Self {
             packages: vec![],
             migrate: true,
+            ui: false,
         }
     }
 }
@@ -152,8 +155,26 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         "layer",
         Phase::Layer,
         "Appliquer la couche AlphaRust (config qualité, docs, tests, .gitignore)",
-        Internal::Layer(vec!["common", "wagtail"]),
+        Internal::Layer(if o.ui {
+            vec!["common", "wagtail", "ui-django", "wagtail-ds"]
+        } else {
+            vec!["common", "wagtail"]
+        }),
     ));
+    if o.ui {
+        steps.push(Step::internal(
+            "design-kit",
+            Phase::Layer,
+            "Copier le design kit (ds/static/ds)",
+            Internal::DesignKit(DesignTarget::Wagtail),
+        ));
+        steps.push(Step::internal(
+            "design-wire",
+            Phase::Configure,
+            "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
+            Internal::WagtailDesign,
+        ));
+    }
     if o.migrate {
         steps.push(Step::run(
             "migrate",
@@ -272,6 +293,7 @@ mod tests {
         let o = WagtailOptions {
             packages: vec!["psycopg[binary]".into()],
             migrate: false,
+            ui: false,
         };
         let mut r = Request::new(Framework::Wagtail, "x");
         r.options = Options::Wagtail(o.clone());

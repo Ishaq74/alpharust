@@ -1,0 +1,17 @@
+/* Touche clavier — kbd, kbd-group */
+[data-slot='kbd'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.25rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 0.25rem;
+  user-select: none;
+}
+[data-slot='kbd-group'] { display: inline-flex; align-items: center; gap: 0.25rem; }

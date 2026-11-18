@@ -1,0 +1,20 @@
+/* Base : remise à plat minimale et typographie de page. */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1, h2, h3, h4 { line-height: var(--line-height-heading); }
+a { color: var(--brand-text); }
+:focus-visible { outline-color: var(--focus); }
+[hidden] { display: none !important; }
+
+h1 { font-size: 2rem; margin: 0 0 var(--space-2); }
+h2 { font-size: 1.5rem; margin: var(--space-6) 0 var(--space-2); }
+h3 { font-size: 1.25rem; }

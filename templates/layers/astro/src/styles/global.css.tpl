@@ -21,7 +21,7 @@
 
 /* 1. Jetons */
 @@if concordia@@
-@import "./base.css"; /* Concordia : tokens/{colors,typography,spacing,components}.css + variante initiale */
+@import "./base.css" layer(concordia); /* Concordia : tokens/{colors,typography,spacing,components}.css + variante initiale (couche `concordia` : les composants du kit passent après) */
 @@else@@
 @import "./tokens/colors.css";
 @import "./tokens/typography.css";
@@ -39,20 +39,20 @@
 /* 3. Base et composants */
 @@if concordia@@
 @@if css_retro@@
-@import "./components/retro.css";
+@import "./components/retro.css" layer(concordia);
 @@end@@
 @@if css_modern@@
-@import "./components/modern.css";
+@import "./components/modern.css" layer(concordia);
 @@end@@
 @@if css_futuristic@@
-@import "./components/futuristic.css";
+@import "./components/futuristic.css" layer(concordia);
 @@end@@
 @@else@@
 @import "./base.css";
 @@end@@
 @import "./components/layout.css";
-@import "./components/button.css";
 @@if !concordia@@
+@import "./components/button.css";
 @import "./components/card.css";
 @@end@@
 @@if starwind@@
@@ -64,6 +64,32 @@
 @import "./components/dialog.css";
 @import "./components/tabs.css";
 @import "./components/table.css";
+@import "./components/tooltip.css";
+@@end@@
+@@if concordia@@
+/* Composants du design kit partagé : même balisage ([data-slot]) que Starwind, Blade et Django. */
+@import "./components/accordion.css";
+@import "./components/alert.css";
+@import "./components/avatar.css";
+@import "./components/badge.css";
+@import "./components/breadcrumb.css";
+@import "./components/button.css";
+@import "./components/card.css";
+@import "./components/checkbox.css";
+@import "./components/dialog.css";
+@import "./components/input.css";
+@import "./components/kbd.css";
+@import "./components/label.css";
+@import "./components/native-select.css";
+@import "./components/pagination.css";
+@import "./components/progress.css";
+@import "./components/separator.css";
+@import "./components/skeleton.css";
+@import "./components/spinner.css";
+@import "./components/switch.css";
+@import "./components/table.css";
+@import "./components/tabs.css";
+@import "./components/textarea.css";
 @import "./components/tooltip.css";
 @@end@@
 @import "./components/custom.css";

@@ -7,13 +7,16 @@ Application [Laravel](https://laravel.com) créée avec [AlphaRust](https://gith
 
 ## Installation
 
-Prérequis : PHP ≥ 8.3, Composer@@if breeze@@, Node.js ≥ 20@@end@@.
+Prérequis : PHP ≥ 8.3, Composer@@if breeze@@, Node.js ≥ 20@@end@@@@if ui@@, Node.js ≥ 20 (Vite, Tailwind CSS v4)@@end@@.
 
 ```bash
 composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed --seeder=PageSeeder
+@@if ui@@
+npm install && npm run build   # Vite + Tailwind v4 : feuille et script du design kit
+@@end@@
 ```
 
 ## Usage
@@ -39,6 +42,14 @@ routes/pages.php            # inclus depuis routes/web.php
 tests/Feature/PageTest.php  tests/Unit/PageTest.php
 ```
 
+@@if ui@@
+## Composants
+
+Catalogue de 23 composants Blade (`<x-ds.button variant="primary">`…) sur la page `/components`, dont le balisage
+(`data-slot`) est identique à celui des versions Astro et Wagtail. Style : `resources/css/design/` (jetons dans `tokens/`,
+un fichier par composant dans `components/`, vos surcharges dans `components/custom.css`). Détails : [`docs/design.md`](docs/design.md).
+
+@@end@@
 Voir [`docs/index.md`](docs/index.md).
 
 ## License

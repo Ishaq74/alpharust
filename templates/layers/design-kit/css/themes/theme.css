@@ -1,0 +1,7 @@
+/*
+ * Thème de marque — la palette (--brand-primary / --brand-secondary / --brand-accent et leurs --on-*)
+ * est écrite ici par `alpharust generate … --theme-primary #… --theme-secondary #… --theme-accent #…`
+ * (contrôle de contraste WCAG AA/AAA). Vous pouvez aussi la renseigner à la main :
+ *
+ *   :root { --brand-primary: #0ea5e9; --on-brand-primary: #111827; }
+ */

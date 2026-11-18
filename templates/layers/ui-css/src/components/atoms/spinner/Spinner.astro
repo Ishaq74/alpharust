@@ -1,0 +1,9 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"span">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<span class={className} role="status" aria-label="Loading" data-slot="spinner" {...rest}></span>

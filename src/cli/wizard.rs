@@ -195,12 +195,19 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
             } else {
                 false
             };
+            let ui = starter == Starter::None
+                && confirm(
+                    &theme,
+                    "Catalogue de composants (design kit CSS, page /components) ?",
+                    false,
+                )?;
             Options::Laravel(LaravelOptions {
                 starter,
                 dark,
                 pest,
                 database,
                 frontend,
+                ui,
             })
         }
         Framework::Wagtail => {
@@ -217,9 +224,15 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 .interact_text()
                 .map_err(err)?;
             let migrate = confirm(&theme, "Exécuter `manage.py migrate` ?", true)?;
+            let ui = confirm(
+                &theme,
+                "Catalogue de composants (design kit CSS, page /components/) ?",
+                false,
+            )?;
             Options::Wagtail(WagtailOptions {
                 packages: extra.split_whitespace().map(String::from).collect(),
                 migrate,
+                ui,
             })
         }
         Framework::Rust => {

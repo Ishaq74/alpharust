@@ -1,0 +1,12 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"img"> & {
+  src?: string;
+  alt?: string;
+};
+
+const { src, alt = "", class: className, ...rest } = Astro.props;
+---
+
+{src && <img src={src} alt={alt} class={className} data-slot="avatar-image" {...rest} />}

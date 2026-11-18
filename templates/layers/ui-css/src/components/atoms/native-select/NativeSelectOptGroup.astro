@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"optgroup">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<optgroup class={className} data-slot="native-select-optgroup" {...rest}>
+  <slot />
+</optgroup>

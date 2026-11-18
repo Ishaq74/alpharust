@@ -1,0 +1,4 @@
+/* Squelette de chargement — [data-slot='skeleton'] ; dimensionnez-le avec vos propres règles. */
+[data-slot='skeleton'] { background: var(--surface-2); border-radius: var(--radius, 0.5rem); animation: ds-pulse 2s ease-in-out infinite; }
+@keyframes ds-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { [data-slot='skeleton'] { animation: none; } }
