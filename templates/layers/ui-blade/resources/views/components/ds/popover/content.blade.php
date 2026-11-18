@@ -1,0 +1,2 @@
+@props(['side' => 'bottom', 'align' => 'center', 'sideOffset' => 4, 'animationDuration' => 150])
+<div {{ $attributes->merge(['data-side' => $side, 'data-align' => $align, 'data-side-offset' => $sideOffset, 'data-state' => 'closed', 'role' => 'dialog', 'tabindex' => '-1', 'hidden' => '', 'style' => ('--ds-offset: ' . $sideOffset . 'px; --ds-duration: ' . $animationDuration . 'ms'), 'data-slot' => 'popover-content']) }}>{{ $slot }}</div>

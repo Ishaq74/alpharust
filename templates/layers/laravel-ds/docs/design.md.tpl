@@ -20,7 +20,8 @@ resources/
 │   └── design/ds.js            # onglets, dialogue, accordéon, interrupteur, info-bulle (HTML natif + ARIA)
 └── views/
     ├── components/ds/<composant>/…   # composants Blade anonymes : <x-ds.button>, <x-ds.card.header>…
-    └── pages/components.blade.php    # la page /components
+    ├── pages/components.blade.php    # la page /components (23 composants core)
+    └── pages/components-advanced.blade.php # la page /components/advanced (23 composants étendus : select, sidebar, toast…)
 ```
 
 ## Utiliser un composant

@@ -1,0 +1,2 @@
+@props(['side' => 'bottom', 'align' => 'start', 'sideOffset' => 4, 'animationDuration' => 150])
+<div {{ $attributes->merge(['role' => 'menu', 'data-side' => $side, 'data-align' => $align, 'data-state' => 'closed', 'tabindex' => '-1', 'aria-orientation' => 'vertical', 'hidden' => '', 'style' => ('--ds-offset: ' . $sideOffset . 'px; --ds-duration: ' . $animationDuration . 'ms'), 'data-slot' => 'dropdown-content']) }}>{{ $slot }}</div>

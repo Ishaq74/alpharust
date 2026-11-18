@@ -7,4 +7,5 @@ Route::get('/pages', [PageController::class, 'index'])->name('pages.index');
 Route::get('/pages/{slug}', [PageController::class, 'show'])->name('pages.show');
 @@if ui@@
 Route::view('/components', 'pages.components')->name('components');
+Route::view('/components/advanced', 'pages.components-advanced')->name('components.advanced');
 @@end@@

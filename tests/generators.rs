@@ -676,7 +676,42 @@ fn e2e_laravel_design_kit_builds_with_vite_and_passes_its_tests() {
     for id in ["npm-build", "test"] {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
     }
+    // les 46 composants Blade (core + étendus) et la page avancée compilent tous
+    assert!(t
+        .join("resources/views/pages/components-advanced.blade.php")
+        .is_file());
+    assert!(t.join("app/View/DesignKit.php").is_file());
+    let parts = walk_count(&t.join("resources/views/components/ds"), "blade.php");
+    assert!(
+        parts >= 184,
+        "parties Blade (70 core + 114 étendues) : {parts}"
+    );
+    let cache = std::process::Command::new("php")
+        .args(["artisan", "view:cache"])
+        .current_dir(&t)
+        .output()
+        .expect("php artisan view:cache");
+    assert!(
+        cache.status.success(),
+        "view:cache : {}",
+        String::from_utf8_lossy(&cache.stderr)
+    );
     assert_lint_clean(&t);
+}
+
+fn walk_count(dir: &Path, suffix: &str) -> usize {
+    std::fs::read_dir(dir)
+        .unwrap()
+        .flatten()
+        .map(|e| {
+            let p = e.path();
+            if p.is_dir() {
+                walk_count(&p, suffix)
+            } else {
+                usize::from(p.to_string_lossy().ends_with(suffix))
+            }
+        })
+        .sum()
 }
 
 #[test]
@@ -702,6 +737,33 @@ fn e2e_wagtail_design_kit_serves_components_and_passes_its_tests() {
     for id in ["design-wire", "check", "test"] {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
     }
+    // les 46 composants Django : balises core et étendues enregistrées, page avancée rendue sans erreur
+    assert!(t.join("ds/templates/ds/components_advanced.html").is_file());
+    let probe = std::process::Command::new(t.join(".venv/bin/python"))
+        .args([
+            "manage.py",
+            "shell",
+            "-c",
+            "from ds.templatetags.ds import register; from django.test import Client; \
+             r = Client().get('/components/advanced/'); \
+             print('PROBE', len(register.tags), r.status_code, r.content.decode().count('data-slot='))",
+        ])
+        .current_dir(&t)
+        .output()
+        .expect("manage.py shell");
+    let out = String::from_utf8_lossy(&probe.stdout).to_string();
+    let n: Vec<usize> = out
+        .lines()
+        .find_map(|l| l.strip_prefix("PROBE "))
+        .unwrap_or_default()
+        .split_whitespace()
+        .filter_map(|x| x.parse().ok())
+        .collect();
+    assert!(
+        n.len() == 3 && n[0] >= 180 && n[1] == 200 && n[2] >= 250,
+        "balises / page avancée : {out} {}",
+        String::from_utf8_lossy(&probe.stderr)
+    );
     assert_lint_clean(&t);
 }
 

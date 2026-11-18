@@ -30,3 +30,21 @@ class ComponentCatalogTests(TestCase):
         html = self.client.get("/components/").content.decode()
         self.assertIn("ds/css/index.css", html)
         self.assertIn("ds/js/ds.js", html)
+
+
+class AdvancedCatalogTests(TestCase):
+    EXTENDED = ["alert-dialog", "aspect-ratio", "button-group", "carousel", "collapsible", "container", "dropdown", "dropzone", "image", "input-group", "input-otp", "item", "popover", "prose", "radio-group", "select", "sheet", "sidebar", "slider", "theme-toggle", "toast", "toggle", "video"]
+
+    def setUp(self):
+        self.html = self.client.get("/components/advanced/").content.decode()
+
+    def test_renders_the_23_extended_components(self):
+        for slot in self.EXTENDED + ["alert-dialog-content", "select-content", "select-item", "sheet-content", "sidebar-menu-button", "toast-viewport", "input-otp-slot", "carousel-next"]:
+            self.assertIn(f'data-slot="{slot}"', self.html)
+
+    def test_extended_components_keep_their_accessibility_contract(self):
+        self.assertRegex(self.html, r'role="combobox"[^>]*aria-label="Fruit"')
+        self.assertRegex(self.html, r'data-slot="slider-thumb"[^>]*role="slider"[^>]*aria-valuenow="40"')
+        self.assertRegex(self.html, r'<a [^>]*data-slot="sidebar-menu-button"[^>]*aria-current="page"')
+        self.assertIn("youtube-nocookie.com/embed/aqz-KE-bpKQ", self.html)
+        self.assertIn('<template data-toast-template="success"', self.html)

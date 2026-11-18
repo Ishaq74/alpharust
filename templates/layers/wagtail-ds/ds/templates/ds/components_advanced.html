@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load ds %}
+{# Catalogue étendu : mêmes composants, props et data-slot que la page Astro /components/advanced et la page Blade. #}
+{% block title %}Composants avancés{% endblock %}
+{% block title_suffix %}{% endblock %}
+
+{% block content %}
+<main class="ds-page">
+    <h1>Composants avancés</h1>
+    <p class="meta">
+        Suite du <a href="{% url 'ds-components' %}">catalogue</a> — kit <strong>Django</strong>. Mêmes composants, mêmes props et mêmes attributs
+        <code>data-slot</code> qu'en Astro (Starwind et CSS pur) et en Blade.
+    </p>
+
+    <section aria-labelledby="x-overlays" data-demo="overlays">
+        <h2 id="x-overlays">Fenêtres</h2>
+        <div class="row">
+            {% ds_alert_dialog %}
+                {% ds_alert_dialog_trigger as_child=True %}{% ds_button variant="error" %}Supprimer le projet{% endds_button %}{% endds_alert_dialog_trigger %}
+                {% ds_alert_dialog_content %}
+                    {% ds_alert_dialog_header %}
+                        {% ds_alert_dialog_title %}Supprimer définitivement ?{% endds_alert_dialog_title %}
+                        {% ds_alert_dialog_description %}Cette action est irréversible : le projet et ses fichiers seront effacés.{% endds_alert_dialog_description %}
+                    {% endds_alert_dialog_header %}
+                    {% ds_alert_dialog_footer %}
+                        {% ds_alert_dialog_cancel %}Annuler{% endds_alert_dialog_cancel %}
+                        {% ds_alert_dialog_action %}Supprimer{% endds_alert_dialog_action %}
+                    {% endds_alert_dialog_footer %}
+                {% endds_alert_dialog_content %}
+            {% endds_alert_dialog %}
+
+            {% ds_sheet %}
+                {% ds_sheet_trigger as_child=True %}{% ds_button variant="outline" %}Ouvrir le panneau{% endds_button %}{% endds_sheet_trigger %}
+                {% ds_sheet_content side="right" %}
+                    {% ds_sheet_header %}
+                        {% ds_sheet_title %}Paramètres{% endds_sheet_title %}
+                        {% ds_sheet_description %}Un panneau latéral construit sur la boîte de dialogue native.{% endds_sheet_description %}
+                    {% endds_sheet_header %}
+                    <div class="pad">Contenu du panneau.</div>
+                    {% ds_sheet_footer %}{% ds_sheet_close as_child=True %}{% ds_button %}Fermer{% endds_button %}{% endds_sheet_close %}{% endds_sheet_footer %}
+                {% endds_sheet_content %}
+            {% endds_sheet %}
+
+            {% ds_popover %}
+                {% ds_popover_trigger as_child=True %}{% ds_button variant="outline" %}Popover{% endds_button %}{% endds_popover_trigger %}
+                {% ds_popover_content %}
+                    {% ds_popover_header %}
+                        {% ds_popover_title %}Dimensions{% endds_popover_title %}
+                        {% ds_popover_description %}Réglez la largeur du bloc.{% endds_popover_description %}
+                    {% endds_popover_header %}
+                {% endds_popover_content %}
+            {% endds_popover %}
+
+            {% ds_dropdown %}
+                {% ds_dropdown_trigger as_child=True %}{% ds_button variant="outline" %}Menu{% endds_button %}{% endds_dropdown_trigger %}
+                {% ds_dropdown_content %}
+                    {% ds_dropdown_label %}Mon compte{% endds_dropdown_label %}
+                    {% ds_dropdown_separator %}
+                    {% ds_dropdown_item %}Profil {% ds_dropdown_shortcut %}⇧⌘P{% endds_dropdown_shortcut %}{% endds_dropdown_item %}
+                    {% ds_dropdown_item %}Facturation{% endds_dropdown_item %}
+                    {% ds_dropdown_sub %}
+                        {% ds_dropdown_sub_trigger %}Inviter{% endds_dropdown_sub_trigger %}
+                        {% ds_dropdown_sub_content %}
+                            {% ds_dropdown_item %}Par e-mail{% endds_dropdown_item %}
+                            {% ds_dropdown_item %}Par lien{% endds_dropdown_item %}
+                        {% endds_dropdown_sub_content %}
+                    {% endds_dropdown_sub %}
+                    {% ds_dropdown_separator %}
+                    {% ds_dropdown_item disabled=True %}Déconnexion{% endds_dropdown_item %}
+                {% endds_dropdown_content %}
+            {% endds_dropdown %}
+        </div>
+    </section>
+
+    <section aria-labelledby="x-inputs" data-demo="inputs">
+        <h2 id="x-inputs">Saisie</h2>
+        <div class="grid2">
+            <div class="stack">
+                <div class="stack-sm">
+                    {% ds_label for_="x-search" %}Recherche{% endds_label %}
+                    {% ds_input_group %}
+                        {% ds_input_group_addon %}{% ds_input_group_text %}https://{% endds_input_group_text %}{% endds_input_group_addon %}
+                        {% ds_input_group_input id="x-search" placeholder="exemple.com" %}
+                        {% ds_input_group_addon align="inline-end" %}{% ds_input_group_button %}Aller{% endds_input_group_button %}{% endds_input_group_addon %}
+                    {% endds_input_group %}
+                </div>
+                {% ds_input_group %}
+                    {% ds_input_group_textarea placeholder="Votre message…" aria_label="Message" %}
+                    {% ds_input_group_addon align="block-end" %}{% ds_input_group_text %}0 / 280{% endds_input_group_text %}{% endds_input_group_addon %}
+                {% endds_input_group %}
+                <div class="stack-sm">
+                    {% ds_label for_="x-otp" %}Code reçu par SMS{% endds_label %}
+                    {% ds_input_otp max_length=6 id="x-otp" name="otp" %}
+                        {% ds_input_otp_group %}
+                            {% ds_input_otp_slot index=0 %}
+                            {% ds_input_otp_slot index=1 %}
+                            {% ds_input_otp_slot index=2 %}
+                        {% endds_input_otp_group %}
+                        {% ds_input_otp_separator %}
+                        {% ds_input_otp_group %}
+                            {% ds_input_otp_slot index=3 %}
+                            {% ds_input_otp_slot index=4 %}
+                            {% ds_input_otp_slot index=5 %}
+                        {% endds_input_otp_group %}
+                    {% endds_input_otp %}
+                </div>
+            </div>
+            <div class="stack">
+                {% ds_select name="fruit" %}
+                    {% ds_select_trigger aria_label="Fruit" %}{% ds_select_value placeholder="Choisir un fruit" %}{% endds_select_trigger %}
+                    {% ds_select_content %}
+                        {% ds_select_search placeholder="Rechercher…" %}
+                        {% ds_select_group %}
+                            {% ds_select_label %}Fruits{% endds_select_label %}
+                            {% ds_select_item value="pomme" %}Pomme{% endds_select_item %}
+                            {% ds_select_item value="poire" %}Poire{% endds_select_item %}
+                            {% ds_select_item value="abricot" %}Abricot{% endds_select_item %}
+                        {% endds_select_group %}
+                        {% ds_select_separator %}
+                        {% ds_select_group %}
+                            {% ds_select_label %}Agrumes{% endds_select_label %}
+                            {% ds_select_item value="orange" %}Orange{% endds_select_item %}
+                            {% ds_select_item value="citron" disabled=True %}Citron{% endds_select_item %}
+                        {% endds_select_group %}
+                    {% endds_select_content %}
+                {% endds_select %}
+                {% ds_radio_group name="plan" default_value="pro" legend="Formule" %}
+                    <div class="row-tight">{% ds_radio_group_item value="free" id="plan-free" %}{% ds_label for_="plan-free" %}Gratuit{% endds_label %}</div>
+                    <div class="row-tight">{% ds_radio_group_item value="pro" id="plan-pro" %}{% ds_label for_="plan-pro" %}Pro{% endds_label %}</div>
+                    <div class="row-tight">{% ds_radio_group_item value="team" id="plan-team" %}{% ds_label for_="plan-team" %}Équipe{% endds_label %}</div>
+                {% endds_radio_group %}
+                {% ds_slider default_value=40 aria_label="Volume" %}
+                {% ds_slider default_value="20,80" aria_label="Fourchette de prix" %}
+                {% ds_dropzone id="x-files" multiple=True %}{% endds_dropzone %}
+            </div>
+        </div>
+    </section>
+
+    <section aria-labelledby="x-actions" data-demo="actions">
+        <h2 id="x-actions">Actions</h2>
+        <div class="row">
+            {% ds_button_group %}
+                {% ds_button variant="outline" %}Archiver{% endds_button %}
+                {% ds_button variant="outline" %}Signaler{% endds_button %}
+                {% ds_button_group_separator %}
+                {% ds_button variant="outline" %}Supprimer{% endds_button %}
+            {% endds_button_group %}
+            {% ds_button_group %}
+                {% ds_button_group_text %}Lien{% endds_button_group_text %}
+                {% ds_button variant="outline" %}Copier{% endds_button %}
+            {% endds_button_group %}
+            {% ds_toggle aria_label="Gras" variant="outline" %}<strong>B</strong>{% endds_toggle %}
+            {% ds_toggle aria_label="Italique" default_pressed=True %}<em>I</em>{% endds_toggle %}
+            {% ds_theme_toggle %}{% endds_theme_toggle %}
+            {% ds_button variant="primary" id="x-toast" %}Afficher une notification{% endds_button %}
+        </div>
+        {% ds_collapsible %}
+            {% ds_collapsible_trigger %}Afficher les détails{% endds_collapsible_trigger %}
+            {% ds_collapsible_content %}Le contenu replié est masqué (attribut <code>hidden</code>) jusqu'au clic.{% endds_collapsible_content %}
+        {% endds_collapsible %}
+    </section>
+
+    <section aria-labelledby="x-content" data-demo="content">
+        <h2 id="x-content">Contenu</h2>
+        <div class="grid2">
+            {% ds_item_group %}
+                {% ds_item variant="outline" %}
+                    {% ds_item_media variant="icon" %}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v16H4z" /></svg>
+                    {% endds_item_media %}
+                    {% ds_item_content %}
+                        {% ds_item_title %}Rapport mensuel{% endds_item_title %}
+                        {% ds_item_description %}Généré le 1er de chaque mois.{% endds_item_description %}
+                    {% endds_item_content %}
+                    {% ds_item_actions %}{% ds_button size="sm" variant="outline" %}Ouvrir{% endds_button %}{% endds_item_actions %}
+                {% endds_item %}
+                {% ds_item_separator %}
+                {% ds_item variant="muted" size="sm" %}
+                    {% ds_item_header %}En-tête{% endds_item_header %}
+                    {% ds_item_content %}{% ds_item_title %}Élément compact{% endds_item_title %}{% endds_item_content %}
+                    {% ds_item_footer %}Pied{% endds_item_footer %}
+                {% endds_item %}
+            {% endds_item_group %}
+            <div class="stack">
+                {% ds_aspect_ratio ratio=1.7777777777777777 %}<div class="ratio-fill">16 / 9</div>{% endds_aspect_ratio %}
+                <div class="img-box">{% ds_image src=logo alt="Logo du site" width="48" height="48" %}</div>
+            </div>
+        </div>
+        {% ds_carousel aria_label="Étapes" %}
+            {% ds_carousel_content %}
+                {% for s in slides %}
+                    {% ds_carousel_item %}<div class="slide">{{ forloop.counter }}. {{ s }}</div>{% endds_carousel_item %}
+                {% endfor %}
+            {% endds_carousel_content %}
+            {% ds_carousel_previous %}{% endds_carousel_previous %}
+            {% ds_carousel_next %}{% endds_carousel_next %}
+        {% endds_carousel %}
+        {% ds_container size="md" padding_y="sm" background="muted" rounded="lg" %}
+            {% ds_prose %}
+                <h3>Prose</h3>
+                <p>Typographie d'un contenu riche : <a href="#x-content">liens</a>, <code>code</code>, listes…</p>
+                <ul><li>Mesure de lecture limitée</li><li>Tailles en <em>em</em></li></ul>
+            {% endds_prose %}
+        {% endds_container %}
+        <div class="narrow">
+            {# alpharust-ignore: no-hardcoded-urls #}
+            {% ds_video src="https://www.youtube.com/watch?v=aqz-KE-bpKQ" title="Big Buck Bunny (Blender Foundation)" %}
+        </div>
+    </section>
+
+    <section aria-labelledby="x-layout" data-demo="layout">
+        <h2 id="x-layout">Barre latérale</h2>
+        <div class="sidebar-frame">
+            {% ds_sidebar_provider %}
+                {% ds_sidebar collapsible="icon" %}
+                    {% ds_sidebar_header %}<strong>Mon espace</strong>{% endds_sidebar_header %}
+                    {% ds_sidebar_content %}
+                        {% ds_sidebar_group %}
+                            {% ds_sidebar_group_label %}Navigation{% endds_sidebar_group_label %}
+                            {% ds_sidebar_group_content %}
+                                {% ds_sidebar_menu %}
+                                    {% ds_sidebar_menu_item %}
+                                        {% ds_sidebar_menu_button href="#x-layout" is_active=True tooltip="Accueil" %}
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z" /></svg>
+                                            <span>Accueil</span>
+                                        {% endds_sidebar_menu_button %}
+                                        {% ds_sidebar_menu_badge %}3{% endds_sidebar_menu_badge %}
+                                    {% endds_sidebar_menu_item %}
+                                    {% ds_sidebar_menu_item %}
+                                        {% ds_sidebar_menu_button tooltip="Projets" %}
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h18v13H3zM3 7l3-4h6l2 4" /></svg>
+                                            <span>Projets</span>
+                                        {% endds_sidebar_menu_button %}
+                                        {% ds_sidebar_menu_action show_on_hover=True aria_label="Ajouter un projet" %}+{% endds_sidebar_menu_action %}
+                                        {% ds_sidebar_menu_sub %}
+                                            {% ds_sidebar_menu_sub_item %}{% ds_sidebar_menu_sub_button href="#x-layout" is_active=True %}Site vitrine{% endds_sidebar_menu_sub_button %}{% endds_sidebar_menu_sub_item %}
+                                            {% ds_sidebar_menu_sub_item %}{% ds_sidebar_menu_sub_button href="#x-layout" %}Boutique{% endds_sidebar_menu_sub_button %}{% endds_sidebar_menu_sub_item %}
+                                        {% endds_sidebar_menu_sub %}
+                                    {% endds_sidebar_menu_item %}
+                                    {% ds_sidebar_menu_item %}{% ds_sidebar_menu_skeleton show_icon=True width="70%" %}{% endds_sidebar_menu_item %}
+                                {% endds_sidebar_menu %}
+                            {% endds_sidebar_group_content %}
+                        {% endds_sidebar_group %}
+                    {% endds_sidebar_content %}
+                    {% ds_sidebar_separator %}
+                    {% ds_sidebar_footer %}{% ds_sidebar_input placeholder="Filtrer…" aria_label="Filtrer" %}{% endds_sidebar_footer %}
+                    {% ds_sidebar_rail %}
+                {% endds_sidebar %}
+                {% ds_sidebar_inset %}
+                    <div class="inset-head">{% ds_sidebar_trigger %}<span>Contenu principal — <kbd>Ctrl</kbd> + <kbd>B</kbd> replie la barre.</span></div>
+                {% endds_sidebar_inset %}
+            {% endds_sidebar_provider %}
+        </div>
+    </section>
+
+    <section aria-labelledby="x-toasts" data-demo="toasts">
+        <h2 id="x-toasts">Notifications</h2>
+        <div class="toast-sample">
+            {% ds_toast_item variant="success" %}
+                {% ds_toast_title variant="success" %}Enregistré{% endds_toast_title %}
+                {% ds_toast_description %}Vos modifications sont en ligne.{% endds_toast_description %}
+            {% endds_toast_item %}
+        </div>
+        {% ds_toaster position="bottom-right" %}{% endds_toaster %}
+    </section>
+
+</main>
+
+    <script>
+        document.getElementById('x-toast')?.addEventListener('click', () => {
+            window.__starwind__.toast.add({ title: 'Enregistré', description: 'Vos modifications sont en ligne.', variant: 'success' });
+        });
+    </script>
+
+    <style>
+        .ds-page { max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--space-4); }
+        .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+        .row-tight { display: flex; align-items: center; gap: var(--space-2); }
+        .grid2 { display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); margin-bottom: var(--space-6); }
+        .stack { display: grid; gap: var(--space-4); align-content: start; }
+        .stack-sm { display: grid; gap: var(--space-2); }
+        .narrow { max-width: 28rem; }
+        .pad { padding: 0 1rem; }
+        .ratio-fill { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 0.5rem; background: linear-gradient(135deg, var(--brand), color-mix(in oklab, var(--brand) 35%, white)); color: var(--brand-contrast); font-weight: 600; }
+        .img-box img { width: 3rem; height: 3rem; }
+        .slide { display: grid; place-items: center; height: 8rem; border: 1px solid var(--border, #d0d4de); border-radius: 0.5rem; font-size: 1.25rem; font-weight: 600; }
+        .sidebar-frame { position: relative; height: 24rem; overflow: hidden; border: 1px solid var(--border, #d0d4de); border-radius: 0.75rem; transform: translateZ(0); }
+        .sidebar-frame [data-slot='sidebar-provider'] { min-height: 100%; height: 100%; }
+        .inset-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); }
+        .toast-sample { position: relative; max-width: 24rem; }
+        section { margin-bottom: var(--space-8); }
+    </style>
+{% endblock %}

@@ -116,7 +116,21 @@
 [data-slot='sidebar-menu-skeleton'] > [data-sidebar='menu-skeleton-icon'] { width: 1rem; height: 1rem; }
 [data-slot='sidebar-menu-skeleton'] > [data-sidebar='menu-skeleton-text'] { flex: 1; max-width: var(--skeleton-width, 70%); height: 1rem; }
 [data-slot='sidebar-separator'] { height: 1px; margin: 0 0.5rem; background: var(--border); }
-[data-slot='sidebar-input'] { height: 2.25rem; }
+/* champ autonome : même allure que [data-slot='input'] sans dépendre d'un reset de formulaire du site */
+[data-slot='sidebar-input'] {
+  width: 100%;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--input-border-radius, var(--radius, 0.5rem));
+  box-shadow: none;
+}
+[data-slot='sidebar-input']::placeholder { color: var(--text-muted); }
+[data-slot='sidebar-input']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
 [data-slot='sidebar-rail'] { position: absolute; inset-block: 0; inset-inline-end: -0.5rem; z-index: 2; width: 1rem; padding: 0; background: transparent; border: 0; cursor: ew-resize; }
 [data-slot='sidebar-rail']:hover::after { content: ''; position: absolute; inset-block: 0; left: 50%; width: 2px; background: var(--border); }
 [data-slot='sidebar-trigger'] {

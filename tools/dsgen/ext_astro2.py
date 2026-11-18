@@ -430,7 +430,7 @@ type Props = Omit<HTMLAttributes<"button">, "role" | "type"> & {{
   size?: "sm" | "md" | "lg";
 }};
 
-const {{ size = "md", class: className, ...rest }} = Astro.props;
+const {{ size = "md", class: className, "aria-label": ariaLabel = "Select field", ...rest }} = Astro.props;
 ---
 
 <button
@@ -438,7 +438,7 @@ const {{ size = "md", class: className, ...rest }} = Astro.props;
   type="button"
   role="combobox"
   aria-haspopup="listbox"
-  aria-label="Select field"
+  aria-label={{ariaLabel}}
   aria-expanded="false"
   data-state="closed"
   data-size={{size}}

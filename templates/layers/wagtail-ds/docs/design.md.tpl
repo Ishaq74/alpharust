@@ -8,7 +8,8 @@ une seule source pour les jetons et le CSS, un même balisage (`data-slot`, `dat
 ```text
 ds/                              # application Django « ds » (INSTALLED_APPS)
 ├── templatetags/ds.py           # balises {% ds_button %}, {% ds_card_header %}…
-├── templates/ds/components.html # la page /components/
+├── templates/ds/components.html # la page /components/ (23 composants core)
+├── templates/ds/components_advanced.html # la page /components/advanced/ (23 composants étendus)
 ├── views.py  urls.py  tests.py
 └── static/ds/
     ├── css/

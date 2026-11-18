@@ -8,6 +8,7 @@
     <p class="meta">
         Catalogue du kit <strong>Blade</strong> (<code>resources/views/components/ds</code>). L'allure se règle dans
         <code>resources/css/design/tokens/components.css</code>, <code>resources/css/design/components/*.css</code> et <code>themes/theme.css</code>.
+        Les 23 composants étendus (fenêtres, saisie, barre latérale, notifications…) sont sur la page <a href="{{ url('/components/advanced') }}">composants avancés</a>.
     </p>
 
     <section aria-labelledby="c-buttons" data-demo="button">

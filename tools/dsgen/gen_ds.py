@@ -61,7 +61,8 @@ def astro_simple(p):
         head = f'const Tag = Astro.props.href ? "a" : "{tag}";\n'
         open_t = f'<Tag class={{className}}{attrs}'
         # type="button" seulement pour <button>
-        open_t = f'<Tag class={{className}} type={{Astro.props.href ? undefined : "button"}} data-slot="{p["slot"]}"{dattrs} {{...rest}}>'
+        typ = ' type={Astro.props.href ? undefined : "button"}' if tag == 'button' else ''
+        open_t = f'<Tag class={{className}}{typ} data-slot="{p["slot"]}"{dattrs} {{...rest}}>'
         close_t = '</Tag>'
     else:
         head = ''
@@ -831,6 +832,10 @@ print('blade+django ok')
 # ---------- composants étendus (CSS pur, Astro) ----------
 exec(open(os.path.join(HERE, 'ext_write.py')).read())
 
+# ---------- composants étendus côté serveur (Blade, Django) ----------
+ext = sorted(d for d in os.listdir(ATOMIC) if os.path.isdir(f'{ATOMIC}/{d}') and d not in parts_by_comp)
+exec(open(os.path.join(HERE, 'ext_server.py')).read())
+
 # ---------- catalog.toml ----------
 import glob
 slot_of = {}
@@ -875,7 +880,7 @@ def slots_in(d):
 
 lines += ['# Composants « étendus » : atomes Starwind ET équivalents CSS pur (Astro) aux mêmes noms, props et data-slot.',
           '# Leur style vit dans design-kit/css/components (donc aussi servi à Laravel et Wagtail) ;',
-          '# Blade et Django couvrent le catalogue core. Tout dossier d\'atomes doit être core ou css (test de parité).', '']
+          '# Blade et Django couvrent les 46 composants. Tout dossier d\'atomes doit être core ou css (test de parité).', '']
 for comp in ext:
     a, c = slots_in(f'{ATOMIC}/{comp}'), slots_in(f'{OUT_ASTRO}/{comp}')
     lines += ['[[component]]', f'name = "{comp}"', 'kind = "css"',

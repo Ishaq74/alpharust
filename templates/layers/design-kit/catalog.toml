@@ -148,7 +148,7 @@ slots = ["tooltip", "tooltip-content", "tooltip-trigger"]
 
 # Composants « étendus » : atomes Starwind ET équivalents CSS pur (Astro) aux mêmes noms, props et data-slot.
 # Leur style vit dans design-kit/css/components (donc aussi servi à Laravel et Wagtail) ;
-# Blade et Django couvrent le catalogue core. Tout dossier d'atomes doit être core ou css (test de parité).
+# Blade et Django couvrent les 46 composants. Tout dossier d'atomes doit être core ou css (test de parité).
 
 [[component]]
 name = "alert-dialog"

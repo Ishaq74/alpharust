@@ -9,6 +9,8 @@ exclude = [
   "templates/**",
   # sources des atomes CSS pur (texte de templates : SVG xmlns, URL d'embed vidéo d'atomic)
   "tools/dsgen/ext_astro*.py",
+  # gabarits Blade/Django générés (mêmes SVG et URL d'embed) et liens vers la doc officielle de Blade et Django
+  "tools/dsgen/ext_server.py",
   "sites/**",
   "docs/screenshots/**",
 ]

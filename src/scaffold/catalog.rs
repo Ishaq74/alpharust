@@ -190,8 +190,10 @@ mod tests {
     }
 
     #[test]
-    fn css_astro_blade_and_django_cover_every_slot() {
-        let comps = core();
+    fn css_astro_blade_and_django_cover_every_slot_of_the_46_components() {
+        // core et étendus : un dossier Blade par composant, chaque slot posé par Blade et par Django
+        let comps = catalog();
+        assert_eq!(comps.len(), 46);
         let django = layer_tree("ui-django");
         for c in &comps {
             let astro = concat_layer_dir("ui-css", &format!("src/components/atoms/{}/", c.name));
@@ -206,8 +208,20 @@ mod tests {
                     quoted(&astro, s) || astro.contains(&format!("data-slot=\"{s}\"")),
                     "Astro CSS : slot {s}"
                 );
-                assert!(quoted(&blade, s), "Blade : slot {s}");
-                assert!(quoted(&django, s), "Django : slot {s}");
+                // sidebar-mobile : panneau Sheet (data-slot="sheet") repéré par data-sidebar-mobile, comme l'atome
+                let marker = |t: &str| {
+                    t.contains(&format!("'data-{s}'")) || t.contains(&format!("data-{s}=\""))
+                };
+                assert!(
+                    quoted(&blade, s) || marker(&blade),
+                    "Blade {} : slot {s}",
+                    c.name
+                );
+                assert!(
+                    quoted(&django, s) || marker(&django),
+                    "Django {} : slot {s}",
+                    c.name
+                );
             }
         }
     }
@@ -322,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn catalogue_pages_show_every_core_component_in_all_four_targets() {
+    fn catalogue_pages_show_all_46_components_in_all_four_targets() {
         let comps = core();
         let sw = astro(UiKit::Starwind);
         let cc = astro(UiKit::Concordia);
@@ -366,6 +380,32 @@ mod tests {
         assert!(
             page_sw.contains("/components/advanced") && page_cc.contains("/components/advanced")
         );
+        // côté serveur : page « composants avancés » Blade et Django, liée depuis /components
+        let adv_lv = fs::read_to_string(
+            lv.path()
+                .join("resources/views/pages/components-advanced.blade.php"),
+        )
+        .unwrap();
+        let adv_wg =
+            fs::read_to_string(wg.path().join("ds/templates/ds/components_advanced.html")).unwrap();
+        for c in catalog().iter().filter(|c| !c.is_core()) {
+            assert!(
+                adv_lv.contains(&format!("<x-ds.{}", c.name)),
+                "Laravel avancé : {}",
+                c.name
+            );
+            assert!(
+                adv_wg.contains(&format!("{{% ds_{}", c.name.replace('-', "_"))),
+                "Wagtail avancé : {}",
+                c.name
+            );
+        }
+        assert!(page_lv.contains("/components/advanced"));
+        assert!(page_wg.contains("ds-components-advanced"));
+        let routes = fs::read_to_string(lv.path().join("routes/pages.php")).unwrap();
+        assert!(routes.contains("pages.components-advanced"));
+        let urls = fs::read_to_string(wg.path().join("ds/urls.py")).unwrap();
+        assert!(urls.contains("AdvancedComponentsView"));
     }
 
     #[test]
@@ -535,6 +575,7 @@ mod tests {
         let base = fs::read_to_string(p.join("demo/templates/base.html")).unwrap();
         assert_eq!(base.matches("ds/css/index.css").count(), 1);
         assert_eq!(base.matches("ds/js/ds.js").count(), 1);
+        assert_eq!(base.matches("ds/favicon.svg").count(), 1);
         // un squelette modifié est signalé, jamais patché à l'aveugle
         fs::write(p.join("demo/urls.py"), "urlpatterns = []\n").unwrap();
         assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo").is_err());

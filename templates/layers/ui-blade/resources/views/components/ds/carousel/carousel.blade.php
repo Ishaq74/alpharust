@@ -1,0 +1,2 @@
+@props(['orientation' => 'horizontal', 'opts' => '{}', 'autoInit' => true, 'ariaLabel' => null])
+<div {{ $attributes->merge(['role' => 'region', 'aria-roledescription' => 'carousel', 'aria-label' => ($ariaLabel ?: 'Carousel'), 'data-axis' => (($orientation === 'horizontal') ? 'x' : 'y'), 'data-opts' => $opts, 'data-auto-init' => ($autoInit ? 'true' : 'false'), 'data-slot' => 'carousel']) }}>{{ $slot }}</div>

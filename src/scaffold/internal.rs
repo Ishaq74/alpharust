@@ -690,7 +690,13 @@ pub fn patch_wagtail_design(target: &Path, name: &str) -> Result<String> {
         "{# Global javascript #}",
         "        <script type=\"text/javascript\" src=\"{% static 'ds/js/ds.js' %}\" defer></script>\n",
     )?;
-    Ok("ds branchée : INSTALLED_APPS, /components/, ds/css/index.css, ds/js/ds.js".into())
+    // icône du site : évite la requête /favicon.ico (404) sur chaque page
+    edit(
+        format!("{pkg}/templates/base.html"),
+        "{# Global stylesheets #}",
+        "        <link rel=\"icon\" type=\"image/svg+xml\" href=\"{% static 'ds/favicon.svg' %}\">\n",
+    )?;
+    Ok("ds branchée : INSTALLED_APPS, /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.

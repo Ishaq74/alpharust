@@ -31,13 +31,14 @@ export const selectTrigger = tv({
   },
 });
 
-const { class: className, size, ...rest } = Astro.props;
+// le libellé accessible passé par l'appelant (aria-label) l'emporte sur le libellé générique
+const { class: className, size, "aria-label": ariaLabel = "Select field", ...rest } = Astro.props;
 ---
 
 <button
   class={selectTrigger({ size, class: className })}
   type="button"
-  aria-label="Select field"
+  aria-label={ariaLabel}
   aria-expanded="false"
   data-state="closed"
   {...rest}
