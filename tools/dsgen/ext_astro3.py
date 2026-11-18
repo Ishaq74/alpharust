@@ -266,6 +266,7 @@ const skeletonWidth = width ?? `${{Math.floor(Math.random() * 40) + 50}}%`;
 
 <div class={{className}} data-sidebar="menu-skeleton" {{...rest}} data-slot="sidebar-menu-skeleton">
   {{showIcon && <Skeleton data-sidebar="menu-skeleton-icon" />}}
+  {{/* alpharust-ignore: no-inline-styles — largeur aléatoire par instance, comme l'atome d'atomic */}}
   <Skeleton data-sidebar="menu-skeleton-text" style={{`--skeleton-width: ${{skeletonWidth}}`}} />
 </div>
 '''

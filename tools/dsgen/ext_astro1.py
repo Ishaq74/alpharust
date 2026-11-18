@@ -125,6 +125,7 @@ type Props = HTMLAttributes<"div"> & {{
 const {{ ratio = 1, as: Tag = "div", class: className, ...rest }} = Astro.props;
 ---
 
+{{/* alpharust-ignore: no-inline-styles — padding calculé par instance, comme l'atome d'atomic */}}
 <div style={{{{ "--ds-ratio": String(ratio), paddingBottom: `${{100 / ratio}}%` }}}} data-slot="aspect-ratio-wrapper">
   <Tag class={{className}} data-slot="aspect-ratio" {{...rest}}>
     <slot />
