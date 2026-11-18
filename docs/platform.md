@@ -91,8 +91,8 @@ source (`templates/layers/design-kit`) alimente quatre cibles :
 |-------|--------|----|-------------|
 | Astro + Starwind | `--ui starwind` | `src/components/atoms/` (Tailwind) | `<Button variant="primary">` |
 | Astro + CSS | `--ui concordia` | `src/components/atoms/` (CSS pur) + `src/styles/components/*.css` + `src/scripts/ds.js` | `<Button variant="primary">` (mêmes imports `@atoms/…`) |
-| Laravel | `generate laravel … --ui css` | `resources/views/components/ds/`, `resources/css/design/`, `resources/js/design/ds.js` | `<x-ds.button variant="primary">` ; page `/components` |
-| Wagtail | `generate wagtail … --ui css` | application `ds/` (`templatetags/ds.py`, `static/ds/`) | `{% ds_button variant="primary" %}…{% endds_button %}` ; page `/components/` |
+| Laravel | `generate laravel … --ui css` | `resources/views/components/ds/`, `resources/css/design/`, `resources/js/design/ds.js` | `<x-ds.button variant="primary">`, `<x-ds.select.trigger>` ; pages `/components` et `/components/advanced` |
+| Wagtail | `generate wagtail … --ui css` | application `ds/` (`templatetags/ds.py`, `static/ds/`) | `{% ds_button variant="primary" %}…{% endds_button %}`, `{% ds_select_trigger %}` ; pages `/components/` et `/components/advanced/` |
 
 Laravel : Vite + Tailwind v4 (`@tailwindcss/vite`) du squelette officiel, kit dans la couche `ds` ; `npm run build` est exécuté par
 la génération, puis `php artisan test` (dont `ComponentsTest`). Wagtail : fichiers statiques Django, sans outil de build ; `INSTALLED_APPS`,
@@ -105,8 +105,10 @@ Les **46** composants d'atomic existent en CSS pur pour Astro (23 « core » + 2
 props, `data-slot` et événements Starwind (`starwind-select:change`, `window.__starwind__.toast`…). Ils sont **générés** par
 `tools/dsgen/gen_ds.py` (CSS pur Astro, Blade, Django et `catalog.toml`) ; la CI régénère et échoue sur tout écart. Pour changer
 un composant : modifier `tools/dsgen/` (ou la feuille `design-kit/css/components/<nom>.css`), lancer `python3 tools/dsgen/gen_ds.py`,
-puis `cargo test catalog`. Limites : Blade et Django couvrent les 23 composants core (les feuilles des 23 autres sont livrées) ;
-`--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
+puis `cargo test catalog`. Blade et Django couvrent les **46** composants : les 23 étendus sont décrits une fois dans
+`tools/dsgen/ext_server.py` et rendus dans les deux langages (props en camelCase côté Blade — `:as-child="true"`,
+`:default-value="[20, 80]"` —, en snake_case côté Django — `as_child=True`, `default_value="20,80"`). Les calculs du curseur et
+de l'intégration YouTube vivent dans `app/View/DesignKit.php` (Laravel) et dans `ds.py` (Django). Limites : `--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
 
 ## Starwind : ce qui vient d'atomic
 

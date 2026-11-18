@@ -34,7 +34,10 @@ dans des projets **Laravel** et **Wagtail** : il faut une source unique, pas tro
 
    Les composants Astro-CSS, Blade et Django sont produits par le générateur versionné **`tools/dsgen/gen_ds.py`** à partir
    des atomes d'atomic (mêmes noms de composants, de sous-composants et de props) : `spec.py` décrit le catalogue core,
-   `ext_astro*.py` les 23 composants étendus. Les fichiers générés sont versionnés dans `templates/layers/` et la CI
+   `ext_astro*.py` les 23 composants étendus côté Astro et `ext_server.py` leurs gabarits Blade et Django : chaque partie
+   est décrite **une fois** (représentation intermédiaire : éléments, attributs, conditions, boucles, `<slot>`), puis rendue
+   en composant Blade anonyme (`@props`, `$attributes->merge`) et en balise Django (`simple_block_tag` / `simple_tag`) ;
+   les parties simples sont dérivées automatiquement de l'atome CSS pur. Les fichiers générés sont versionnés dans `templates/layers/` et la CI
    régénère puis échoue sur tout écart (`git diff --exit-code templates/layers`) : aucune copie ne peut diverger.
    Comme dans atomic, `{...rest}` précède `data-slot` sur les éléments HTML (Astro ne fusionne pas les attributs en double
    et le navigateur garde le premier) : un parent peut surcharger le slot (`InputGroupInput` → `input-group-control`).
@@ -44,13 +47,15 @@ dans des projets **Laravel** et **Wagtail** : il faut une source unique, pas tro
    élémentaire de Concordia, p. ex. `input:not([type=…])`, aurait sinon gagné).
 5. **Même page de démonstration partout** : `/components` (Astro Starwind et Concordia : un seul gabarit `ui-catalog`),
    `/components` (Laravel), `/components/` (Wagtail), avec les mêmes sections (`data-demo=…`). Les composants étendus ont
-   leur page `/components/advanced`, elle aussi commune aux deux kits Astro.
+   leur page `/components/advanced` (Astro, Laravel) et `/components/advanced/` (Wagtail), mêmes sections, liée depuis
+   `/components`.
 5 bis. **Composants étendus en CSS pur** : mêmes fichiers que l'atome Starwind (y compris `index.ts`, `*Types.ts`,
    `toast-manager.ts`, `carousel-script.ts`), mêmes props, mêmes `data-slot`, mêmes événements
    (`starwind-select:change`, `starwind-toggle:change`, `starwind:value-change`, `starwind-input-otp:change`,
    `slider-change`/`slider-commit`, `theme:change`, `sidebar:change`, gestionnaire `window.__starwind__.toast`). Seuls les
    objets `*Variants` (fonctions tailwind-variants) ne sont pas exportés. Leurs feuilles vivent dans le design kit, donc
-   Laravel et Wagtail les reçoivent aussi ; Blade et Django couvrent le catalogue core.
+   Laravel et Wagtail les reçoivent aussi, avec les **46** composants en Blade (`<x-ds.select.trigger>`) et en balises Django
+   (`{% ds_select_trigger %}`), même balisage que l'atome (vérifié attribut par attribut à l'exécution).
 6. **Laravel** (squelette sans Breeze) : composants Blade anonymes ; Vite + Tailwind v4 par le plugin `@tailwindcss/vite`
    déjà présent dans le squelette ; le kit est importé dans une couche `ds` (`@layer theme, base, ds, components, utilities;`),
    donc après le preflight de Tailwind et avant ses utilitaires. `@vite` n'est émis que si `public/build/manifest.json` ou
