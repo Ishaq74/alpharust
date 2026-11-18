@@ -1,6 +1,7 @@
 # Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.
 from django.db import models
 from django.template.response import TemplateResponse
+from django.utils.translation import gettext
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, InlinePanel, MultiFieldPanel
 from wagtail.contrib.forms.models import AbstractEmailForm, AbstractFormField
@@ -31,7 +32,7 @@ class ContactPage(AbstractEmailForm):
             "E-mail de notification",
         ),
     ]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "page de contact"
@@ -39,8 +40,8 @@ class ContactPage(AbstractEmailForm):
     def get_form(self, *args, **kwargs):
         form = super().get_form(*args, **kwargs)
         for field in form.fields.values():
-            field.error_messages["required"] = "Ce champ est obligatoire."
-            field.error_messages["invalid"] = "Adresse e-mail invalide."
+            field.error_messages["required"] = gettext("Ce champ est obligatoire.")
+            field.error_messages["invalid"] = gettext("Adresse e-mail invalide.")
         return form
 
     def contact_fields(self, form):

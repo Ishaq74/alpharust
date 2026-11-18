@@ -13,6 +13,7 @@ pub mod layer;
 pub mod platform;
 pub mod projects;
 pub mod rust;
+pub mod site;
 pub mod theme;
 pub mod tools;
 pub mod wagtail;
@@ -247,8 +248,15 @@ pub enum Internal {
     StarwindConfig,
     /// Copie le design kit partagé (`templates/layers/design-kit`) vers l'arborescence du framework.
     DesignKit(DesignTarget),
-    /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue).
-    WagtailDesign,
+    /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue)
+    /// et les langues du site (`LANGUAGES`) : (kit Starwind, codes des langues retenues).
+    WagtailDesign(bool, Vec<String>),
+    /// Wagtail + Starwind : télécharge la CLI autonome de Tailwind (`.tailwind/`) et compile `tailwind/input.css`.
+    TailwindStandalone,
+    /// Compile les catalogues gettext (`locale/*/LC_MESSAGES/*.po` -> `.mo`) sans GNU gettext.
+    CompileMessages,
+    /// Site vitrine : jeu d'icônes Iconify (`--icons`) réécrit dans `icons.json` (MDI par défaut).
+    SiteIcons(String),
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,
@@ -689,6 +697,16 @@ pub fn next_steps(req: &Request, target: &Path) -> Vec<String> {
         ],
         Options::Rust(_) => vec![format!("cd {dir}"), "cargo run".into(), "cargo test".into()],
     }
+}
+
+/// Étape `--icons <jeu>` commune aux trois frameworks (site vitrine).
+pub(crate) fn site_icons_step(set: &str) -> Step {
+    Step::internal(
+        "icons",
+        Phase::Layer,
+        &format!("Jeu d'icônes du site : {set} (icons.json, repli MDI)"),
+        Internal::SiteIcons(set.to_string()),
+    )
 }
 
 #[cfg(test)]

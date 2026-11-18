@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('services', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique();
+            $table->string('locale', 8)->default('fr');
+            $table->string('slug');
             $table->string('title');
             $table->text('summary');
             $table->string('icon');
@@ -19,6 +20,7 @@ return new class extends Migration
             $table->longText('body');
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
+            $table->unique(['locale', 'slug']);
         });
     }
 

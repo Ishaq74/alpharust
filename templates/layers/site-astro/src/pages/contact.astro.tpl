@@ -9,15 +9,16 @@ import { type ContactState, getPage, getSite, validateContact } from '@lib/site'
 // (Astro vérifie l'origine des POST : security.checkOrigin).
 export const prerender = false;
 
+const locale = 'fr';
 let state: ContactState = {};
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData();
   const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
-  const errors = validateContact(values);
+  const errors = validateContact(values, locale);
   state = Object.keys(errors).length ? { values, errors } : { sent: true };
   if (Object.keys(errors).length) Astro.response.status = 422;
 }
-const page = await getPage('contact', state);
+const page = await getPage('contact', state, locale);
 const site = await getSite(Astro.url.pathname);
 ---
 

@@ -9,17 +9,19 @@ from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
 from wagtail.admin.panels import FieldPanel, InlinePanel, PageChooserPanel
 from wagtail.contrib.settings.models import BaseGenericSetting, register_setting
-from wagtail.models import Orderable, Page
+from wagtail.models import Orderable, Page, TranslatableMixin
 from wagtail.snippets.models import register_snippet
 
 
 @register_snippet
-class NavigationMenu(ClusterableModel):
+class NavigationMenu(TranslatableMixin, ClusterableModel):
+    """Menu traduisible (internationalisation de Wagtail) : une copie par langue, même ``translation_key``."""
+
     title = models.CharField("titre", max_length=255, help_text="Nom du menu, affiché comme titre de colonne dans le pied de page.")
 
     panels = [FieldPanel("title"), InlinePanel("items", label="Éléments du menu")]
 
-    class Meta:
+    class Meta(TranslatableMixin.Meta):
         verbose_name = "menu de navigation"
         verbose_name_plural = "menus de navigation"
 

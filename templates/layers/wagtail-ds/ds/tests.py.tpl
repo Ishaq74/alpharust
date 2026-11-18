@@ -28,7 +28,11 @@ class ComponentCatalogTests(TestCase):
 
     def test_design_assets_are_linked(self):
         html = self.client.get("/components/").content.decode()
+@@if starwind@@
+        self.assertIn("css/tailwind.css", html)  # kit Starwind compilé par la CLI Tailwind
+@@else@@
         self.assertIn("ds/css/index.css", html)
+@@end@@
         self.assertIn("ds/js/ds.js", html)
 
 

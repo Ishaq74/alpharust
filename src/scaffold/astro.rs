@@ -245,6 +245,10 @@ pub struct AstroOptions {
     pub docker: bool,
     /// Workflow GitHub Actions (check, build, tests).
     pub ci: bool,
+    /// Site vitrine : jeu d'icônes Iconify (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
+    /// Site vitrine : langues (`--langs`, vide = celles de `--i18n`, sinon fr,en) ; routage i18n d'Astro.
+    pub langs: Vec<String>,
 }
 
 impl Default for AstroOptions {
@@ -266,6 +270,8 @@ impl Default for AstroOptions {
             css_variants: vec![],
             docker: false,
             ci: false,
+            icons: None,
+            langs: vec![],
         }
     }
 }
@@ -378,8 +384,56 @@ impl AstroOptions {
         self.ssr() || self.vitrine()
     }
 
+    /// Langues demandées pour le site vitrine : `--langs`, à défaut celles de `--i18n` plus le français (langue
+    /// source du contenu, toujours servie) ; vide = fr,en.
+    pub fn site_langs(&self) -> Vec<String> {
+        if !self.langs.is_empty() || self.i18n.is_empty() {
+            return self.langs.clone();
+        }
+        let mut v: Vec<String> = self
+            .i18n
+            .iter()
+            .filter(|l| super::site::find(l).is_some())
+            .cloned()
+            .collect();
+        if !v.iter().any(|l| l == super::site::default_lang()) {
+            v.insert(0, super::site::default_lang().to_string());
+        }
+        v
+    }
+
+    /// Langues du routage i18n d'Astro (astro.config) : celles du site vitrine, sinon celles de `--i18n`.
+    pub fn routing_locales(&self) -> Vec<String> {
+        if self.vitrine() {
+            super::site::codes(&self.site_langs())
+        } else {
+            self.i18n.clone()
+        }
+    }
+
     pub fn validate(&self, install: bool) -> Result<()> {
         self.validate_platform(install)?;
+        if (self.icons.is_some() || !self.langs.is_empty()) && !self.vitrine() {
+            bail!("--icons et --langs s'appliquent au site vitrine : ajoutez --ui starwind ou --ui concordia");
+        }
+        if self.vitrine() {
+            super::site::validate(&self.site_langs())?;
+            if !self.langs.is_empty() && !self.i18n.is_empty() {
+                let (mut a, mut b) = (self.langs.clone(), self.i18n.clone());
+                a.sort();
+                b.sort();
+                if a != b {
+                    bail!("--langs et --i18n désignent les langues du même site : donnez les mêmes (ou --langs seul)");
+                }
+            }
+        }
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
+            }
+        }
         for i in &self.integrations {
             if !INTEGRATIONS.iter().any(|(n, _)| n == i) {
                 bail!(
@@ -593,6 +647,7 @@ impl AstroOptions {
             ("site", self.site.is_some()),
             ("vitrine", self.vitrine()),
         ]);
+        v.extend(super::site::flags(&self.site_langs()));
         v
     }
 }
@@ -785,6 +840,13 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         "Appliquer la couche AlphaRust (structure, thème, docs, config qualité)",
         Internal::Layer(layers),
     ));
+    if let Some(set) = o
+        .icons
+        .as_ref()
+        .filter(|s| o.vitrine() && s.as_str() != "mdi")
+    {
+        steps.push(super::site_icons_step(set));
+    }
     if o.template == Template::Alpharust {
         // Design kit partagé (Astro, Laravel, Wagtail) : jetons et composants CSS copiés, jamais réécrits.
         let (target, label) = match o.ui {
@@ -835,7 +897,7 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "Configurer astro.config (rendu serveur, i18n, sécurité)",
             Internal::AstroConfig {
                 ssr: o.ssr(),
-                locales: o.i18n.clone(),
+                locales: o.routing_locales(),
                 icons: o.ui != UiKit::None,
             },
         ));

@@ -5,9 +5,10 @@ Chaque bloc expose à son gabarit (streams/sections/<type>.html) une variable ``
 aux autres frameworks ; les blocs « services » et « posts » y ajoutent les pages correspondantes.
 """
 from wagtail import blocks
+from wagtail.models import Locale
 from wagtail.rich_text import RichText
 
-from layout.context_processors import href
+from layout.context_processors import href, localize
 
 ICONS = [("accessibility", "accessibility"), ("code", "code"), ("heart", "heart"), ("leaf", "leaf"), ("pencil", "pencil"), ("shield", "shield"), ("users", "users"), ("zap", "zap")]
 
@@ -27,7 +28,7 @@ def plain(value):
         if set(value.keys()) == {"label", "page", "url"}:
             if not value.get("label"):
                 return None
-            target = value["page"].url if value.get("page") else value.get("url")
+            target = value["page"].localized.url if value.get("page") else localize(value.get("url"))
             return {"label": value["label"], "url": href(target)}
         return {k: plain(v) for k, v in value.items()}
     if isinstance(value, (list, blocks.list_block.ListValue)):
@@ -99,7 +100,7 @@ class ServicesBlock(SectionBlock):
         from service.models import ServicePage
 
         s = plain(value)
-        pages = ServicePage.objects.live().order_by("path")
+        pages = ServicePage.objects.live().filter(locale=Locale.get_active()).order_by("path")
         if s.get("limit"):
             pages = pages[: s["limit"]]
         s["items"] = [p.card() for p in pages]
@@ -139,7 +140,7 @@ class PostsBlock(SectionBlock):
         from blog.models import BlogPage
 
         s = plain(value)
-        pages = BlogPage.objects.live().order_by("-date")
+        pages = BlogPage.objects.live().filter(locale=Locale.get_active()).order_by("-date")
         if s.get("limit"):
             pages = pages[: s["limit"]]
         s["items"] = [p.card() for p in pages]

@@ -1,11 +1,15 @@
 # Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.
 from django.db import models
 from django.template.defaultfilters import date as date_filter
+from django.utils.translation import get_language, gettext
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Page
 
 from streams.blocks import SECTION_BLOCKS
+
+# Format des dates d'articles par langue (filtre date de Django ; mêmes rendus que Carbon et Intl).
+DATE_FORMATS = {'fr': 'j F Y', 'en': 'F j, Y', 'es': 'j \\d\\e F \\d\\e Y', 'ar': 'j F Y'}
 
 
 class BlogIndexPage(Page):
@@ -13,7 +17,7 @@ class BlogIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["blog.BlogPage"]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "index du blog"
@@ -45,12 +49,13 @@ class BlogPage(Page):
 
     @property
     def date_label(self):
-        return date_filter(self.date, "j F Y")
+        return date_filter(self.date, DATE_FORMATS.get((get_language() or "fr").split("-")[0], "j F Y"))
 
     @property
     def crumbs(self):
         parent = self.get_parent()
-        return [{"label": "Accueil", "url": "/"}, {"label": parent.title, "url": parent.url}]
+        home = parent.get_parent()
+        return [{"label": gettext("Accueil"), "url": home.url}, {"label": parent.title, "url": parent.url}]
 
     @property
     def back_url(self):

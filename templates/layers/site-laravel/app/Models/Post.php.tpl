@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
 {
-    protected $fillable = ['slug', 'title', 'excerpt', 'category', 'author', 'published_at', 'body'];
+    protected $fillable = ['locale', 'slug', 'title', 'excerpt', 'category', 'author', 'published_at', 'body'];
 
     protected function casts(): array
     {
@@ -24,7 +24,7 @@ class Post extends Model
             'category' => $this->category,
             'author' => $this->author,
             'date_iso' => $this->published_at->toDateString(),
-            'date_label' => $this->published_at->locale('fr')->translatedFormat('j F Y'),
+            'date_label' => $this->published_at->locale($this->locale)->translatedFormat(config("site.locales.{$this->locale}.date", 'j F Y')),
         ];
     }
 }

@@ -313,6 +313,14 @@ async fn index() -> Response {
 // API : méta, doctor, plan
 // ---------------------------------------------------------------------------
 
+/// Langues du site vitrine (`--langs`), cochables dans les trois frameworks.
+fn site_langs() -> Vec<Value> {
+    crate::scaffold::site::all()
+        .iter()
+        .map(|l| json!({"id": l.code, "label": if l.rtl { format!("{} (RTL)", l.name) } else { l.name.clone() }}))
+        .collect()
+}
+
 fn framework_schema() -> Value {
     json!([
         {
@@ -338,6 +346,7 @@ fn framework_schema() -> Value {
                 ],
                 "auth_plugins": platform::AUTH_PLUGINS.iter().map(|(n, d)| json!({"id": n, "description": d})).collect::<Vec<_>>(),
                 "locales": platform::LOCALES.iter().map(|(n, d)| json!({"id": n, "label": d})).collect::<Vec<_>>(),
+                "site_langs": site_langs(),
                 "starwind_atoms": platform::STARWIND_ATOMS,
                 "css_variants": theme::VARIANTS,
                 "theme_defaults": {"primary": theme::DEFAULT_PRIMARY, "secondary": theme::DEFAULT_SECONDARY, "accent": theme::DEFAULT_ACCENT},
@@ -354,12 +363,13 @@ fn framework_schema() -> Value {
             "options": {
                 "starter": Starter::ALL.iter().map(|s| json!({"id": s.id(), "label": s.label()})).collect::<Vec<_>>(),
                 "database": Database::ALL.iter().map(|d| d.id()).collect::<Vec<_>>(),
+                "site_langs": site_langs(),
             }
         },
         {
             "id": "wagtail", "label": Framework::Wagtail.label(), "tool": Framework::Wagtail.official_tool(),
             "description": "CMS Django : venv Python, `pip install wagtail`, `wagtail start`, migrations, check et tests.",
-            "options": {}
+            "options": {"site_langs": site_langs()}
         },
         {
             "id": "rust", "label": Framework::Rust.label(), "tool": Framework::Rust.official_tool(),

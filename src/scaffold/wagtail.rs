@@ -16,8 +16,16 @@ pub struct WagtailOptions {
     pub migrate: bool,
     /// Catalogue de composants du design kit partagé (application Django `ds`, balises `{% ds_… %}`, `/components/`).
     pub ui: bool,
+    /// Kit Tailwind + Starwind (`--ui starwind`), compilé par la CLI autonome de Tailwind.
+    pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
+    /// Comptes du site (exige `ui`) : authentification Django, pages connexion / inscription / compte du site.
+    pub auth: bool,
+    /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
+    /// Langues du site vitrine (`--langs`, vide = fr,en) : internationalisation de Wagtail.
+    pub langs: Vec<String>,
 }
 
 impl Default for WagtailOptions {
@@ -26,7 +34,11 @@ impl Default for WagtailOptions {
             packages: vec![],
             migrate: true,
             ui: false,
+            starwind: false,
             theme: None,
+            auth: false,
+            icons: None,
+            langs: vec![],
         }
     }
 }
@@ -47,8 +59,19 @@ impl WagtailOptions {
                 bail!("paquet pip invalide : `{p}`");
             }
         }
+        if (self.auth || self.icons.is_some() || !self.langs.is_empty()) && !self.ui {
+            bail!("--auth, --icons et --langs s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        }
+        super::site::validate(&self.langs)?;
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
+            }
+        }
         if self.theme.is_some() && !self.ui {
-            bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+            bail!("--theme-* s'applique au design kit : ajoutez --ui css ou --ui starwind");
         }
         if let Some(t) = &self.theme {
             t.validate()?;
@@ -165,13 +188,17 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (config qualité, docs, tests, .gitignore)",
         Internal::Layer(if o.ui {
-            vec![
+            let mut v = vec![
                 "common",
                 "wagtail",
                 "ui-django",
                 "wagtail-ds",
                 "site-wagtail",
-            ]
+            ];
+            if o.starwind {
+                v.push("wagtail-starwind");
+            }
+            v
         } else {
             vec!["common", "wagtail"]
         }),
@@ -183,6 +210,9 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Copier le design kit (ds/static/ds)",
             Internal::DesignKit(DesignTarget::Wagtail),
         ));
+        if let Some(set) = o.icons.as_ref().filter(|s| s.as_str() != "mdi") {
+            steps.push(super::site_icons_step(set));
+        }
         if let Some(t) = &o.theme {
             steps.push(Step::internal(
                 "theme",
@@ -195,8 +225,22 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "design-wire",
             Phase::Configure,
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
-            Internal::WagtailDesign,
+            Internal::WagtailDesign(o.starwind, super::site::codes(&o.langs)),
         ));
+        steps.push(Step::internal(
+            "compilemessages",
+            Phase::Configure,
+            "Compiler les traductions du site (layout/locale/<langue>/LC_MESSAGES/django.po -> django.mo)",
+            Internal::CompileMessages,
+        ));
+        if o.starwind {
+            steps.push(Step::internal(
+                "tailwind",
+                Phase::Install,
+                "Compiler le kit Starwind (CLI autonome Tailwind : tailwind/input.css → static/css/tailwind.css)",
+                Internal::TailwindStandalone,
+            ));
+        }
     }
     if o.ui {
         // Migrations des applications du site (layout, site_settings, flex, service, blog, contact, home) :
@@ -338,8 +382,7 @@ mod tests {
         let o = WagtailOptions {
             packages: vec!["psycopg[binary]".into()],
             migrate: false,
-            ui: false,
-            theme: None,
+            ..Default::default()
         };
         let mut r = Request::new(Framework::Wagtail, "x");
         r.options = Options::Wagtail(o.clone());
@@ -351,6 +394,63 @@ mod tests {
             Action::Run(c) => assert!(c.args.contains(&"psycopg[binary]".to_string())),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn starwind_kit_is_compiled_by_the_tailwind_standalone_cli() {
+        let o = WagtailOptions {
+            ui: true,
+            starwind: true,
+            ..Default::default()
+        };
+        let mut r = Request::new(Framework::Wagtail, "x");
+        r.options = Options::Wagtail(o.clone());
+        let s = steps(&r, &o);
+        let layer = s.iter().find(|s| s.id == "layer").unwrap();
+        assert!(
+            matches!(&layer.action, Action::Do(Internal::Layer(v)) if v.contains(&"wagtail-starwind"))
+        );
+        assert!(s
+            .iter()
+            .any(|s| matches!(s.action, Action::Do(Internal::WagtailDesign(true, _)))));
+        let tw = s
+            .iter()
+            .position(|s| s.id == "tailwind")
+            .expect("étape CLI Tailwind");
+        assert!(tw > s.iter().position(|s| s.id == "design-kit").unwrap());
+        let css = WagtailOptions {
+            ui: true,
+            ..Default::default()
+        };
+        assert!(!steps(&r, &css).iter().any(|s| s.id == "tailwind"));
+    }
+
+    #[test]
+    fn auth_and_icons_need_the_site() {
+        assert!(WagtailOptions {
+            auth: true,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(WagtailOptions {
+            ui: true,
+            icons: Some("Bad Set".into()),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        let o = WagtailOptions {
+            ui: true,
+            auth: true,
+            icons: Some("tabler".into()),
+            ..Default::default()
+        };
+        assert!(o.validate().is_ok());
+        let r = Request::new(Framework::Wagtail, "x");
+        assert!(steps(&r, &o)
+            .iter()
+            .any(|s| matches!(&s.action, Action::Do(Internal::SiteIcons(set)) if set == "tabler")));
     }
 
     #[test]

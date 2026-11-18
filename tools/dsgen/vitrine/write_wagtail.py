@@ -1,8 +1,8 @@
 """Rendu Wagtail : modèles de page + StreamField + snippets/réglages + base.html (modèle ishaq74/wagtail-cms)."""
 import json
-from . import data as D, templates as TPL
+from . import data as D, templates as TPL, i18n as I18N
 from .ir import Django
-from .icons import ICONS
+from .icons import icons_json
 
 GEN = '{# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel. #}\n'
 PYGEN = '# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.\n'
@@ -11,9 +11,9 @@ LOAD = '{% load ds site_tags wagtailcore_tags %}\n'
 def dj(cat, nodes, ind=0): return Django(cat).nodes(nodes, ind)
 
 BASE = """@@meta mode=replace@@
-{% load static wagtailcore_tags wagtailuserbar %}
-""" + GEN + """<!DOCTYPE html>
-<html lang="fr">
+{% load i18n static wagtailcore_tags wagtailuserbar %}
+""" + GEN + """{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ site.dir }}">
     <head>
         <meta charset="utf-8" />
         <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}</title>
@@ -48,7 +48,7 @@ BASE = """@@meta mode=replace@@
 
     <body class="site-body{% block body_class %}{% endblock %}">
         {% wagtailuserbar %}
-        <a class="site-skip" href="#contenu">Aller au contenu</a>
+        <a class="site-skip" href="#contenu">{{ site.ui.skip }}</a>
         {% include "includes/header.html" %}
         <main id="contenu" class="site-main" tabindex="-1">
             {% block content %}{% endblock %}
@@ -73,7 +73,7 @@ def detail(cat, nodes):
 
 def not_found(cat):
     return ('@@meta mode=replace@@\n{% extends "base.html" %}\n' + LOAD + GEN +
-            '{% block title %}Page introuvable · {{ site.name }}{% endblock %}\n{% block og_title %}Page introuvable · {{ site.name }}{% endblock %}\n'
+            '{% block title %}{{ site.ui.not_found }} · {{ site.name }}{% endblock %}\n{% block og_title %}{{ site.ui.not_found }} · {{ site.name }}{% endblock %}\n'
             '{% block content %}\n' + dj(cat, TPL.NOT_FOUND) + '{% endblock %}\n')
 
 APP = lambda name, label: f'''from django.apps import AppConfig
@@ -84,8 +84,12 @@ class {label}Config(AppConfig):
     name = "{name}"
 '''
 
-ICONS_PY = PYGEN + '"""Tracés Lucide (ISC) : mêmes icônes qu’Astro (SiteIcon.astro) et Blade (<x-site.icon>)."""\n\nICONS = {\n' + \
-    ''.join(f'    {json.dumps(k)}: {json.dumps(v)},\n' for k, v in ICONS.items()) + '}\n'
+ICONS_PY = PYGEN + '''"""Icônes du site : layout/icons.json (MDI par défaut, drapeaux Circle Flags), le même fichier qu’Astro et Laravel."""
+import json
+from pathlib import Path
+
+ICONS = json.loads((Path(__file__).parent / "icons.json").read_text(encoding="utf-8"))["icons"]
+'''
 
 SITE_TAGS = PYGEN + '''from django import template
 from django.utils.html import format_html
@@ -99,12 +103,17 @@ register = template.Library()
 @register.simple_tag
 def site_icon(name, size=20):
     """Icône du site par son nom (``{% site_icon "mail" 18 %}``)."""
+    icon = ICONS.get(name)
+    if not icon:
+        return ""
     return format_html(
-        '<svg width="{}" height="{}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon">{}</svg>',
+        '<svg width="{}" height="{}" viewBox="0 0 {} {}" fill="currentColor" aria-hidden="true" class="site-icon" data-icon="{}">{}</svg>',
         size,
         size,
-        mark_safe(ICONS.get(name, "")),
+        icon["width"],
+        icon["height"],
+        name,
+        mark_safe(icon["body"]),
     )
 '''
 
@@ -118,17 +127,19 @@ from modelcluster.fields import ParentalKey
 from modelcluster.models import ClusterableModel
 from wagtail.admin.panels import FieldPanel, InlinePanel, PageChooserPanel
 from wagtail.contrib.settings.models import BaseGenericSetting, register_setting
-from wagtail.models import Orderable, Page
+from wagtail.models import Orderable, Page, TranslatableMixin
 from wagtail.snippets.models import register_snippet
 
 
 @register_snippet
-class NavigationMenu(ClusterableModel):
+class NavigationMenu(TranslatableMixin, ClusterableModel):
+    \"\"\"Menu traduisible (internationalisation de Wagtail) : une copie par langue, même ``translation_key``.\"\"\"
+
     title = models.CharField("titre", max_length=255, help_text="Nom du menu, affiché comme titre de colonne dans le pied de page.")
 
     panels = [FieldPanel("title"), InlinePanel("items", label="Éléments du menu")]
 
-    class Meta:
+    class Meta(TranslatableMixin.Meta):
         verbose_name = "menu de navigation"
         verbose_name_plural = "menus de navigation"
 
@@ -222,27 +233,57 @@ class SocialMediaSettings(BaseGenericSetting):
         verbose_name = "réseaux sociaux"
 '''
 
-CONTEXT = PYGEN + '''"""Processeur de contexte : ``site`` (navigation, pied de page, coordonnées) pour base.html et les blocs.
+CONTEXT = PYGEN + '''"""Processeur de contexte : ``site`` (navigation, pied de page, coordonnées, langues) pour base.html et les blocs.
 
 Mêmes clés que src/lib/site.ts (Astro) et App\\\\Support\\\\SiteData (Laravel) : le balisage produit est identique.
+Langues : internationalisation de Wagtail (pages et menus traduits, même ``translation_key``) ; les réglages et
+libellés d'interface passent par gettext (layout/locale/<langue>/LC_MESSAGES/django.po).
 """
 import re
 from datetime import date
 
+from django.conf import settings
 from django.utils.functional import SimpleLazyObject
-from wagtail.models import Site
+from django.utils.translation import get_language, gettext
+from wagtail.models import Locale, Site
 
 from layout.models import FooterSettings, HeaderSettings
 from site_settings.models import ContactSettings, OrganisationSettings, SocialMediaSettings
 
 SOCIAL = [("github", "GitHub"), ("linkedin", "LinkedIn"), ("mastodon", "Mastodon")]
+UI = ''' + repr({k: v['fr'] for k, v in I18N.UI.items()}) + '''
+# Libellé du sélecteur et sens d'écriture de chaque langue (vitrine/locales) ; les langues servies sont settings.LANGUAGES.
+LOCALES = ''' + repr({c: {'label': m['label'], 'dir': m['dir']} for c, m in I18N.META.items()}) + '''
 
 
-def href(url):
-    """Adresse interne au format Wagtail (barre finale)."""
-    if not url or url == "/" or re.match(r"^[a-z]+:", url):
+def locale_code():
+    code = (get_language() or settings.LANGUAGE_CODE).split("-")[0]
+    return code if code in dict(settings.LANGUAGES) else settings.LANGUAGE_CODE
+
+
+def prefix(code):
+    return "" if code == settings.LANGUAGE_CODE else "/" + code
+
+
+def href(url, code=None):
+    """Adresse interne au format Wagtail (barre finale) ; les chemins de la spec reçoivent le préfixe de langue."""
+    if not url or re.match(r"^[a-z]+:", url):
         return url or "/"
-    return "/" + url.strip("/") + "/"
+    return "/" + url.strip("/") + "/" if url != "/" else "/"
+
+
+def localize(url):
+    """Chemin de la spec (`/contact`) dans la langue active (`/en/contact/`) ; adresses externes inchangées."""
+    if not url or re.match(r"^[a-z]+:", url):
+        return url
+    code = locale_code()
+    if code != settings.LANGUAGE_CODE and not (url + "/").startswith("/" + code + "/"):
+        url = "/" + code + ("" if url == "/" else url)
+    return href(url)
+
+
+def home_url(code=None):
+    return prefix(code or locale_code()) + "/"
 
 
 def current(url, path):
@@ -250,7 +291,7 @@ def current(url, path):
     u, p = href(url), href(path)
     if p == u:
         return "page"
-    return "true" if u != "/" and p.startswith(u) else None
+    return "true" if u != home_url() and p.startswith(u) else None
 
 
 def link(label, url, path=None):
@@ -260,18 +301,31 @@ def link(label, url, path=None):
     return out
 
 
+def localized_url(page):
+    return page.localized.url if page else None
+
+
 def services(path=None):
     from service.models import ServicePage
 
-    return [link(p.title, p.url, path) for p in ServicePage.objects.live().order_by("path")]
+    pages = ServicePage.objects.live().filter(locale=Locale.get_active()).order_by("path")
+    return [link(p.title, p.url, path) for p in pages]
 
 
 def menu_links(menu, path=None):
     return [link(i.label, i.get_url(), path) for i in menu.items.filter(parent__isnull=True)] if menu else []
 
 
+def unprefixed(path):
+    for code, _ in settings.LANGUAGES:
+        if code != settings.LANGUAGE_CODE and (path == "/" + code + "/" or path.startswith("/" + code + "/")):
+            return path[len(code) + 1:] or "/"
+    return path
+
+
 def build_site(request):
     path = request.path
+    code = locale_code()
     wsite = Site.find_for_request(request)
     header = HeaderSettings.load(request_or_site=request)
     footer = FooterSettings.load(request_or_site=request)
@@ -279,25 +333,42 @@ def build_site(request):
     contact = ContactSettings.load(request_or_site=request)
     social = SocialMediaSettings.load(request_or_site=request)
     name = wsite.site_name if wsite and wsite.site_name else "@@title@@"
+    main_menu = header.selected_menu.localized if header.selected_menu else None
     nav = []
-    if header.selected_menu:
-        for item in header.selected_menu.items.filter(parent__isnull=True):
+    if main_menu:
+        for item in main_menu.items.filter(parent__isnull=True):
             children = [link(c.label, c.get_url(), path) for c in item.children.all().order_by("sort_order")]
             nav.append({**link(item.label, item.get_url(), path), "children": children or None})
     columns = []
-    if footer.selected_menu_1:
-        columns.append({"title": footer.selected_menu_1.title, "links": menu_links(footer.selected_menu_1)})
-    if footer.services_title:
-        columns.append({"title": footer.services_title, "links": [link(s["label"], s["url"]) for s in services()]})
-    if footer.selected_menu_2:
-        columns.append({"title": footer.selected_menu_2.title, "links": menu_links(footer.selected_menu_2)})
+    for menu in (footer.selected_menu_1, None, footer.selected_menu_2):
+        if menu is None and footer.services_title:
+            columns.append({"title": gettext(footer.services_title), "links": [link(s["label"], s["url"]) for s in services()]})
+        elif menu is not None:
+            menu = menu.localized
+            columns.append({"title": menu.title, "links": menu_links(menu)})
+    rest = unprefixed(path)
+    copyright = gettext(org.copyright) if org.copyright else ""
     return {
+        "locale": code,
+@@if auth@@
+        "account": account(request),
+@@else@@
+        "account": None,
+@@end@@
+        "dir": LOCALES.get(code, {}).get("dir", "ltr"),
+        "multilingual": len(settings.LANGUAGES) > 1,
+        "sheet_side": "left" if LOCALES.get(code, {}).get("dir") == "rtl" else "right",
+        "languages": [
+            {"code": c, "label": LOCALES.get(c, {}).get("label", c.upper()), "name": n, "flag": f"flag-{c}", "url": prefix(c) + rest, "current": "page" if c == code else None}
+            for c, n in settings.LANGUAGES
+        ],
+        "ui": {k: gettext(v) for k, v in UI.items()},
         "name": name,
         "initial": name[:1].upper(),
-        "tagline": org.tagline,
-        "description": org.description,
-        "home_url": "/",
-        "cta": link(header.cta_label, header.cta_page.url if header.cta_page else "/"),
+        "tagline": gettext(org.tagline) if org.tagline else "",
+        "description": gettext(org.description) if org.description else "",
+        "home_url": home_url(code),
+        "cta": link(gettext(header.cta_label) if header.cta_label else "", localized_url(header.cta_page) or home_url(code)),
         "nav": nav,
         "footer": columns,
         "social": [
@@ -308,15 +379,27 @@ def build_site(request):
             "email_url": f"mailto:{contact.email}",
             "phone": contact.phone,
             "phone_url": "tel:" + re.sub(r"\\s+", "", contact.phone),
-            "address": contact.address,
-            "hours": contact.hours,
+            "address": gettext(contact.address) if contact.address else "",
+            "hours": gettext(contact.hours) if contact.hours else "",
         },
         "year": date.today().year,
-        "copyright": org.copyright,
-        "copyright_line": f"© {date.today().year} {name} · {org.copyright}",
+        "copyright": copyright,
+        "copyright_line": f"© {date.today().year} {name} · {copyright}",
     }
 
 
+@@if auth@@
+AUTH_ROUTES = ''' + repr(D.AUTH_ROUTES) + '''
+
+
+def account(request):
+    """Lien de l'en-tête : « Mon compte » une fois connecté, sinon « Connexion »."""
+    if request.user.is_authenticated:
+        return {"url": localize(AUTH_ROUTES["account"]), "label": gettext(UI["account"])}
+    return {"url": localize(AUTH_ROUTES["sign_in"]), "label": gettext(UI["sign_in"])}
+
+
+@@end@@
 def site(request):
     return {"site": SimpleLazyObject(lambda: build_site(request))}
 '''
@@ -329,9 +412,10 @@ Chaque bloc expose à son gabarit (streams/sections/<type>.html) une variable ``
 aux autres frameworks ; les blocs « services » et « posts » y ajoutent les pages correspondantes.
 """
 from wagtail import blocks
+from wagtail.models import Locale
 from wagtail.rich_text import RichText
 
-from layout.context_processors import href
+from layout.context_processors import href, localize
 
 ICONS = [''' + ', '.join(f'("{i}", "{i}")' for i in ICON_CHOICES) + ''']
 
@@ -351,7 +435,7 @@ def plain(value):
         if set(value.keys()) == {"label", "page", "url"}:
             if not value.get("label"):
                 return None
-            target = value["page"].url if value.get("page") else value.get("url")
+            target = value["page"].localized.url if value.get("page") else localize(value.get("url"))
             return {"label": value["label"], "url": href(target)}
         return {k: plain(v) for k, v in value.items()}
     if isinstance(value, (list, blocks.list_block.ListValue)):
@@ -423,7 +507,7 @@ class ServicesBlock(SectionBlock):
         from service.models import ServicePage
 
         s = plain(value)
-        pages = ServicePage.objects.live().order_by("path")
+        pages = ServicePage.objects.live().filter(locale=Locale.get_active()).order_by("path")
         if s.get("limit"):
             pages = pages[: s["limit"]]
         s["items"] = [p.card() for p in pages]
@@ -463,7 +547,7 @@ class PostsBlock(SectionBlock):
         from blog.models import BlogPage
 
         s = plain(value)
-        pages = BlogPage.objects.live().order_by("-date")
+        pages = BlogPage.objects.live().filter(locale=Locale.get_active()).order_by("-date")
         if s.get("limit"):
             pages = pages[: s["limit"]]
         s["items"] = [p.card() for p in pages]
@@ -556,17 +640,42 @@ SECTION_BLOCKS = [
 '''
 
 HOME_MODELS = '@@meta mode=replace@@\n' + PYGEN + '''from wagtail.admin.panels import FieldPanel
+@@if auth@@
+from wagtail.contrib.routable_page.models import RoutablePageMixin, path
+@@end@@
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
+@@if auth@@
+from layout import auth
+@@end@@
 from streams.blocks import SECTION_BLOCKS
 
 
+@@if auth@@
+class HomePage(RoutablePageMixin, Page):
+@@else@@
 class HomePage(Page):
+@@end@@
     body = StreamField(SECTION_BLOCKS, blank=True, use_json_field=True, verbose_name="sections")
 
     content_panels = Page.content_panels + [FieldPanel("body")]
-    max_count = 1
+@@if auth@@
+
+    # Comptes (authentification Django) : /auth/… sous l'accueil de chaque langue, comme Astro et Laravel.
+    @path("auth/sign-in/")
+    def sign_in(self, request):
+        return auth.sign_in(request)
+
+    @path("auth/sign-up/")
+    def sign_up(self, request):
+        return auth.sign_up(request)
+
+    @path("auth/dashboard/")
+    def account(self, request):
+        return auth.account(request)
+@@end@@
+    # une page d’accueil par langue (racine du site et ses traductions)
 '''
 
 FLEX_MODELS = PYGEN + '''from wagtail.admin.panels import FieldPanel
@@ -588,6 +697,7 @@ class FlexPage(Page):
 '''
 
 SERVICE_MODELS = PYGEN + '''from django.db import models
+from django.utils.translation import gettext
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import CharBlock
 from wagtail.fields import RichTextField, StreamField
@@ -601,7 +711,7 @@ class ServiceIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["service.ServicePage"]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "index des services"
@@ -630,7 +740,8 @@ class ServicePage(Page):
     @property
     def crumbs(self):
         parent = self.get_parent()
-        return [{"label": "Accueil", "url": "/"}, {"label": parent.title, "url": parent.url}]
+        home = self.get_parent().get_parent()
+        return [{"label": gettext("Accueil"), "url": home.url}, {"label": parent.title, "url": parent.url}]
 
     def card(self):
         return {
@@ -639,17 +750,21 @@ class ServicePage(Page):
             "summary": self.summary,
             "icon": self.icon,
             "price": self.price,
-            "more_label": f"En savoir plus : {self.title}",
+            "more_label": gettext("En savoir plus : ") + self.title,
         }
 '''
 
 BLOG_MODELS = PYGEN + '''from django.db import models
 from django.template.defaultfilters import date as date_filter
+from django.utils.translation import get_language, gettext
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Page
 
 from streams.blocks import SECTION_BLOCKS
+
+# Format des dates d'articles par langue (filtre date de Django ; mêmes rendus que Carbon et Intl).
+DATE_FORMATS = ''' + repr({c: m['date_django'] for c, m in I18N.META.items()}) + '''
 
 
 class BlogIndexPage(Page):
@@ -657,7 +772,7 @@ class BlogIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["blog.BlogPage"]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "index du blog"
@@ -689,12 +804,13 @@ class BlogPage(Page):
 
     @property
     def date_label(self):
-        return date_filter(self.date, "j F Y")
+        return date_filter(self.date, DATE_FORMATS.get((get_language() or "fr").split("-")[0], "j F Y"))
 
     @property
     def crumbs(self):
         parent = self.get_parent()
-        return [{"label": "Accueil", "url": "/"}, {"label": parent.title, "url": parent.url}]
+        home = parent.get_parent()
+        return [{"label": gettext("Accueil"), "url": home.url}, {"label": parent.title, "url": parent.url}]
 
     @property
     def back_url(self):
@@ -714,6 +830,7 @@ class BlogPage(Page):
 
 CONTACT_MODELS = PYGEN + '''from django.db import models
 from django.template.response import TemplateResponse
+from django.utils.translation import gettext
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, FieldRowPanel, InlinePanel, MultiFieldPanel
 from wagtail.contrib.forms.models import AbstractEmailForm, AbstractFormField
@@ -744,7 +861,7 @@ class ContactPage(AbstractEmailForm):
             "E-mail de notification",
         ),
     ]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "page de contact"
@@ -752,8 +869,8 @@ class ContactPage(AbstractEmailForm):
     def get_form(self, *args, **kwargs):
         form = super().get_form(*args, **kwargs)
         for field in form.fields.values():
-            field.error_messages["required"] = "Ce champ est obligatoire."
-            field.error_messages["invalid"] = "Adresse e-mail invalide."
+            field.error_messages["required"] = gettext("Ce champ est obligatoire.")
+            field.error_messages["invalid"] = gettext("Adresse e-mail invalide.")
         return form
 
     def contact_fields(self, form):
@@ -804,13 +921,28 @@ def stream_json(sections):
         out.append({'type': s['type'], 'value': v})
     return out
 
-def seed():
+def seed_data(L):
     pages = {k: {'title': p['title'], 'description': p['description'], 'slug': p['url'].strip('/'),
-                 'body': stream_json(p['sections'])} for k, p in D.PAGES.items()}
+                 'body': stream_json(p['sections'])} for k, p in L.PAGES.items()}
     services = [{'slug': s['slug'], 'title': s['title'], 'summary': s['summary'], 'icon': s['icon'], 'price': s['price'],
-                 'features': s['features'], 'body': s['body_html']} for s in D.SERVICES]
+                 'features': s['features'], 'body': s['body_html']} for s in L.SERVICES]
     posts = [{'slug': p['slug'], 'title': p['title'], 'excerpt': p['excerpt'], 'category': p['category'], 'author': p['author'],
-              'date': p['date'], 'body': p['body_html']} for p in sorted(D.POSTS, key=lambda p: p['date'])]
+              'date': p['date'], 'body': p['body_html']} for p in sorted(L.POSTS, key=lambda p: p['date'])]
+    return pages, services, posts
+
+def seed():
+    pages, services, posts = seed_data(D)
+    translations = ''
+    for loc in D.LOCALES:
+        if loc == D.DEFAULT:
+            continue
+        L = D.L[loc]
+        t_pages, t_services, t_posts = seed_data(L)
+        t = {'pages': t_pages, 'services': t_services, 'posts': t_posts, 'nav': L.SITE['nav'],
+             'footer': [c for c in L.SITE['footer'] if c['links'] != 'services'], 'fields': L.FIELDS,
+             'subject': L.UI['mail_subject'], 'menu': L.UI['menu_main']}
+        translations += (f'@@if lang_{loc}@@\nTRANSLATIONS["{loc}"] = json.loads(r\"\"\"' + json.dumps(t, ensure_ascii=False, indent=1)
+                         + '\"\"\")\n@@end@@\n')
     site = {k: D.SITE[k] for k in ('tagline', 'description', 'copyright', 'cta', 'contact')}
     social = ''.join(f'    {{"icon": {json.dumps(x["icon"])}, "url": {json.dumps(x["url"])}}},  # alpharust-ignore: no-hardcoded-urls\n'
                      for x in D.SITE['social'])
@@ -824,9 +956,10 @@ SiteSeeder). Idempotent : une page existante (même slug) est conservée.
 import json
 from datetime import date
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from wagtail.models import Site
+from wagtail.models import Locale, Site
 
 from blog.models import BlogIndexPage, BlogPage
 from contact.models import ContactPage, FormField
@@ -846,7 +979,9 @@ SOCIAL = [
 ''' + social + ''']
 FIELDS = json.loads(r"""''' + json.dumps(D.FIELDS, ensure_ascii=False, indent=1) + '''""")
 FIELD_TYPES = {"text": "singleline", "email": "email", "textarea": "multiline"}
-
+# Traductions (vitrine/locales, langues choisies : --langs) : mêmes slugs, pages liées aux pages françaises par translation_key.
+TRANSLATIONS = {}
+''' + translations + '''
 
 def publish(page):
     page.save_revision().publish()
@@ -862,10 +997,82 @@ def child(parent, model, slug, **fields):
     return publish(page)
 
 
-def section_page(parent, model, key, **extra):
-    p = PAGES[key]
+def section_page(parent, model, key, data=None, **extra):
+    p = (data or PAGES)[key]
     return child(parent, model, p["slug"], title=p["title"], search_description=p["description"],
                  body=json.dumps(p["body"]), **extra)
+
+
+def translated(page, locale):
+    \"\"\"Champs d'une traduction : même translation_key que la page française (internationalisation de Wagtail).\"\"\"
+    return {"locale": locale, "translation_key": page.translation_key}
+
+
+def seed_translation(home, pages, code, data):
+    \"\"\"Arborescence d'une langue (/<code>/…) : traduction de chaque page (internationalisation de Wagtail).\"\"\"
+    loc, _ = Locale.objects.get_or_create(language_code=code)
+    t_home = home.get_translation_or_none(loc)
+    if t_home is None:
+        t_home = home.copy_for_translation(loc)
+    t_home = t_home.specific
+    if t_home.title != data["pages"]["home"]["title"] or not t_home.live:
+        t_home.title = data["pages"]["home"]["title"]
+        t_home.search_description = data["pages"]["home"]["description"]
+        t_home.body = json.dumps(data["pages"]["home"]["body"])
+        publish(t_home)
+    out = {"home": t_home}
+
+    def tr(key, parent, model, **extra):
+        return section_page(parent, model, key, data["pages"], **translated(pages[key], loc), **extra)
+
+    out["services"] = tr("services", t_home, ServiceIndexPage)
+    for s in data["services"]:
+        out[s["slug"]] = child(
+            out["services"], ServicePage, s["slug"], title=s["title"], search_description=s["summary"],
+            summary=s["summary"], icon=s["icon"], price=s["price"], body=s["body"],
+            features=json.dumps([{"type": "feature", "value": f} for f in s["features"]]), **translated(pages[s["slug"]], loc),
+        )
+    out["blog"] = tr("blog", t_home, BlogIndexPage)
+    fr_posts = {p.slug: p for p in BlogPage.objects.filter(locale__language_code=home.locale.language_code)}
+    for p in data["posts"]:
+        child(
+            out["blog"], BlogPage, p["slug"], title=p["title"], search_description=p["excerpt"],
+            date=date.fromisoformat(p["date"]), category=p["category"], author=p["author"], excerpt=p["excerpt"],
+            body=p["body"], **translated(fr_posts[p["slug"]], loc),
+        )
+    out["about"] = tr("about", t_home, FlexPage)
+    if not t_home.get_children().filter(slug=data["pages"]["contact"]["slug"]).exists():
+        page = tr("contact", t_home, ContactPage, subject=data["subject"])
+        for i, f in enumerate(data["fields"]):
+            FormField.objects.create(
+                page=page, sort_order=i, label=f["label"], clean_name=f["name"], field_type=FIELD_TYPES[f["type"]],
+                required=f["required"], autocomplete=f["autocomplete"],
+            )
+    out["contact"] = t_home.get_children().get(slug=data["pages"]["contact"]["slug"]).specific
+    out["legal"] = tr("legal", t_home, FlexPage, show_in_menus=False)
+    out["privacy"] = tr("privacy", t_home, FlexPage, show_in_menus=False)
+    return loc, out
+
+
+def translate_menus(loc, t_pages, data):
+    \"\"\"Copie des menus dans une langue (même translation_key) avec ses libellés et ses pages.\"\"\"
+    by_url = {("/" + data["pages"][k]["slug"]) if data["pages"][k]["slug"] else "/": p for k, p in t_pages.items() if k in data["pages"]}
+    services = [t_pages[s["slug"]] for s in data["services"]]
+    fr_menus = list(NavigationMenu.objects.filter(locale__language_code=settings.LANGUAGE_CODE).order_by("pk"))
+    specs = [data["nav"]] + [c["links"] for c in data["footer"]]
+    titles = [data["menu"]] + [c["title"] for c in data["footer"]]
+    for fr_menu, entries, title in zip(fr_menus, specs, titles):
+        if NavigationMenu.objects.filter(locale=loc, translation_key=fr_menu.translation_key).exists():
+            continue
+        menu = NavigationMenu.objects.create(title=title, **translated(fr_menu, loc))
+        for i, entry in enumerate(entries):
+            page = by_url.get(entry["url"])
+            parent = NavigationItem.objects.create(
+                menu=menu, label=entry["label"], page=page, custom_url="" if page else entry["url"], sort_order=i,
+            )
+            if entry.get("children") == "services":
+                for j, s in enumerate(services):
+                    NavigationItem.objects.create(menu=menu, label=s.title, page=s, parent=parent, sort_order=100 + j)
 
 
 class Command(BaseCommand):
@@ -904,7 +1111,7 @@ class Command(BaseCommand):
         pages["about"] = section_page(home, FlexPage, "about")
         contact = PAGES["contact"]
         if not home.get_children().filter(slug=contact["slug"]).exists():
-            page = section_page(home, ContactPage, "contact", subject="Nouveau message depuis le site")
+            page = section_page(home, ContactPage, "contact", subject=''' + repr(D.UI['mail_subject']).replace("'", '"') + ''')
             for i, f in enumerate(FIELDS):
                 FormField.objects.create(
                     page=page, sort_order=i, label=f["label"], clean_name=f["name"], field_type=FIELD_TYPES[f["type"]],
@@ -924,7 +1131,7 @@ class Command(BaseCommand):
             )
 
         if not NavigationMenu.objects.exists():
-            main = NavigationMenu.objects.create(title="Principal")
+            main = NavigationMenu.objects.create(title=''' + repr(D.UI['menu_main']).replace("'", '"') + ''')
             for i, entry in enumerate(NAV):
                 parent = item(main, entry, i)
                 if entry.get("children") == "services":
@@ -961,10 +1168,31 @@ class Command(BaseCommand):
             for s in SOCIAL:
                 setattr(social, s["icon"], s["url"])
             social.save()
+        for code, _ in settings.LANGUAGES:
+            if code != settings.LANGUAGE_CODE and code in TRANSLATIONS:
+                loc, t_pages = seed_translation(home, pages, code, TRANSLATIONS[code])
+                translate_menus(loc, t_pages, TRANSLATIONS[code])
         self.stdout.write(self.style.SUCCESS("Site prêt : %d pages." % home.get_descendants(inclusive=True).count()))
 '''
 
-TESTS = PYGEN + '''from io import StringIO
+def translated_rows(text):
+    """Lignes des tests de langue (une par langue choisie : --langs)."""
+    rows, switch = '', ''
+    for loc in D.LOCALES:
+        if loc == D.DEFAULT:
+            continue
+        L, m = D.L[loc], D.META[loc]
+        cases = [('', L.PAGES['home']['sections'][0]['title']), ('a-propos/', L.PAGES['about']['sections'][0]['title']),
+                 ('services/accessibilite/', L.UI['included']), ('blog/choisir-son-framework/', L.UI['all_posts']),
+                 ('contact/', L.PAGES['contact']['sections'][0]['title'])]
+        body = ''.join(f"        ({json.dumps(loc)}, {json.dumps(m['dir'])}, {json.dumps('/' + loc + '/' + u)}, "
+                       f"{json.dumps(t, ensure_ascii=False)}, {json.dumps(L.UI['main_nav'], ensure_ascii=False)}),\n" for u, t in cases)
+        rows += f'@@if lang_{loc}@@\n{body}@@end@@\n'
+        switch += f"@@if lang_{loc}@@\n        ({json.dumps(loc)}, {json.dumps(L.UI['not_found'], ensure_ascii=False)}),\n@@end@@\n"
+    return text.replace('__ROWS__', rows).replace('__SWITCH__', switch)
+
+
+TESTS = translated_rows(PYGEN + '''from io import StringIO
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -1021,7 +1249,34 @@ class SiteTests(TestCase):
         self.assertContains(response, "Adresse e-mail invalide.")
         response = self.client.post("/contact/", {"nom": "Ada", "email": "ada@example.com", "message": "Bonjour"})
         self.assertContains(response, "Votre message a bien été envoyé")
-        self.assertEqual(ContactPage.objects.get().get_submission_class().objects.count(), 1)
+        self.assertEqual(ContactPage.objects.get(locale__language_code="fr").get_submission_class().objects.count(), 1)
+
+@@if multilingual@@
+    # Une ligne par langue choisie (--langs) : (langue, sens, adresse, texte attendu, libellé de la navigation).
+    TRANSLATED = [
+__ROWS__    ]
+
+    def test_translated_pages(self):
+        for code, direction, url, text, nav in self.TRANSLATED:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                html = response.content.decode()
+                self.assertIn(f'<html lang="{code}" dir="{direction}">', html)
+                self.assertIn(text, html)
+                self.assertIn(f'aria-label="{nav}"', html)
+                self.assertIn('hreflang="fr"', html)
+
+    SWITCHER = [
+__SWITCH__    ]
+
+    def test_the_language_switcher_links_to_the_same_page(self):
+        for code, not_found in self.SWITCHER:
+            with self.subTest(code=code):
+                self.assertContains(self.client.get("/blog/"), f'href="/{code}/blog/"')
+                self.assertContains(self.client.get(f"/{code}/blog/"), 'href="/blog/"')
+                self.assertContains(self.client.get(f"/{code}/nope/"), not_found, status_code=404)
+@@end@@
 
     def test_seeding_twice_changes_nothing(self):
         from wagtail.models import Page
@@ -1029,7 +1284,214 @@ class SiteTests(TestCase):
         before = Page.objects.count()
         call_command("seed_site", stdout=StringIO())
         self.assertEqual(Page.objects.count(), before)
+''')
+
+
+AUTH_META = '@@meta when=auth@@\n'
+
+AUTH_PY = AUTH_META + PYGEN + '''\"\"\"Comptes du site avec l'authentification de Django (django.contrib.auth).
+
+Pages servies par HomePage (RoutablePageMixin : /auth/sign-in/, /auth/sign-up/, /auth/dashboard/ dans chaque langue) ;
+mêmes données, contrôles et messages qu'Astro (Better Auth) et Laravel (Fortify).
+\"\"\"
+import re
+
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.utils.translation import gettext
+
+from layout.context_processors import AUTH_ROUTES, UI, localize
+
+AUTH_FIELDS = ''' + repr(D.AUTH_FIELDS) + '''
+PASSWORD_MIN = ''' + str(D.PASSWORD_MIN) + '''
+EMAIL = re.compile(r"^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+
+
+def ui(key):
+    return gettext(UI[key])
+
+
+def auth_page(kind, error=None, values=None):
+    \"\"\"Connexion / inscription : le mot de passe n'est jamais ré-affiché.\"\"\"
+    values = values or {}
+    other = "sign_up" if kind == "sign_in" else "sign_in"
+    return {
+        "title": ui(kind),
+        "lead": ui(kind + "_lead"),
+        "submit": ui(kind + "_submit"),
+        "error": error,
+        "action": localize(AUTH_ROUTES[kind]),
+        "fields": [
+            {"name": n, "type": t, "autocomplete": a, "id": f"auth-{n}", "label": ui(f"field_{n}"),
+             "value": "" if t == "password" else values.get(n, "")}
+            for n, t, a in AUTH_FIELDS[kind]
+        ],
+        "alt_text": ui("no_account" if kind == "sign_in" else "have_account"),
+        "alt_label": ui(other),
+        "alt_url": localize(AUTH_ROUTES[other]),
+    }
+
+
+def validate(kind, values):
+    \"\"\"Mêmes règles, dans le même ordre, qu'Astro et Laravel : libellé d'erreur ou None.\"\"\"
+    def v(k):
+        return (values.get(k) or "").strip()
+
+    if any(not v(n) for n, _, _ in AUTH_FIELDS[kind]):
+        return ui("err_required")
+    if not EMAIL.match(v("email")):
+        return ui("invalid_email")
+    if kind == "sign_up" and len(values.get("password") or "") < PASSWORD_MIN:
+        return ui("err_password")
+    return None
+
+
+def render(request, template, page, error=None):
+    return TemplateResponse(request, template, {"page": page}, status=422 if error else 200)
+
+
+def done(request):
+    return HttpResponseRedirect(localize(AUTH_ROUTES["account"]))
+
+
+def sign_in(request):
+    if request.user.is_authenticated:
+        return done(request)
+    error, values = None, {}
+    if request.method == "POST":
+        values = request.POST
+        error = validate("sign_in", values)
+        if not error:
+            user = authenticate(request, username=values["email"].strip().lower(), password=values["password"])
+            if user is not None:
+                login(request, user)
+                return done(request)
+            error = ui("err_credentials")
+    return render(request, "layout/auth.html", auth_page("sign_in", error, values), error)
+
+
+def sign_up(request):
+    if request.user.is_authenticated:
+        return done(request)
+    error, values = None, {}
+    if request.method == "POST":
+        values = request.POST
+        error = validate("sign_up", values)
+        if not error:
+            email = values["email"].strip().lower()
+            users = get_user_model().objects
+            if users.filter(username=email).exists() or users.filter(email=email).exists():
+                error = ui("err_exists")
+            else:
+                user = users.create_user(
+                    username=email, email=email, password=values["password"], first_name=values["name"].strip()[:150]
+                )
+                login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+                return done(request)
+    return render(request, "layout/auth.html", auth_page("sign_up", error, values), error)
+
+
+def account(request):
+    \"\"\"« Mon compte » ; son formulaire POST déconnecte.\"\"\"
+    if not request.user.is_authenticated:
+        return HttpResponseRedirect(localize(AUTH_ROUTES["sign_in"]))
+    if request.method == "POST":
+        logout(request)
+        return HttpResponseRedirect(localize("/"))
+    user = request.user
+    page = {
+        "title": ui("account"),
+        "lead": ui("account_lead"),
+        "name": user.first_name or user.get_username(),
+        "email": user.email,
+        "logout_action": localize(AUTH_ROUTES["account"]),
+    }
+    return render(request, "layout/account.html", page)
 '''
+
+AUTH_TESTS = AUTH_META + PYGEN + '''from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.test import TestCase
+
+
+class AuthTests(TestCase):
+    \"\"\"Comptes (authentification Django) : mêmes pages, adresses et messages qu'Astro et Laravel.\"\"\"
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def test_the_header_links_to_the_sign_in_page(self):
+        self.assertContains(self.client.get("/"), 'href="/auth/sign-in/"')
+@@if lang_en@@
+        self.assertContains(self.client.get("/en/"), 'href="/en/auth/sign-in/"')
+@@end@@
+@@if lang_ar@@
+        self.assertContains(self.client.get("/ar/"), 'href="/ar/auth/sign-in/"')
+@@end@@
+
+    def test_auth_pages_render_in_the_site_layout(self):
+        self.assertContains(self.client.get("/auth/sign-in/"), "Accédez à votre espace client.")
+        self.assertContains(self.client.get("/auth/sign-up/"), 'autocomplete="new-password"')
+@@if lang_en@@
+        self.assertContains(self.client.get("/en/auth/sign-up/"), "Create my account")
+@@end@@
+@@if lang_es@@
+        self.assertContains(self.client.get("/es/auth/sign-up/"), "Crear mi cuenta")
+@@end@@
+        self.assertRedirects(self.client.get("/auth/dashboard/"), "/auth/sign-in/", fetch_redirect_response=False)
+
+    def test_sign_up_sign_out_and_sign_in(self):
+        r = self.client.post("/auth/sign-up/", {"name": "Ada", "email": "Ada@example.com", "password": "motdepasse"})
+        self.assertRedirects(r, "/auth/dashboard/", fetch_redirect_response=False)
+        self.assertContains(self.client.get("/auth/dashboard/"), "ada@example.com")
+@@if lang_en@@
+        self.assertRedirects(self.client.post("/en/auth/dashboard/"), "/en/", fetch_redirect_response=False)
+        r = self.client.post("/en/auth/sign-in/", {"email": "ada@example.com", "password": "motdepasse"})
+        self.assertRedirects(r, "/en/auth/dashboard/", fetch_redirect_response=False)
+@@else@@
+        self.assertRedirects(self.client.post("/auth/dashboard/"), "/", fetch_redirect_response=False)
+        r = self.client.post("/auth/sign-in/", {"email": "ada@example.com", "password": "motdepasse"})
+        self.assertRedirects(r, "/auth/dashboard/", fetch_redirect_response=False)
+@@end@@
+
+    def test_errors_use_the_site_messages(self):
+        get_user_model().objects.create_user("ada@example.com", "ada@example.com", "motdepasse")
+        r = self.client.post("/auth/sign-in/", {"email": "ada@example.com", "password": "mauvais"})
+        self.assertContains(r, "E-mail ou mot de passe incorrect.", status_code=422)
+        r = self.client.post("/auth/sign-up/", {"name": "Ada", "email": "ada@example.com", "password": "motdepasse"})
+        self.assertContains(r, "Un compte existe déjà avec cette adresse.", status_code=422)
+@@if lang_en@@
+        r = self.client.post("/en/auth/sign-up/", {"name": "Bob", "email": "bob@example.com", "password": "court"})
+        self.assertContains(r, "The password must be at least 8 characters.", status_code=422)
+@@end@@
+@@if lang_ar@@
+        r = self.client.post("/ar/auth/sign-up/", {"name": "Bob", "email": "bob@example.com", "password": "court"})
+        self.assertContains(r, "يجب أن تتكوّن كلمة المرور من 8 أحرف على الأقل.", status_code=422)
+@@end@@
+'''
+
+
+def auth_template(cat, nodes):
+    return (AUTH_META + '{% extends "base.html" %}\n' + LOAD + GEN +
+            '{% block title %}{{ page.title }} · {{ site.name }}{% endblock %}\n{% block og_title %}{{ page.title }} · {{ site.name }}{% endblock %}\n'
+            '{% block content %}\n' + dj(cat, nodes) + '{% endblock %}\n')
+
+def po_file(loc):
+    """Catalogue gettext d'une langue (libellés d'interface et réglages) ; compilé en django.mo à la génération."""
+    def q(t): return '"' + t.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') + '"'
+    pairs = {v['fr']: v[loc] for v in I18N.UI.values()}
+    S, T = D.SITE, D.L[loc].SITE
+    for k in ('tagline', 'description', 'copyright'):
+        pairs[S[k]] = T[k]
+    pairs[S['cta']['label']] = T['cta']['label']
+    for k in ('address', 'hours'):
+        pairs[S['contact'][k]] = T['contact'][k]
+    pairs['Services'] = I18N.TR[loc]['Services']
+    head = (f'@@meta when=lang_{loc}@@\n# Généré par tools/dsgen/vitrine (locales/{loc}.py) : traductions « {loc} » du site.\n'
+            f'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: {loc}\\n"\n\n')
+    return head + ''.join(f'msgid {q(a)}\nmsgstr {q(b)}\n\n' for a, b in pairs.items() if a)
 
 def files(cat, css):
     out = {
@@ -1041,10 +1503,16 @@ def files(cat, css):
         'home/models.py.tpl': HOME_MODELS,
         'home/templates/home/home_page.html.tpl': '@@meta mode=replace@@\n' + stream_page('{% block title %}{{ site.name }}{% endblock %}\n{% block og_title %}{{ site.name }}{% endblock %}\n'),
         'home/test_site.py.tpl': TESTS,
+        # Comptes (--auth) : authentification Django.
+        'layout/auth.py.tpl': AUTH_PY,
+        'layout/templates/layout/auth.html.tpl': auth_template(cat, TPL.AUTH_FORM),
+        'layout/templates/layout/account.html.tpl': auth_template(cat, TPL.ACCOUNT),
+        'home/test_auth.py.tpl': AUTH_TESTS,
         'layout/__init__.py.tpl': '',
         'layout/apps.py.tpl': APP('layout', 'Layout'),
         'layout/models.py.tpl': LAYOUT_MODELS,
         'layout/icons.py.tpl': ICONS_PY,
+        'layout/icons.json.tpl': icons_json(),
         'layout/context_processors.py.tpl': CONTEXT,
         'layout/migrations/__init__.py.tpl': '',
         'layout/templatetags/__init__.py.tpl': '',
@@ -1084,4 +1552,7 @@ def files(cat, css):
     }
     for t, nodes in list(TPL.SECTIONS.items()):
         out[f'streams/templates/streams/sections/{t}.html.tpl'] = LOAD + GEN + dj(cat, nodes)
+    for loc in D.LOCALES:
+        if loc != D.DEFAULT:
+            out[f'layout/locale/{loc}/LC_MESSAGES/django.po.tpl'] = po_file(loc)
     return out

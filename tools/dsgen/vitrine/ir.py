@@ -47,13 +47,6 @@ def kebab(s): return re.sub(r'(?<!^)(?=[A-Z])', '-', s).lower()
 def snake(s): return kebab(s).replace('-', '_')
 def camel_to_kebab(k): return re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', k).lower()
 
-from .icons import ICONS
-def svg(name, size=None, cls=None):
-    s = size or 20
-    c = f' class="site-icon {cls}"' if cls else ' class="site-icon"'
-    return (f'<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
-            f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{c}>{ICONS[name]}</svg>')
-
 # ------------------------------------------------------------------ catalogue des composants (nom -> module, tag Blade, balise Django)
 class Catalog:
     def __init__(self, root):
@@ -107,11 +100,10 @@ class Astro:
         if isinstance(n, Html):
             return p + (n.astro or f'<Fragment set:html={{{self.expr(n.v)}}} />') + '\n'
         if isinstance(n, Icon):
-            if isinstance(n.name, V):
-                self.icons_dyn = True
-                sz = f' size={{{n.size}}}' if n.size else ''
-                return p + f'<SiteIcon name={{{self.expr(n.name)}}}{sz} />\n'
-            return p + svg(n.name, n.size) + '\n'
+            self.icons_dyn = True
+            sz = f' size={{{n.size}}}' if n.size else ''
+            name = f'{{{self.expr(n.name)}}}' if isinstance(n.name, V) else f'"{n.name}"'
+            return p + f'<SiteIcon name={name}{sz} />\n'
         if isinstance(n, Csrf): return ''
         if isinstance(n, Raw): return p + n.by['astro'] + '\n' if n.by.get('astro') else ''
         if isinstance(n, E):
@@ -188,10 +180,10 @@ class Blade:
         if isinstance(n, O): return p + '{{ ' + self.val(n.v) + ' }}\n'
         if isinstance(n, Html): return p + '{!! ' + self.val(n.v) + ' !!}\n'
         if isinstance(n, Icon):
+            sz = f' :size="{n.size}"' if n.size else ''
             if isinstance(n.name, V):
-                sz = f' :size="{n.size}"' if n.size else ''
                 return p + f'<x-site.icon :name="{self.val(n.name)}"{sz} />\n'
-            return p + svg(n.name, n.size) + '\n'
+            return p + f'<x-site.icon name="{n.name}"{sz} />\n'
         if isinstance(n, Csrf): return p + '@csrf\n'
         if isinstance(n, Raw): return p + n.by['blade'] + '\n' if n.by.get('blade') else ''
         if isinstance(n, E):
@@ -249,11 +241,10 @@ class Django:
         if isinstance(n, O): return p + '{{ ' + n.v.path + ' }}\n' if isinstance(n.v, V) else p + dj_text(str(n.v)) + '\n'
         if isinstance(n, Html): return p + (n.django or '{{ ' + n.v.path + ' }}') + '\n'
         if isinstance(n, Icon):
-            if isinstance(n.name, V):
-                self.icons_dyn = True
-                sz = f' size={n.size}' if n.size else ''
-                return p + f'{{% site_icon {n.name.path}{sz} %}}\n'
-            return p + svg(n.name, n.size) + '\n'
+            self.icons_dyn = True
+            sz = f' size={n.size}' if n.size else ''
+            name = n.name.path if isinstance(n.name, V) else f'"{n.name}"'
+            return p + f'{{% site_icon {name}{sz} %}}\n'
         if isinstance(n, Csrf): return p + '{% csrf_token %}\n'
         if isinstance(n, Raw): return p + n.by['django'] + '\n' if n.by.get('django') else ''
         if isinstance(n, E):

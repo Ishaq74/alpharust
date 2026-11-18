@@ -246,25 +246,25 @@ struct GenOpts {
     #[arg(
         long,
         value_name = "none|starwind|concordia|css",
-        help = "kit d'interface — astro : starwind (Tailwind) ou concordia (CSS) ; laravel, wagtail : css (catalogue de composants)"
+        help = "kit d'interface — astro : starwind (Tailwind) ou concordia (CSS) ; laravel, wagtail : css (design kit CSS) ou starwind (Tailwind + classes Starwind), même catalogue et même site"
     )]
     ui: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur primaire de marque (WCAG)"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur primaire de marque (WCAG)"
     )]
     theme_primary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur secondaire de marque"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur secondaire de marque"
     )]
     theme_secondary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro ; laravel, wagtail avec --ui css] couleur d'accent de marque"
+        help = "[astro ; laravel, wagtail avec --ui css|starwind] couleur d'accent de marque"
     )]
     theme_accent: Option<String>,
     #[arg(
@@ -279,8 +279,24 @@ struct GenOpts {
         help = "[astro, db postgres] URL PostgreSQL de développement (applique les migrations)"
     )]
     db_url: Option<String>,
-    #[arg(long, help = "[astro] authentification Better Auth (exige --db)")]
+    #[arg(
+        long,
+        help = "comptes du site : [astro] Better Auth (exige --db) ; [laravel] Fortify ; [wagtail] auth Django (exigent --ui)"
+    )]
     auth: bool,
+    #[arg(
+        long,
+        value_name = "JEU",
+        help = "[site vitrine] jeu d'icônes Iconify : mdi (défaut), lucide, ou tout jeu Iconify (tabler, ph…) ; drapeaux Circle Flags"
+    )]
+    icons: Option<String>,
+    #[arg(
+        long,
+        value_delimiter = ',',
+        value_name = "LANGUES",
+        help = "[site vitrine] langues : fr (toujours), en, es, ar (RTL) ; défaut fr,en (astro, laravel, wagtail)"
+    )]
+    langs: Vec<String>,
     #[arg(
         long = "auth-plugin",
         value_delimiter = ',',
@@ -352,13 +368,15 @@ fn parse_opt<T>(
     }
 }
 
-/// `--ui` pour Laravel et Wagtail : `css` (catalogue du design kit) ou `none`.
-fn parse_catalog_ui(v: &Option<String>) -> Result<bool> {
+/// `--ui` pour Laravel et Wagtail : `css` (design kit en CSS pur), `starwind` (même catalogue, Tailwind + classes
+/// Starwind) ou `none`. Renvoie (catalogue, starwind).
+fn parse_catalog_ui(v: &Option<String>) -> Result<(bool, bool)> {
     match v.as_deref() {
-        None | Some("none") => Ok(false),
-        Some("css") => Ok(true),
+        None | Some("none") => Ok((false, false)),
+        Some("css") | Some("concordia") => Ok((true, false)),
+        Some("starwind") => Ok((true, true)),
         Some(other) => {
-            bail!("valeur invalide pour --ui : `{other}` (attendu pour laravel et wagtail : none, css)")
+            bail!("valeur invalide pour --ui : `{other}` (attendu pour laravel et wagtail : none, css, starwind)")
         }
     }
 }
@@ -396,7 +414,9 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.css_variants.is_empty()
         || o.db_url.is_some()
-        || o.auth
+        || (o.auth && !matches!(framework, Framework::Laravel | Framework::Wagtail))
+        || (o.icons.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
+        || (!o.langs.is_empty() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.auth_plugins.is_empty()
         || !o.i18n.is_empty()
         || o.docker
@@ -467,6 +487,8 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             }
             a.db_url = o.db_url.clone();
             a.auth = o.auth;
+            a.icons = o.icons.clone();
+            a.langs = o.langs.clone();
             a.auth_plugins = o.auth_plugins.clone();
             a.i18n = o.i18n.clone();
             a.css_variants = o.css_variants.clone();
@@ -504,17 +526,25 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.dark = o.dark;
             l.pest = o.pest;
             l.frontend = o.frontend;
-            l.ui = parse_catalog_ui(&o.ui)?;
+            (l.ui, l.starwind) = parse_catalog_ui(&o.ui)?;
             l.theme = theme_from(o);
+            l.auth = o.auth;
+            l.icons = o.icons.clone();
+            l.langs = o.langs.clone();
             l.validate()?;
             Options::Laravel(l)
         }
         Framework::Wagtail => {
+            let (ui, starwind) = parse_catalog_ui(&o.ui)?;
             let w = WagtailOptions {
                 packages: o.packages.clone(),
                 migrate: !o.no_migrate,
-                ui: parse_catalog_ui(&o.ui)?,
+                ui,
+                starwind,
                 theme: theme_from(o),
+                auth: o.auth,
+                icons: o.icons.clone(),
+                langs: o.langs.clone(),
             };
             w.validate()?;
             Options::Wagtail(w)

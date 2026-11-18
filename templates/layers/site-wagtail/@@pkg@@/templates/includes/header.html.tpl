@@ -10,7 +10,7 @@
                 {{ site.name }}
             </span>
         </a>
-        <nav class="site-nav" aria-label="Navigation principale">
+        <nav class="site-nav" aria-label="{{ site.ui.main_nav }}">
             <ul class="site-nav__list">
                 {% for item in site.nav %}
                     <li>
@@ -18,7 +18,7 @@
                             {% ds_dropdown open_on_hover=True class_="site-nav__dropdown" %}
                                 {% ds_dropdown_trigger class_="site-nav__link" aria_current=item.current %}
                                     {{ item.label }}
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                    {% site_icon "chevron-down" size=16 %}
                                 {% endds_dropdown_trigger %}
                                 {% ds_dropdown_content class_="site-nav__menu" %}
                                     {% ds_dropdown_item as_="a" href=item.url %}
@@ -41,23 +41,47 @@
             </ul>
         </nav>
         <div class="site-header__actions">
+            {% if site.account %}
+                {% ds_button href=site.account.url variant="ghost" size="sm" class_="site-header__account" %}
+                    {% site_icon "user" size=18 %}
+                    <span>
+                        {{ site.account.label }}
+                    </span>
+                {% endds_button %}
+            {% endif %}
             {% ds_button href=site.cta.url variant="primary" size="sm" class_="site-header__cta" %}
                 {{ site.cta.label }}
             {% endds_button %}
-            {% ds_theme_toggle size="sm" aria_label="Changer de thème" %}{% endds_theme_toggle %}
+            {% if site.multilingual %}
+                <nav class="site-lang" aria-label="{{ site.ui.language }}">
+                    <ul class="site-lang__list">
+                        {% for lang in site.languages %}
+                            <li>
+                                <a class="site-lang__link" href="{{ lang.url }}" hreflang="{{ lang.code }}" lang="{{ lang.code }}"{% if lang.current %} aria-current="{{ lang.current }}"{% endif %} title="{{ lang.name }}">
+                                    {% site_icon lang.flag size=16 %}
+                                    <span>
+                                        {{ lang.label }}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            {% endif %}
+            {% ds_theme_toggle size="sm" aria_label=site.ui.theme %}{% endds_theme_toggle %}
             {% ds_sheet class_="site-header__mobile" %}
                 {% ds_sheet_trigger as_child=True %}
-                    {% ds_button variant="ghost" size="icon" aria_label="Ouvrir le menu" %}
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    {% ds_button variant="ghost" size="icon" aria_label=site.ui.open_menu %}
+                        {% site_icon "menu" size=22 %}
                     {% endds_button %}
                 {% endds_sheet_trigger %}
-                {% ds_sheet_content side="right" class_="site-mobile" %}
+                {% ds_sheet_content side=site.sheet_side class_="site-mobile" %}
                     {% ds_sheet_header %}
                         {% ds_sheet_title %}
                             {{ site.name }}
                         {% endds_sheet_title %}
                     {% endds_sheet_header %}
-                    <nav class="site-mobile__nav" aria-label="Navigation mobile">
+                    <nav class="site-mobile__nav" aria-label="{{ site.ui.mobile_nav }}">
                         <ul class="site-mobile__list">
                             {% for item in site.nav %}
                                 <li>
@@ -65,7 +89,7 @@
                                         {% ds_collapsible class_="site-mobile__group" %}
                                             {% ds_collapsible_trigger class_="site-mobile__link" %}
                                                 {{ item.label }}
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+                                                {% site_icon "chevron-down" size=16 %}
                                             {% endds_collapsible_trigger %}
                                             {% ds_collapsible_content %}
                                                 <ul class="site-mobile__sub">
@@ -94,6 +118,12 @@
                         </ul>
                     </nav>
                     {% ds_sheet_footer %}
+                        {% if site.account %}
+                            {% ds_button href=site.account.url variant="outline" class_="site-mobile__cta" %}
+                                {% site_icon "user" size=18 %}
+                                {{ site.account.label }}
+                            {% endds_button %}
+                        {% endif %}
                         {% ds_button href=site.cta.url variant="primary" class_="site-mobile__cta" %}
                             {{ site.cta.label }}
                         {% endds_button %}

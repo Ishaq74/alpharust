@@ -16,7 +16,7 @@
         <div class="site-hero__actions">
             {% ds_button href=s.primary.url variant="primary" size="lg" %}
                 {{ s.primary.label }}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                {% site_icon "arrow-right" size=18 %}
             {% endds_button %}
             {% if s.secondary %}
                 {% ds_button href=s.secondary.url variant="outline" size="lg" %}

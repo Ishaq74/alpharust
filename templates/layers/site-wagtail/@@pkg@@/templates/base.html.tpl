@@ -1,8 +1,8 @@
 @@meta mode=replace@@
-{% load static wagtailcore_tags wagtailuserbar %}
+{% load i18n static wagtailcore_tags wagtailuserbar %}
 {# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel. #}
-<!DOCTYPE html>
-<html lang="fr">
+{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ site.dir }}">
     <head>
         <meta charset="utf-8" />
         <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}</title>
@@ -37,7 +37,7 @@
 
     <body class="site-body{% block body_class %}{% endblock %}">
         {% wagtailuserbar %}
-        <a class="site-skip" href="#contenu">Aller au contenu</a>
+        <a class="site-skip" href="#contenu">{{ site.ui.skip }}</a>
         {% include "includes/header.html" %}
         <main id="contenu" class="site-main" tabindex="-1">
             {% block content %}{% endblock %}

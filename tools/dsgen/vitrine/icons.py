@@ -1,26 +1,19 @@
-"""Icônes du site (tracés Lucide, licence ISC) : mêmes SVG dans les trois frameworks."""
-ICONS = {
-    'menu': '<path d="M4 6h16M4 12h16M4 18h16"/>',
-    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
-    'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
-    'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
-    'check': '<path d="M20 6 9 17l-5-5"/>',
-    'quote': '<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>',
-    'mail': '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
-    'phone': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
-    'map-pin': '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
-    'clock': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
-    'calendar': '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
-    'send': '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
-    'code': '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>',
-    'zap': '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
-    'accessibility': '<circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1M5 8l3-3 5.5 3-2.36 3.5M4.24 14.5a5 5 0 0 0 6.88 6M13.76 17.5a5 5 0 0 0-6.88-6"/>',
-    'shield': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
-    'pencil': '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
-    'heart': '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
-    'leaf': '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
-    'users': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
-    'github': '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
-    'linkedin': '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect width="4" height="12" x="2" y="9"/><circle cx="4" cy="4" r="2"/>',
-    'mastodon': '<path d="M21.3 13.6c-.3 1.6-2.7 3.3-5.5 3.6-1.5.2-2.9.3-4.4.3-2.5-.1-4.4-.6-4.4-.6v.7c.3 2.5 2.4 2.6 4.4 2.7 2 0 3.8-.5 3.8-.5l.1 1.8s-1.4.7-3.9.9c-1.4.1-3.1-.04-5.1-.6C2.1 20.8 1.4 16.5 1.3 12.1V8.6c0-4.4 2.9-5.7 2.9-5.7C5.6 2.2 8.2 2 10.9 2h.1c2.7 0 5.3.3 6.8.9 0 0 2.9 1.3 2.9 5.7 0 0 0 3.3-.4 5z"/><path d="M8 13V8.6c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v2.4M14.4 13V8.6c0-.9-.7-1.6-1.6-1.6s-1.6.7-1.6 1.6"/>',
-}
+"""Icônes du site : MDI par défaut (pictogrammes) et Circle Flags (drapeaux des langues), voir iconsets.py.
+
+ICONS : {nom logique: {body, width, height}} — le même fichier icons.json est écrit pour Astro, Laravel et Wagtail ;
+`alpharust generate … --icons <jeu>` le réécrit avec un autre jeu Iconify.
+"""
+from . import iconsets, i18n
+
+_DATA = iconsets.load()
+ICONS = {**iconsets.resolve(_DATA), **iconsets.flags(_DATA, [c for c, _, _ in i18n.LOCALES])}
+
+
+def icons_json():
+    """Contenu de icons.json (trié, une icône par ligne) : lu par chaque framework, réécrit par --icons."""
+    import json
+    sets = _DATA['sets']
+    head = {'set': iconsets.DEFAULT_SET, 'flags': iconsets.FLAG_SET,
+            'licenses': {k: f"{sets[k]['name']} ({sets[k]['license']})" for k in (iconsets.DEFAULT_SET, iconsets.FLAG_SET)}}
+    lines = ',\n'.join(f'  {json.dumps(k)}: {json.dumps(v, ensure_ascii=False, sort_keys=True)}' for k, v in sorted(ICONS.items()))
+    return json.dumps(head, ensure_ascii=False)[:-1] + ', "icons": {\n' + lines + '\n}}\n'
