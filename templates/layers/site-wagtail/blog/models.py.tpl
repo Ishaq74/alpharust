@@ -8,13 +8,16 @@ from wagtail.models import Page
 
 from streams.blocks import SECTION_BLOCKS
 
+# Format des dates d'articles par langue (filtre date de Django ; mêmes rendus que Carbon et Intl).
+DATE_FORMATS = {'fr': 'j F Y', 'en': 'F j, Y', 'es': 'j \\d\\e F \\d\\e Y', 'ar': 'j F Y'}
+
 
 class BlogIndexPage(Page):
     body = StreamField(SECTION_BLOCKS, blank=True, use_json_field=True, verbose_name="sections")
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["blog.BlogPage"]
-    max_count_per_parent = 1  # une par langue (arborescences fr et en)
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "index du blog"
@@ -46,7 +49,7 @@ class BlogPage(Page):
 
     @property
     def date_label(self):
-        return date_filter(self.date, "F j, Y" if (get_language() or "").startswith("en") else "j F Y")
+        return date_filter(self.date, DATE_FORMATS.get((get_language() or "fr").split("-")[0], "j F Y"))
 
     @property
     def crumbs(self):

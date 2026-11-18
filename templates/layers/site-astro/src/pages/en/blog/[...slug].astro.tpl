@@ -1,4 +1,4 @@
-@@meta mode=replace when=vitrine@@
+@@meta mode=replace when=vitrine&lang_en@@
 ---
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
 import { Badge } from '@atoms/badge';
@@ -24,12 +24,12 @@ export async function getStaticPaths() {
 const item = (await getPosts(locale)).find((x) => x.entry.id === Astro.props.id)!;
 @@end@@
 const { Content } = await render(item.entry);
+const site = await getSite(Astro.url.pathname);
 const page = {
   ...item,
-  crumbs: crumbs(locale, ['Blog', '/blog']),
+  crumbs: crumbs(locale, [site.ui.blog, '/blog']),
   back_url: href('/blog', locale),
 };
-const site = await getSite(Astro.url.pathname);
 ---
 
 <BaseLayout title={page.title} description={item.excerpt} bleed>

@@ -3,7 +3,7 @@
 Données reçues (mêmes clés dans les trois frameworks) :
   site : name, initial, tagline, home_url, cta{label,url}, nav[{label,url,current,children[{label,url,current}]}],
          footer[{title,links[{label,url}]}], social[{label,url,icon}], contact{email,email_url,phone,phone_url,address,hours},
-         year, copyright, locale, languages[{code,label,name,url,current}] (sélecteur de langue), ui{clé: libellé} (i18n.UI)
+         year, copyright, locale, dir, multilingual, sheet_side (right, left en RTL), languages[{code,label,name,flag,url,current}] (sélecteur de langue), ui{clé: libellé} (i18n.UI)
   s    : une section (type + champs, `items` déjà résolus pour services et posts)
   page : page de détail (crumbs[{label,url}], title, summary, …)
 """
@@ -58,17 +58,18 @@ HEADER = [E('header', cls('site-header'), [
                                                 ('class', 'site-header__account')], [Icon('user', 18), E('span', [], [O(V('site.account.label'))])])]),
             C('Button', [('href', V('site.cta.url')), ('variant', 'primary'), ('size', 'sm'), ('class', 'site-header__cta')],
               [O(V('site.cta.label'))]),
-            E('nav', [('class', 'site-lang'), ('aria-label', V('site.ui.language'))], [E('ul', cls('site-lang__list'), [
-                For('lang', V('site.languages'), [E('li', [], [
-                    E('a', [('class', 'site-lang__link'), ('href', V('lang.url')), ('hreflang', V('lang.code')), ('lang', V('lang.code')),
-                            ('aria-current', Opt(V('lang.current'))), ('title', V('lang.name'))], [
-                        Icon(V('lang.flag'), 16), E('span', [], [O(V('lang.label'))])])])]),
-            ])]),
+            If(V('site.multilingual'), [
+                E('nav', [('class', 'site-lang'), ('aria-label', V('site.ui.language'))], [E('ul', cls('site-lang__list'), [
+                    For('lang', V('site.languages'), [E('li', [], [
+                        E('a', [('class', 'site-lang__link'), ('href', V('lang.url')), ('hreflang', V('lang.code')), ('lang', V('lang.code')),
+                                ('aria-current', Opt(V('lang.current'))), ('title', V('lang.name'))], [
+                            Icon(V('lang.flag'), 16), E('span', [], [O(V('lang.label'))])])])]),
+                ])])]),
             C('ThemeToggle', [('size', 'sm'), ('ariaLabel', V('site.ui.theme'))]),
             C('Sheet', [('class', 'site-header__mobile')], [
                 C('SheetTrigger', [('asChild', True)], [
                     C('Button', [('variant', 'ghost'), ('size', 'icon'), ('aria-label', V('site.ui.open_menu'))], [Icon('menu', 22)])]),
-                C('SheetContent', [('side', 'right'), ('class', 'site-mobile')], [
+                C('SheetContent', [('side', V('site.sheet_side')), ('class', 'site-mobile')], [
                     C('SheetHeader', [], [C('SheetTitle', [], [O(V('site.name'))])]),
                     E('nav', [('class', 'site-mobile__nav'), ('aria-label', V('site.ui.mobile_nav'))], [
                         E('ul', cls('site-mobile__list'), [

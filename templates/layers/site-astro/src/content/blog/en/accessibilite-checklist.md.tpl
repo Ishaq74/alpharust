@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Accessibility in 10 points"
 description: "A short, concrete list to avoid the most common mistakes."

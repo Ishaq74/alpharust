@@ -96,6 +96,9 @@ final class SiteData
 
         return [
             'locale' => $locale,
+            'dir' => config("site.locales.{$locale}.dir", 'ltr'),
+            'multilingual' => count(config('site.locales')) > 1,
+            'sheet_side' => config("site.locales.{$locale}.dir") === 'rtl' ? 'left' : 'right',
             'languages' => array_map(fn (string $code, array $l) => [
                 'code' => $code,
                 'label' => $l['label'],

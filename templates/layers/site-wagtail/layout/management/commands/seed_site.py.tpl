@@ -7,6 +7,7 @@ SiteSeeder). Idempotent : une page existante (même slug) est conservée.
 import json
 from datetime import date
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from wagtail.models import Locale, Site
@@ -605,8 +606,10 @@ FIELDS = json.loads(r"""[
  }
 ]""")
 FIELD_TYPES = {"text": "singleline", "email": "email", "textarea": "multiline"}
-# Traduction anglaise (vitrine/i18n.py) : mêmes slugs, pages liées aux pages françaises par translation_key.
-EN = json.loads(r"""{
+# Traductions (vitrine/locales, langues choisies : --langs) : mêmes slugs, pages liées aux pages françaises par translation_key.
+TRANSLATIONS = {}
+@@if lang_en@@
+TRANSLATIONS["en"] = json.loads(r"""{
  "pages": {
   "home": {
    "title": "Home",
@@ -1171,8 +1174,1153 @@ EN = json.loads(r"""{
    "autocomplete": "off",
    "required": true
   }
- ]
+ ],
+ "subject": "New message from the website",
+ "menu": "Main"
 }""")
+@@end@@
+@@if lang_es@@
+TRANSLATIONS["es"] = json.loads(r"""{
+ "pages": {
+  "home": {
+   "title": "Inicio",
+   "description": "Agencia web independiente: creación de sitios, rediseño, accesibilidad y mantenimiento.",
+   "slug": "",
+   "body": [
+    {
+     "type": "hero",
+     "value": {
+      "badge": "Agencia web independiente",
+      "title": "Sitios rápidos, accesibles y fáciles de hacer evolucionar",
+      "lead": "Diseñamos y mantenemos sitios que cargan en menos de un segundo, cumplen el RGAA y siguen siendo fáciles de modificar.",
+      "primary": {
+       "label": "Solicitar un presupuesto",
+       "page": null,
+       "url": "/contact"
+      },
+      "secondary": {
+       "label": "Ver nuestros servicios",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "stats",
+     "value": {
+      "items": [
+       {
+        "value": "98/100",
+        "label": "Puntuación media en Lighthouse"
+       },
+       {
+        "value": "AA",
+        "label": "Nivel RGAA objetivo"
+       },
+       {
+        "value": "< 1 s",
+        "label": "Visualización del contenido"
+       },
+       {
+        "value": "12 años",
+        "label": "De experiencia"
+       }
+      ]
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "Por qué elegirnos",
+      "lead": "Cuatro compromisos en cada proyecto.",
+      "items": [
+       {
+        "icon": "zap",
+        "title": "Rendimiento",
+        "text": "Páginas ligeras, imágenes optimizadas y puntuaciones medidas en cada entrega."
+       },
+       {
+        "icon": "accessibility",
+        "title": "Accesibilidad",
+        "text": "Navegación con teclado, contrastes controlados y una semántica cuidada."
+       },
+       {
+        "icon": "pencil",
+        "title": "Autonomía",
+        "text": "Usted modifica sus contenidos sin tener que llamarnos."
+       },
+       {
+        "icon": "shield",
+        "title": "Tranquilidad",
+        "text": "Actualizaciones, copias de seguridad y supervisión incluidas."
+       }
+      ]
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "Nuestros servicios",
+      "lead": "De la creación al mantenimiento.",
+      "limit": 3,
+      "link": {
+       "label": "Todos los servicios",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "testimonials",
+     "value": {
+      "title": "Confían en nosotros",
+      "items": [
+       {
+        "quote": "Nuestro nuevo sitio es el doble de rápido y nuestras solicitudes de presupuesto han aumentado un 40 %.",
+        "name": "Sophie Laurent",
+        "role": "Directora, Atelier Laurent",
+        "initials": "SL"
+       },
+       {
+        "quote": "Una auditoría de accesibilidad clara y correcciones entregadas en tres semanas.",
+        "name": "Marc Petit",
+        "role": "Responsable digital, Ayuntamiento de Montreuil",
+        "initials": "MP"
+       },
+       {
+        "quote": "Publicamos nuestras noticias en cinco minutos, sin ayuda.",
+        "name": "Léa Moreau",
+        "role": "Responsable de comunicación, Asociación Horizon",
+        "initials": "LM"
+       }
+      ]
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "Últimos artículos",
+      "lead": "Consejos y experiencias.",
+      "limit": 3,
+      "link": {
+       "label": "Todo el blog",
+       "page": null,
+       "url": "/blog"
+      }
+     }
+    },
+    {
+     "type": "faq",
+     "value": {
+      "title": "Preguntas frecuentes",
+      "items": [
+       {
+        "question": "¿Cuánto tiempo se tarda en crear un sitio?",
+        "answer": "Entre cuatro y ocho semanas, según el número de páginas y de funcionalidades."
+       },
+       {
+        "question": "¿Podré modificar mi sitio yo mismo?",
+        "answer": "Sí: cada sitio se entrega con un panel de administración y una formación."
+       },
+       {
+        "question": "¿Será accesible mi sitio?",
+        "answer": "Apuntamos al nivel AA del RGAA y entregamos una declaración de accesibilidad."
+       },
+       {
+        "question": "¿Ofrecen mantenimiento?",
+        "answer": "Sí, con una cuota mensual que incluye actualizaciones, copias de seguridad y pequeñas mejoras."
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "¿Tiene un proyecto en mente?",
+      "text": "Hablemos: respuesta en 24 horas laborables.",
+      "action": {
+       "label": "Solicitar un presupuesto",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "about": {
+   "title": "Quiénes somos",
+   "description": "Quiénes somos, nuestra misión y nuestros valores.",
+   "slug": "a-propos",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Quiénes somos",
+      "title": "Un equipo pequeño, con grandes exigencias",
+      "lead": "Desarrolladores, diseñadores y expertos en accesibilidad unidos en torno a una web sostenible."
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "Nuestra misión",
+      "body": "<p>Creemos que un buen sitio es <strong>rápido, accesible y sobrio</strong>. Rápido, porque cada segundo cuenta. Accesible, porque la web es para todo el mundo. Sobrio, porque el mejor código es el que no se escribe.</p>\n<p>Desde 2014 acompañamos a artesanos, asociaciones, administraciones locales y pymes, desde el primer taller hasta el mantenimiento.</p>"
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "Nuestros valores",
+      "lead": "",
+      "items": [
+       {
+        "icon": "heart",
+        "title": "Transparencia",
+        "text": "Presupuestos detallados, código abierto y ninguna dependencia de proveedor."
+       },
+       {
+        "icon": "leaf",
+        "title": "Sobriedad",
+        "text": "Menos dependencias, menos datos, menos energía."
+       },
+       {
+        "icon": "users",
+        "title": "Cercanía",
+        "text": "Un único interlocutor, con contacto directo."
+       }
+      ]
+     }
+    },
+    {
+     "type": "team",
+     "value": {
+      "title": "El equipo",
+      "lead": "Cuatro personas, todas en París.",
+      "items": [
+       {
+        "name": "Camille Martin",
+        "role": "Fundadora, desarrolladora",
+        "initials": "CM"
+       },
+       {
+        "name": "Inès Benali",
+        "role": "Experta en accesibilidad",
+        "initials": "IB"
+       },
+       {
+        "name": "Thomas Roux",
+        "role": "Diseñador UI",
+        "initials": "TR"
+       },
+       {
+        "name": "Hugo Lefèvre",
+        "role": "Desarrollador back-end",
+        "initials": "HL"
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "Trabajemos juntos",
+      "text": "Cuéntenos su proyecto y le responderemos rápidamente.",
+      "action": {
+       "label": "Contactar",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "services": {
+   "title": "Servicios",
+   "description": "Creación, rediseño, accesibilidad y mantenimiento de sitios web.",
+   "slug": "services",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Servicios",
+      "title": "Lo que hacemos",
+      "lead": "Cuatro ofertas claras, combinables según su proyecto."
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "¿Necesita consejo?",
+      "text": "Le ayudamos a elegir la fórmula adecuada.",
+      "action": {
+       "label": "Solicitar un presupuesto",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "blog": {
+   "title": "Blog",
+   "description": "Consejos y experiencias sobre una web rápida y accesible.",
+   "slug": "blog",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Blog",
+      "title": "Artículos y consejos",
+      "lead": "Rendimiento, accesibilidad, decisiones técnicas: lo que aprendemos sobre el terreno."
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    }
+   ]
+  },
+  "contact": {
+   "title": "Contacto",
+   "description": "Escríbanos: respuesta en 24 horas laborables.",
+   "slug": "contact",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Contacto",
+      "title": "Hablemos de su proyecto",
+      "lead": "Rellene el formulario o escríbanos directamente; respondemos en 24 horas laborables."
+     }
+    },
+    {
+     "type": "contact",
+     "value": {
+      "title": "Escríbanos",
+      "success": "¡Gracias! Su mensaje se ha enviado correctamente.",
+      "submit": "Enviar el mensaje"
+     }
+    }
+   ]
+  },
+  "legal": {
+   "title": "Aviso legal",
+   "description": "Aviso legal del sitio.",
+   "slug": "mentions-legales",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "Aviso legal",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"editor\">Editor</h2>\n<p>Este sitio lo edita <strong>@@title@@</strong>, 12 rue de la Paix, 75002 París. Contacto: contact@exemple.fr.</p>\n<h2 id=\"alojamiento\">Alojamiento</h2>\n<p>El sitio está alojado por su proveedor de alojamiento; sus datos figuran en el contrato de servicio.</p>\n<h2 id=\"propiedad-intelectual\">Propiedad intelectual</h2>\n<p>Los textos, imágenes y elementos gráficos de este sitio están protegidos. Queda prohibida cualquier reproducción sin autorización.</p>"
+     }
+    }
+   ]
+  },
+  "privacy": {
+   "title": "Política de privacidad",
+   "description": "Cómo tratamos sus datos personales.",
+   "slug": "confidentialite",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "Política de privacidad",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"datos-recogidos\">Datos recogidos</h2>\n<p>El formulario de contacto recoge su nombre, su dirección de correo electrónico y su mensaje, únicamente para responderle.</p>\n<h2 id=\"plazo-de-conservación\">Plazo de conservación</h2>\n<p>Los mensajes se conservan durante doce meses y después se eliminan.</p>\n<h2 id=\"sus-derechos\">Sus derechos</h2>\n<p>Puede solicitar el acceso, la rectificación o la supresión de sus datos escribiendo a contact@exemple.fr.</p>"
+     }
+    }
+   ]
+  }
+ },
+ "services": [
+  {
+   "slug": "creation-site-web",
+   "title": "Creación de sitios web",
+   "summary": "Un sitio a medida, rápido y bien posicionado, entregado con su panel de administración.",
+   "icon": "code",
+   "price": "Desde 2.400 €",
+   "features": [
+    "Maquetas y design system",
+    "Contenidos editables",
+    "SEO técnico y datos estructurados",
+    "Puesta en línea y formación"
+   ],
+   "body": "<p>Diseñamos su sitio a partir de sus objetivos: quién debe encontrarlo, qué debe hacer en él y cómo medirlo.</p>\n<h2 id=\"nuestro-método\">Nuestro método</h2>\n<p>Talleres de definición, maquetas y, después, desarrollo en iteraciones cortas. Cada versión se <strong>publica en un entorno de pruebas</strong> para que pueda probarla.</p>\n<h2 id=\"qué-se-entrega\">Qué se entrega</h2>\n<ul>\n<li>un sitio adaptable, accesible y rápido;</li>\n<li>un panel de administración para modificar sus contenidos;</li>\n<li>la documentación y una formación de media jornada.</li>\n</ul>"
+  },
+  {
+   "slug": "refonte-performance",
+   "title": "Rediseño y rendimiento",
+   "summary": "Su sitio actual, más rápido, más claro y mejor posicionado, sin perder su visibilidad en los buscadores.",
+   "icon": "zap",
+   "price": "Desde 1.900 €",
+   "features": [
+    "Auditoría Lighthouse y Core Web Vitals",
+    "Plan de redirecciones",
+    "Optimización de imágenes",
+    "Seguimiento tras la puesta en línea"
+   ],
+   "body": "<p>Un buen rediseño empieza por una auditoría: tiempos de carga, recorridos de usuario y contenidos que convierten.</p>\n<h2 id=\"conservar-el-posicionamiento\">Conservar el posicionamiento</h2>\n<p>Todas las direcciones antiguas se <strong>redirigen</strong> y se supervisan durante tres meses tras la puesta en línea.</p>\n<h2 id=\"medir-la-mejora\">Medir la mejora</h2>\n<ul>\n<li>puntuaciones Lighthouse antes / después;</li>\n<li>Core Web Vitals en las páginas clave;</li>\n<li>tasas de conversión de los formularios.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite",
+   "title": "Accesibilidad (RGAA)",
+   "summary": "Auditoría y adecuación a RGAA / WCAG 2.2 AA, declaración de accesibilidad incluida.",
+   "icon": "accessibility",
+   "price": "Desde 1.200 €",
+   "features": [
+    "Auditoría sobre una muestra de páginas",
+    "Correcciones priorizadas",
+    "Declaración de accesibilidad",
+    "Formación de redactores"
+   ],
+   "body": "<p>La accesibilidad beneficia a todos: navegación con teclado, contrastes, lectores de pantalla y formularios comprensibles.</p>\n<h2 id=\"auditoría\">Auditoría</h2>\n<p>Evaluamos una muestra representativa de páginas según el <strong>RGAA 4.1</strong> y entregamos un informe priorizado.</p>\n<h2 id=\"adecuación\">Adecuación</h2>\n<ul>\n<li>correcciones en el código y en las plantillas;</li>\n<li>control de los contrastes del tema;</li>\n<li>redacción de la declaración de accesibilidad.</li>\n</ul>"
+  },
+  {
+   "slug": "maintenance",
+   "title": "Mantenimiento y alojamiento",
+   "summary": "Actualizaciones, copias de seguridad, supervisión y pequeñas mejoras, sin sorpresas.",
+   "icon": "shield",
+   "price": "Desde 90 € / mes",
+   "features": [
+    "Actualizaciones de seguridad",
+    "Copias de seguridad diarias",
+    "Supervisión 24/7",
+    "Una hora de mejoras al mes"
+   ],
+   "body": "<p>Un sitio web es software: hay que actualizarlo, hacer copias de seguridad y supervisarlo.</p>\n<h2 id=\"qué-incluye\">Qué incluye</h2>\n<ul>\n<li>actualizaciones del framework y de las dependencias;</li>\n<li>copias de seguridad diarias conservadas durante 30 días;</li>\n<li>supervisión de la disponibilidad y de los certificados.</li>\n</ul>\n<h2 id=\"mejoras\">Mejoras</h2>\n<p>Cada mes se incluye una hora de mejoras: una nueva sección, un formulario o una página.</p>"
+  }
+ ],
+ "posts": [
+  {
+   "slug": "performance-images",
+   "title": "Imágenes ligeras sin perder calidad",
+   "excerpt": "Formatos modernos, dimensiones explícitas y carga diferida: el trío ganador.",
+   "category": "Rendimiento",
+   "author": "Camille Martin",
+   "date": "2026-08-28",
+   "body": "<p>Las imágenes suelen representar más de la mitad del peso de una página.</p>\n<h2 id=\"los-formatos-adecuados\">Los formatos adecuados</h2>\n<p>AVIF y WebP dividen el peso entre dos y cinco respecto al JPEG, con la misma calidad.</p>\n<h2 id=\"los-atributos-adecuados\">Los atributos adecuados</h2>\n<ul>\n<li><code>width</code> y <code>height</code> para evitar desplazamientos del diseño;</li>\n<li><code>loading=\"lazy\"</code> por debajo de la línea de flotación;</li>\n<li><code>srcset</code> para servir el tamaño adecuado.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite-checklist",
+   "title": "La accesibilidad en 10 puntos",
+   "excerpt": "Una lista breve y concreta para evitar los errores más frecuentes.",
+   "category": "Accesibilidad",
+   "author": "Inès Benali",
+   "date": "2026-09-15",
+   "body": "<p>Estos diez puntos cubren la mayoría de los problemas que encontramos en las auditorías.</p>\n<h2 id=\"estructura\">Estructura</h2>\n<ul>\n<li>un solo <code>h1</code> por página y títulos jerarquizados;</li>\n<li>puntos de referencia: <code>header</code>, <code>nav</code>, <code>main</code>, <code>footer</code>;</li>\n<li>un enlace para saltar al contenido.</li>\n</ul>\n<h2 id=\"interacción\">Interacción</h2>\n<ul>\n<li>todo se puede usar <strong>con el teclado</strong>;</li>\n<li>el foco siempre es visible;</li>\n<li>los campos de formulario tienen una etiqueta.</li>\n</ul>"
+  },
+  {
+   "slug": "choisir-son-framework",
+   "title": "Astro, Laravel o Wagtail: cómo elegir framework",
+   "excerpt": "Tres herramientas excelentes, tres formas de trabajar. Nuestros criterios para elegir sin arrepentirse.",
+   "category": "Técnica",
+   "author": "Camille Martin",
+   "date": "2026-10-02",
+   "body": "<p>El framework adecuado es el que su equipo sabrá mantener vivo. Estos son nuestros criterios.</p>\n<h2 id=\"astro-para-sitios-de-contenido\">Astro para sitios de contenido</h2>\n<p>Páginas estáticas por defecto e islas interactivas cuando hacen falta: ideal para un sitio corporativo o un blog muy rápido.</p>\n<h2 id=\"laravel-para-aplicaciones\">Laravel para aplicaciones</h2>\n<p>Autenticación, colas, correos electrónicos, pagos: <strong>todo está previsto</strong> para una aplicación de negocio.</p>\n<h2 id=\"wagtail-para-equipos-editoriales\">Wagtail para equipos editoriales</h2>\n<p>Un verdadero CMS editorial: árbol de páginas, StreamField, revisiones y previsualización.</p>"
+  }
+ ],
+ "nav": [
+  {
+   "label": "Inicio",
+   "url": "/"
+  },
+  {
+   "label": "Servicios",
+   "url": "/services",
+   "children": "services"
+  },
+  {
+   "label": "Blog",
+   "url": "/blog"
+  },
+  {
+   "label": "Quiénes somos",
+   "url": "/a-propos"
+  },
+  {
+   "label": "Contacto",
+   "url": "/contact"
+  }
+ ],
+ "footer": [
+  {
+   "title": "Navegación",
+   "links": [
+    {
+     "label": "Inicio",
+     "url": "/"
+    },
+    {
+     "label": "Blog",
+     "url": "/blog"
+    },
+    {
+     "label": "Quiénes somos",
+     "url": "/a-propos"
+    },
+    {
+     "label": "Contacto",
+     "url": "/contact"
+    }
+   ]
+  },
+  {
+   "title": "Información",
+   "links": [
+    {
+     "label": "Aviso legal",
+     "url": "/mentions-legales"
+    },
+    {
+     "label": "Política de privacidad",
+     "url": "/confidentialite"
+    }
+   ]
+  }
+ ],
+ "fields": [
+  {
+   "name": "nom",
+   "label": "Nombre",
+   "type": "text",
+   "autocomplete": "name",
+   "required": true
+  },
+  {
+   "name": "email",
+   "label": "Correo electrónico",
+   "type": "email",
+   "autocomplete": "email",
+   "required": true
+  },
+  {
+   "name": "sujet",
+   "label": "Asunto",
+   "type": "text",
+   "autocomplete": "off",
+   "required": false
+  },
+  {
+   "name": "message",
+   "label": "Mensaje",
+   "type": "textarea",
+   "autocomplete": "off",
+   "required": true
+  }
+ ],
+ "subject": "Nuevo mensaje desde el sitio web",
+ "menu": "Principal"
+}""")
+@@end@@
+@@if lang_ar@@
+TRANSLATIONS["ar"] = json.loads(r"""{
+ "pages": {
+  "home": {
+   "title": "الرئيسية",
+   "description": "وكالة ويب مستقلة: إنشاء المواقع، وإعادة التصميم، وإمكانية الوصول، والصيانة.",
+   "slug": "",
+   "body": [
+    {
+     "type": "hero",
+     "value": {
+      "badge": "وكالة ويب مستقلة",
+      "title": "مواقع سريعة وسهلة الوصول ويسهل تطويرها",
+      "lead": "نصمم مواقع تُحمَّل في أقل من ثانية، وتحترم معايير RGAA، وتبقى سهلة التعديل، ونتولى صيانتها.",
+      "primary": {
+       "label": "اطلبوا عرض سعر",
+       "page": null,
+       "url": "/contact"
+      },
+      "secondary": {
+       "label": "اكتشفوا خدماتنا",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "stats",
+     "value": {
+      "items": [
+       {
+        "value": "98/100",
+        "label": "متوسط نتيجة Lighthouse"
+       },
+       {
+        "value": "AA",
+        "label": "مستوى RGAA المستهدف"
+       },
+       {
+        "value": "< 1 ث",
+        "label": "عرض المحتوى"
+       },
+       {
+        "value": "12 عامًا",
+        "label": "من الخبرة"
+       }
+      ]
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "لماذا تختاروننا",
+      "lead": "أربعة التزامات في كل مشروع.",
+      "items": [
+       {
+        "icon": "zap",
+        "title": "الأداء",
+        "text": "صفحات خفيفة، وصور محسّنة، ونتائج تُقاس عند كل تسليم."
+       },
+       {
+        "icon": "accessibility",
+        "title": "إمكانية الوصول",
+        "text": "تنقل بلوحة المفاتيح، وتباين مضبوط، وبنية دلالية متقنة."
+       },
+       {
+        "icon": "pencil",
+        "title": "الاستقلالية",
+        "text": "تعدّلون محتواكم دون الحاجة إلى الاتصال بنا."
+       },
+       {
+        "icon": "shield",
+        "title": "راحة البال",
+        "text": "التحديثات والنسخ الاحتياطية والمراقبة مشمولة."
+       }
+      ]
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "خدماتنا",
+      "lead": "من الإنشاء إلى الصيانة.",
+      "limit": 3,
+      "link": {
+       "label": "جميع الخدمات",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "testimonials",
+     "value": {
+      "title": "يثقون بنا",
+      "items": [
+       {
+        "quote": "موقعنا الجديد أسرع بمرتين، وارتفعت طلبات عروض الأسعار لدينا بنسبة 40%.",
+        "name": "Sophie Laurent",
+        "role": "مديرة، Atelier Laurent",
+        "initials": "SL"
+       },
+       {
+        "quote": "تدقيق واضح لإمكانية الوصول، وتصحيحات سُلّمت خلال ثلاثة أسابيع.",
+        "name": "Marc Petit",
+        "role": "مسؤول التحول الرقمي، بلدية مونتروي",
+        "initials": "MP"
+       },
+       {
+        "quote": "ننشر أخبارنا في خمس دقائق، دون مساعدة.",
+        "name": "Léa Moreau",
+        "role": "مسؤولة الاتصال، جمعية Horizon",
+        "initials": "LM"
+       }
+      ]
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "أحدث المقالات",
+      "lead": "نصائح وخبرات من الميدان.",
+      "limit": 3,
+      "link": {
+       "label": "المدونة كاملة",
+       "page": null,
+       "url": "/blog"
+      }
+     }
+    },
+    {
+     "type": "faq",
+     "value": {
+      "title": "الأسئلة الشائعة",
+      "items": [
+       {
+        "question": "كم يستغرق إنشاء موقع؟",
+        "answer": "من أربعة إلى ثمانية أسابيع حسب عدد الصفحات والوظائف."
+       },
+       {
+        "question": "هل سأتمكن من تعديل موقعي بنفسي؟",
+        "answer": "نعم: يُسلَّم كل موقع مع لوحة إدارة ودورة تدريبية."
+       },
+       {
+        "question": "هل سيكون موقعي سهل الوصول؟",
+        "answer": "نستهدف المستوى AA من معايير RGAA ونسلّم بيانًا لإمكانية الوصول."
+       },
+       {
+        "question": "هل تقدمون خدمة الصيانة؟",
+        "answer": "نعم، باشتراك شهري يشمل التحديثات والنسخ الاحتياطية والتحسينات الصغيرة."
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "لديكم مشروع؟",
+      "text": "لنتحدث: نرد خلال 24 ساعة عمل.",
+      "action": {
+       "label": "اطلبوا عرض سعر",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "about": {
+   "title": "من نحن",
+   "description": "من نحن، ومهمتنا، وقيمنا.",
+   "slug": "a-propos",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "من نحن",
+      "title": "فريق صغير بمعايير عالية",
+      "lead": "مطورون ومصممون وخبراء في إمكانية الوصول، يجمعهم الويب المستدام."
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "مهمتنا",
+      "body": "<p>نؤمن بأن الموقع الجيد <strong>سريع وسهل الوصول ومقتصد</strong>. سريع، لأن كل ثانية مهمة. سهل الوصول، لأن الويب للجميع. مقتصد، لأن أفضل شيفرة هي تلك التي لا نكتبها.</p>\n<p>منذ عام 2014 نرافق الحرفيين والجمعيات والجماعات المحلية والشركات الصغيرة والمتوسطة، من ورشة العمل الأولى حتى الصيانة.</p>"
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "قيمنا",
+      "lead": "",
+      "items": [
+       {
+        "icon": "heart",
+        "title": "الشفافية",
+        "text": "عروض أسعار مفصلة، وشيفرة مفتوحة، ودون أي ارتباط إلزامي بمزوّد."
+       },
+       {
+        "icon": "leaf",
+        "title": "الاعتدال",
+        "text": "تبعيات أقل، وبيانات أقل، وطاقة أقل."
+       },
+       {
+        "icon": "users",
+        "title": "القرب",
+        "text": "محاور واحد يمكن التواصل معه مباشرة."
+       }
+      ]
+     }
+    },
+    {
+     "type": "team",
+     "value": {
+      "title": "الفريق",
+      "lead": "أربعة أشخاص، جميعهم في باريس.",
+      "items": [
+       {
+        "name": "Camille Martin",
+        "role": "مؤسِّسة ومطوِّرة",
+        "initials": "CM"
+       },
+       {
+        "name": "Inès Benali",
+        "role": "خبيرة في إمكانية الوصول",
+        "initials": "IB"
+       },
+       {
+        "name": "Thomas Roux",
+        "role": "مصمم واجهات المستخدم",
+        "initials": "TR"
+       },
+       {
+        "name": "Hugo Lefèvre",
+        "role": "مطوّر الواجهة الخلفية",
+        "initials": "HL"
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "لنعمل معًا",
+      "text": "عرّفونا بمشروعكم، وسنعود إليكم سريعًا.",
+      "action": {
+       "label": "تواصلوا معنا",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "services": {
+   "title": "الخدمات",
+   "description": "إنشاء المواقع الإلكترونية، وإعادة تصميمها، وإمكانية الوصول، والصيانة.",
+   "slug": "services",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "الخدمات",
+      "title": "ما نقدمه",
+      "lead": "أربعة عروض واضحة يمكن الجمع بينها حسب مشروعكم."
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "تحتاجون إلى نصيحة؟",
+      "text": "نساعدكم على اختيار الصيغة المناسبة.",
+      "action": {
+       "label": "اطلبوا عرض سعر",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "blog": {
+   "title": "المدونة",
+   "description": "نصائح وخبرات حول الويب السريع وسهل الوصول.",
+   "slug": "blog",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "المدونة",
+      "title": "مقالات ونصائح",
+      "lead": "الأداء، وإمكانية الوصول، والخيارات التقنية: ما نتعلمه في الميدان."
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    }
+   ]
+  },
+  "contact": {
+   "title": "اتصل بنا",
+   "description": "راسلونا: نرد خلال 24 ساعة عمل.",
+   "slug": "contact",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "اتصل بنا",
+      "title": "لنتحدث عن مشروعكم",
+      "lead": "املؤوا النموذج أو راسلونا مباشرة، ونرد خلال 24 ساعة عمل."
+     }
+    },
+    {
+     "type": "contact",
+     "value": {
+      "title": "راسلونا",
+      "success": "شكرًا! تم إرسال رسالتكم بنجاح.",
+      "submit": "إرسال الرسالة"
+     }
+    }
+   ]
+  },
+  "legal": {
+   "title": "الإشعار القانوني",
+   "description": "الإشعار القانوني للموقع.",
+   "slug": "mentions-legales",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "الإشعار القانوني",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"الناشر\">الناشر</h2>\n<p>ينشر هذا الموقع <strong>@@title@@</strong>، 12 rue de la Paix, 75002 Paris. للتواصل: contact@exemple.fr.</p>\n<h2 id=\"الاستضافة\">الاستضافة</h2>\n<p>يستضيف الموقع مزود الاستضافة الخاص بكم، وترد بياناته في عقد الخدمة.</p>\n<h2 id=\"الملكية-الفكرية\">الملكية الفكرية</h2>\n<p>النصوص والصور والعناصر الرسومية في هذا الموقع محمية. يُمنع أي نسخ دون إذن.</p>"
+     }
+    }
+   ]
+  },
+  "privacy": {
+   "title": "سياسة الخصوصية",
+   "description": "كيف نعالج بياناتكم الشخصية.",
+   "slug": "confidentialite",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "سياسة الخصوصية",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"البيانات-المجمعة\">البيانات المجمعة</h2>\n<p>يجمع نموذج الاتصال اسمكم وبريدكم الإلكتروني ورسالتكم، وذلك فقط للرد عليكم.</p>\n<h2 id=\"مدة-الاحتفاظ\">مدة الاحتفاظ</h2>\n<p>تُحفظ الرسائل اثني عشر شهرًا، ثم تُحذف.</p>\n<h2 id=\"حقوقكم\">حقوقكم</h2>\n<p>يمكنكم طلب الاطلاع على بياناتكم أو تصحيحها أو حذفها بمراسلتنا على contact@exemple.fr.</p>"
+     }
+    }
+   ]
+  }
+ },
+ "services": [
+  {
+   "slug": "creation-site-web",
+   "title": "إنشاء المواقع الإلكترونية",
+   "summary": "موقع مصمم حسب الطلب، سريع ومهيأ لمحركات البحث، يُسلَّم مع لوحة الإدارة الخاصة به.",
+   "icon": "code",
+   "price": "ابتداءً من 2400 €",
+   "features": [
+    "نماذج التصميم ونظام التصميم",
+    "محتوى قابل للتعديل",
+    "تحسين تقني لمحركات البحث وبيانات منظمة",
+    "الإطلاق والتدريب"
+   ],
+   "body": "<p>نصمم موقعكم انطلاقًا من أهدافكم: من يجب أن يجده، وماذا ينبغي أن يفعل فيه، وكيف يُقاس نجاحه.</p>\n<h2 id=\"منهجيتنا\">منهجيتنا</h2>\n<p>ورش عمل لتحديد النطاق، ثم نماذج التصميم، ثم تطوير على مراحل قصيرة. تُنشر كل نسخة <strong>على بيئة اختبار</strong> لتتمكنوا من تجربتها.</p>\n<h2 id=\"ما-نسلمه\">ما نسلمه</h2>\n<ul>\n<li>موقع متجاوب وسهل الوصول وعالي الأداء؛</li>\n<li>لوحة إدارة لتعديل محتواكم؛</li>\n<li>التوثيق ودورة تدريبية لمدة نصف يوم.</li>\n</ul>"
+  },
+  {
+   "slug": "refonte-performance",
+   "title": "إعادة التصميم والأداء",
+   "summary": "موقعكم الحالي أسرع وأوضح وفي ترتيب أفضل، دون أن يفقد ظهوره في محركات البحث.",
+   "icon": "zap",
+   "price": "ابتداءً من 1900 €",
+   "features": [
+    "تدقيق Lighthouse وCore Web Vitals",
+    "خطة إعادة التوجيه",
+    "تحسين الصور",
+    "متابعة بعد الإطلاق"
+   ],
+   "body": "<p>تبدأ إعادة التصميم الناجحة بالتدقيق: أزمنة التحميل، ومسارات المستخدمين، والمحتوى الذي يحقق التحويل.</p>\n<h2 id=\"الحفاظ-على-ترتيبكم-في-محركات-البحث\">الحفاظ على ترتيبكم في محركات البحث</h2>\n<p>يُعاد <strong>توجيه</strong> جميع العناوين القديمة وتُتابَع لمدة ثلاثة أشهر بعد الإطلاق.</p>\n<h2 id=\"قياس-التحسن\">قياس التحسن</h2>\n<ul>\n<li>نتائج Lighthouse قبل التحسين وبعده؛</li>\n<li>مؤشرات Core Web Vitals على الصفحات الرئيسية؛</li>\n<li>معدلات التحويل في النماذج.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite",
+   "title": "إمكانية الوصول (RGAA)",
+   "summary": "تدقيق ومطابقة لمعايير RGAA / WCAG 2.2 AA، مع بيان إمكانية الوصول.",
+   "icon": "accessibility",
+   "price": "ابتداءً من 1200 €",
+   "features": [
+    "تدقيق على عينة من الصفحات",
+    "تصحيحات حسب الأولوية",
+    "بيان إمكانية الوصول",
+    "تدريب المحررين"
+   ],
+   "body": "<p>إمكانية الوصول تفيد الجميع: التنقل بلوحة المفاتيح، والتباين، وقارئات الشاشة، ونماذج مفهومة.</p>\n<h2 id=\"التدقيق\">التدقيق</h2>\n<p>نقيّم عينة تمثيلية من الصفحات وفق <strong>RGAA 4.1</strong> ونسلّم تقريرًا مرتبًا حسب الأولوية.</p>\n<h2 id=\"المطابقة\">المطابقة</h2>\n<ul>\n<li>تصحيحات في الشيفرة والقوالب؛</li>\n<li>التحقق من تباين ألوان المظهر؛</li>\n<li>صياغة بيان إمكانية الوصول.</li>\n</ul>"
+  },
+  {
+   "slug": "maintenance",
+   "title": "الصيانة والاستضافة",
+   "summary": "تحديثات ونسخ احتياطية ومراقبة وتحسينات صغيرة، دون مفاجآت.",
+   "icon": "shield",
+   "price": "ابتداءً من 90 € شهريًا",
+   "features": [
+    "تحديثات الأمان",
+    "نسخ احتياطية يومية",
+    "مراقبة على مدار الساعة",
+    "ساعة تطوير واحدة شهريًا"
+   ],
+   "body": "<p>الموقع برنامج: يجب تحديثه ونسخه احتياطيًا ومراقبته.</p>\n<h2 id=\"ما-تشمله-الخدمة\">ما تشمله الخدمة</h2>\n<ul>\n<li>تحديثات إطار العمل والمكتبات التي يعتمد عليها؛</li>\n<li>نسخ احتياطية يومية تُحفظ لمدة 30 يومًا؛</li>\n<li>مراقبة توفر الموقع وصلاحية الشهادات.</li>\n</ul>\n<h2 id=\"التطوير\">التطوير</h2>\n<p>كل شهر، تُخصَّص ساعة للتطوير: قسم جديد أو نموذج أو صفحة.</p>"
+  }
+ ],
+ "posts": [
+  {
+   "slug": "performance-images",
+   "title": "صور خفيفة دون فقدان الجودة",
+   "excerpt": "صيغ حديثة، وأبعاد صريحة، وتحميل مؤجل: الثلاثي الرابح.",
+   "category": "الأداء",
+   "author": "كاميل مارتان",
+   "date": "2026-08-28",
+   "body": "<p>تمثل الصور غالبًا أكثر من نصف حجم الصفحة.</p>\n<h2 id=\"الصيغ-المناسبة\">الصيغ المناسبة</h2>\n<p>تقلّص صيغتا AVIF وWebP الحجم بمقدار مرتين إلى خمس مرات مقارنةً بصيغة JPEG، بالجودة نفسها.</p>\n<h2 id=\"السمات-المناسبة\">السمات المناسبة</h2>\n<ul>\n<li><code>width</code> و<code>height</code> لتجنب إزاحة التخطيط؛</li>\n<li><code>loading=\"lazy\"</code> للصور الواقعة أسفل الجزء المرئي من الصفحة؛</li>\n<li><code>srcset</code> لتقديم الحجم المناسب.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite-checklist",
+   "title": "إمكانية الوصول في 10 نقاط",
+   "excerpt": "قائمة قصيرة وعملية لتجنب الأخطاء الأكثر شيوعًا.",
+   "category": "إمكانية الوصول",
+   "author": "إيناس بن علي",
+   "date": "2026-09-15",
+   "body": "<p>تغطي هذه النقاط العشر معظم المشكلات التي نصادفها في عمليات التدقيق.</p>\n<h2 id=\"البنية\">البنية</h2>\n<ul>\n<li>عنوان <code>h1</code> واحد في كل صفحة وعناوين متدرجة؛</li>\n<li>معالم واضحة: <code>header</code> و<code>nav</code> و<code>main</code> و<code>footer</code>؛</li>\n<li>رابط تخطٍّ إلى المحتوى.</li>\n</ul>\n<h2 id=\"التفاعل\">التفاعل</h2>\n<ul>\n<li>كل شيء قابل للاستخدام <strong>بلوحة المفاتيح</strong>؛</li>\n<li>مؤشر التركيز ظاهر دائمًا؛</li>\n<li>لكل حقل في النماذج تسمية.</li>\n</ul>"
+  },
+  {
+   "slug": "choisir-son-framework",
+   "title": "Astro أو Laravel أو Wagtail: كيف تختار إطار العمل",
+   "excerpt": "ثلاث أدوات ممتازة، وثلاث طرق للعمل. معاييرنا لاختيار لا ندم بعده.",
+   "category": "تقنية",
+   "author": "كاميل مارتان",
+   "date": "2026-10-02",
+   "body": "<p>إطار العمل المناسب هو الذي يستطيع فريقكم المحافظة عليه وتطويره. إليكم معاييرنا.</p>\n<h2 id=\"astro-لمواقع-المحتوى\">Astro لمواقع المحتوى</h2>\n<p>صفحات ثابتة افتراضيًا، وجزر تفاعلية عند الحاجة: مثالي لموقع تعريفي أو مدونة فائقة السرعة.</p>\n<h2 id=\"laravel-للتطبيقات\">Laravel للتطبيقات</h2>\n<p>المصادقة، وقوائم الانتظار، والبريد الإلكتروني، والمدفوعات: <strong>كل شيء جاهز</strong> لتطبيقات الأعمال.</p>\n<h2 id=\"wagtail-لفرق-التحرير\">Wagtail لفرق التحرير</h2>\n<p>نظام إدارة محتوى تحريري حقيقي: شجرة صفحات، وStreamField، ومراجعات، ومعاينة.</p>"
+  }
+ ],
+ "nav": [
+  {
+   "label": "الرئيسية",
+   "url": "/"
+  },
+  {
+   "label": "الخدمات",
+   "url": "/services",
+   "children": "services"
+  },
+  {
+   "label": "المدونة",
+   "url": "/blog"
+  },
+  {
+   "label": "من نحن",
+   "url": "/a-propos"
+  },
+  {
+   "label": "اتصل بنا",
+   "url": "/contact"
+  }
+ ],
+ "footer": [
+  {
+   "title": "التنقل",
+   "links": [
+    {
+     "label": "الرئيسية",
+     "url": "/"
+    },
+    {
+     "label": "المدونة",
+     "url": "/blog"
+    },
+    {
+     "label": "من نحن",
+     "url": "/a-propos"
+    },
+    {
+     "label": "اتصل بنا",
+     "url": "/contact"
+    }
+   ]
+  },
+  {
+   "title": "معلومات",
+   "links": [
+    {
+     "label": "الإشعار القانوني",
+     "url": "/mentions-legales"
+    },
+    {
+     "label": "سياسة الخصوصية",
+     "url": "/confidentialite"
+    }
+   ]
+  }
+ ],
+ "fields": [
+  {
+   "name": "nom",
+   "label": "الاسم",
+   "type": "text",
+   "autocomplete": "name",
+   "required": true
+  },
+  {
+   "name": "email",
+   "label": "البريد الإلكتروني",
+   "type": "email",
+   "autocomplete": "email",
+   "required": true
+  },
+  {
+   "name": "sujet",
+   "label": "الموضوع",
+   "type": "text",
+   "autocomplete": "off",
+   "required": false
+  },
+  {
+   "name": "message",
+   "label": "الرسالة",
+   "type": "textarea",
+   "autocomplete": "off",
+   "required": true
+  }
+ ],
+ "subject": "رسالة جديدة من الموقع",
+ "menu": "القائمة الرئيسية"
+}""")
+@@end@@
 
 
 def publish(page):
@@ -1200,63 +2348,63 @@ def translated(page, locale):
     return {"locale": locale, "translation_key": page.translation_key}
 
 
-def seed_english(home, pages):
-    """Arborescence anglaise (/en/…) : traduction de chaque page et de chaque menu."""
-    en, _ = Locale.objects.get_or_create(language_code="en")
-    en_home = home.get_translation_or_none(en)
-    if en_home is None:
-        en_home = home.copy_for_translation(en)
-    en_home = en_home.specific
-    if en_home.title != EN["pages"]["home"]["title"] or not en_home.live:
-        en_home.title = EN["pages"]["home"]["title"]
-        en_home.search_description = EN["pages"]["home"]["description"]
-        en_home.body = json.dumps(EN["pages"]["home"]["body"])
-        publish(en_home)
-    out = {"home": en_home}
+def seed_translation(home, pages, code, data):
+    """Arborescence d'une langue (/<code>/…) : traduction de chaque page (internationalisation de Wagtail)."""
+    loc, _ = Locale.objects.get_or_create(language_code=code)
+    t_home = home.get_translation_or_none(loc)
+    if t_home is None:
+        t_home = home.copy_for_translation(loc)
+    t_home = t_home.specific
+    if t_home.title != data["pages"]["home"]["title"] or not t_home.live:
+        t_home.title = data["pages"]["home"]["title"]
+        t_home.search_description = data["pages"]["home"]["description"]
+        t_home.body = json.dumps(data["pages"]["home"]["body"])
+        publish(t_home)
+    out = {"home": t_home}
 
     def tr(key, parent, model, **extra):
-        return section_page(parent, model, key, EN["pages"], **translated(pages[key], en), **extra)
+        return section_page(parent, model, key, data["pages"], **translated(pages[key], loc), **extra)
 
-    out["services"] = tr("services", en_home, ServiceIndexPage)
-    for s in EN["services"]:
+    out["services"] = tr("services", t_home, ServiceIndexPage)
+    for s in data["services"]:
         out[s["slug"]] = child(
             out["services"], ServicePage, s["slug"], title=s["title"], search_description=s["summary"],
             summary=s["summary"], icon=s["icon"], price=s["price"], body=s["body"],
-            features=json.dumps([{"type": "feature", "value": f} for f in s["features"]]), **translated(pages[s["slug"]], en),
+            features=json.dumps([{"type": "feature", "value": f} for f in s["features"]]), **translated(pages[s["slug"]], loc),
         )
-    out["blog"] = tr("blog", en_home, BlogIndexPage)
+    out["blog"] = tr("blog", t_home, BlogIndexPage)
     fr_posts = {p.slug: p for p in BlogPage.objects.filter(locale__language_code=home.locale.language_code)}
-    for p in EN["posts"]:
+    for p in data["posts"]:
         child(
             out["blog"], BlogPage, p["slug"], title=p["title"], search_description=p["excerpt"],
             date=date.fromisoformat(p["date"]), category=p["category"], author=p["author"], excerpt=p["excerpt"],
-            body=p["body"], **translated(fr_posts[p["slug"]], en),
+            body=p["body"], **translated(fr_posts[p["slug"]], loc),
         )
-    out["about"] = tr("about", en_home, FlexPage)
-    if not en_home.get_children().filter(slug=EN["pages"]["contact"]["slug"]).exists():
-        page = tr("contact", en_home, ContactPage, subject="New message from the website")
-        for i, f in enumerate(EN["fields"]):
+    out["about"] = tr("about", t_home, FlexPage)
+    if not t_home.get_children().filter(slug=data["pages"]["contact"]["slug"]).exists():
+        page = tr("contact", t_home, ContactPage, subject=data["subject"])
+        for i, f in enumerate(data["fields"]):
             FormField.objects.create(
                 page=page, sort_order=i, label=f["label"], clean_name=f["name"], field_type=FIELD_TYPES[f["type"]],
                 required=f["required"], autocomplete=f["autocomplete"],
             )
-    out["contact"] = en_home.get_children().get(slug=EN["pages"]["contact"]["slug"]).specific
-    out["legal"] = tr("legal", en_home, FlexPage, show_in_menus=False)
-    out["privacy"] = tr("privacy", en_home, FlexPage, show_in_menus=False)
-    return en, out
+    out["contact"] = t_home.get_children().get(slug=data["pages"]["contact"]["slug"]).specific
+    out["legal"] = tr("legal", t_home, FlexPage, show_in_menus=False)
+    out["privacy"] = tr("privacy", t_home, FlexPage, show_in_menus=False)
+    return loc, out
 
 
-def translate_menus(en, en_pages):
-    """Copie anglaise des menus (même translation_key) avec les libellés et les pages anglaises."""
-    by_url = {("/" + EN["pages"][k]["slug"]) if EN["pages"][k]["slug"] else "/": p for k, p in en_pages.items() if k in EN["pages"]}
-    services = [en_pages[s["slug"]] for s in EN["services"]]
-    fr_menus = list(NavigationMenu.objects.exclude(locale=en).order_by("pk"))
-    specs = [EN["nav"]] + [c["links"] for c in EN["footer"]]
-    titles = ["Main"] + [c["title"] for c in EN["footer"]]
+def translate_menus(loc, t_pages, data):
+    """Copie des menus dans une langue (même translation_key) avec ses libellés et ses pages."""
+    by_url = {("/" + data["pages"][k]["slug"]) if data["pages"][k]["slug"] else "/": p for k, p in t_pages.items() if k in data["pages"]}
+    services = [t_pages[s["slug"]] for s in data["services"]]
+    fr_menus = list(NavigationMenu.objects.filter(locale__language_code=settings.LANGUAGE_CODE).order_by("pk"))
+    specs = [data["nav"]] + [c["links"] for c in data["footer"]]
+    titles = [data["menu"]] + [c["title"] for c in data["footer"]]
     for fr_menu, entries, title in zip(fr_menus, specs, titles):
-        if NavigationMenu.objects.filter(locale=en, translation_key=fr_menu.translation_key).exists():
+        if NavigationMenu.objects.filter(locale=loc, translation_key=fr_menu.translation_key).exists():
             continue
-        menu = NavigationMenu.objects.create(title=title, **translated(fr_menu, en))
+        menu = NavigationMenu.objects.create(title=title, **translated(fr_menu, loc))
         for i, entry in enumerate(entries):
             page = by_url.get(entry["url"])
             parent = NavigationItem.objects.create(
@@ -1360,6 +2508,8 @@ class Command(BaseCommand):
             for s in SOCIAL:
                 setattr(social, s["icon"], s["url"])
             social.save()
-        en, en_pages = seed_english(home, pages)
-        translate_menus(en, en_pages)
+        for code, _ in settings.LANGUAGES:
+            if code != settings.LANGUAGE_CODE and code in TRANSLATIONS:
+                loc, t_pages = seed_translation(home, pages, code, TRANSLATIONS[code])
+                translate_menus(loc, t_pages, TRANSLATIONS[code])
         self.stdout.write(self.style.SUCCESS("Site prêt : %d pages." % home.get_descendants(inclusive=True).count()))

@@ -16,7 +16,7 @@ class BlogController extends Controller
         return view('site.post', ['page' => $post->toCard() + [
             'description' => $post->excerpt,
             'body' => $post->body,
-            'crumbs' => SiteData::crumbs('Blog', '/blog'),
+            'crumbs' => SiteData::crumbs(trans('site.ui.blog'), '/blog'),
             'back_url' => SiteData::href('/blog'),
         ]]);
     }

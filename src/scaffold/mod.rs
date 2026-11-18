@@ -13,6 +13,7 @@ pub mod layer;
 pub mod platform;
 pub mod projects;
 pub mod rust;
+pub mod site;
 pub mod theme;
 pub mod tools;
 pub mod wagtail;
@@ -247,8 +248,9 @@ pub enum Internal {
     StarwindConfig,
     /// Copie le design kit partagé (`templates/layers/design-kit`) vers l'arborescence du framework.
     DesignKit(DesignTarget),
-    /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue).
-    WagtailDesign(bool),
+    /// Wagtail : branche l'application `ds` (INSTALLED_APPS, URL /components/, feuille et script du catalogue)
+    /// et les langues du site (`LANGUAGES`) : (kit Starwind, codes des langues retenues).
+    WagtailDesign(bool, Vec<String>),
     /// Wagtail + Starwind : télécharge la CLI autonome de Tailwind (`.tailwind/`) et compile `tailwind/input.css`.
     TailwindStandalone,
     /// Compile les catalogues gettext (`locale/*/LC_MESSAGES/*.po` -> `.mo`) sans GNU gettext.

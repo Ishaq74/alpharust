@@ -374,11 +374,11 @@ const GEN_DEFAULT = () => ({
   force: false,
   astro: {
     package_manager: 'npm', template: 'alpharust', typescript: 'strict', integrations: [], site: '', typecheck: true,
-    ui: 'none', database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [],
+    ui: 'none', database: 'none', db_url: '', auth: false, auth_plugins: [], i18n: [], langs: ['fr', 'en'],
     theme_on: false, theme: { primary: '#4f46e5', secondary: '#7c3aed', accent: '#ec4899' }, css_variants: [], docker: false, ci: false,
   },
-  laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false, ui: false },
-  wagtail: { packages: '', migrate: true, ui: false },
+  laravel: { starter: 'none', dark: false, pest: false, database: 'sqlite', frontend: false, ui: false, starwind: false, auth: false, langs: ['fr', 'en'] },
+  wagtail: { packages: '', migrate: true, ui: false, starwind: false, auth: false, langs: ['fr', 'en'] },
   rust: { kind: 'bin', edition: '', deps: [] },
 });
 const UI_FW = ['react', 'vue', 'svelte'];
@@ -409,14 +409,36 @@ function buildRequest(G) {
       ui: withUi,
       database: platform ? a.database : 'none', db_url: platform && a.database === 'postgres' ? a.db_url.trim() || null : null,
       auth: platform && a.auth, auth_plugins: platform && a.auth ? a.auth_plugins : [],
-      i18n: platform ? a.i18n : [],
+      // site vitrine : --langs ; la brique i18n éventuelle (préréglage) reprend les mêmes langues
+      i18n: platform ? (withUi !== 'none' ? (a.i18n.length && a.langs.length >= 2 ? a.langs : []) : a.i18n) : [],
+      langs: withUi !== 'none' ? a.langs : [],
       theme: platform && a.theme_on ? a.theme : null, css_variants: withUi === 'concordia' ? a.css_variants : [],
       docker: platform && a.docker, ci: platform && a.ci,
     };
   }
-  if (G.framework === 'laravel') return { ...base, ...G.laravel };
-  if (G.framework === 'wagtail') return { ...base, packages: G.wagtail.packages.split(/[\s,]+/).filter(Boolean), migrate: G.wagtail.migrate, ui: G.wagtail.ui };
+  if (G.framework === 'laravel') {
+    const l = G.laravel;
+    return { ...base, ...l, starwind: l.ui && l.starwind, auth: l.ui && l.auth, langs: l.ui ? l.langs : [] };
+  }
+  if (G.framework === 'wagtail') {
+    const w = G.wagtail;
+    return { ...base, packages: w.packages.split(/[\s,]+/).filter(Boolean), migrate: w.migrate, ui: w.ui,
+      starwind: w.ui && w.starwind, auth: w.ui && w.auth, langs: w.ui ? w.langs : [] };
+  }
   return { ...base, kind: G.rust.kind, edition: G.rust.edition || null, deps: G.rust.deps };
+}
+
+/** Valeur de --langs, ou null pour le défaut (fr,en). */
+function langsArg(langs) {
+  const l = langs || [];
+  return l.length === 2 && l.includes('fr') && l.includes('en') ? null : l.join(',');
+}
+
+/** Langues du site vitrine (--langs) : le français, langue par défaut, reste coché. */
+function siteLangs(o, langs, onChange, keyPrefix) {
+  return h('fieldset', {}, h('legend', {}, 'Langues du site'),
+    multiCheck(o.site_langs || [], langs, (id, v) => onChange(id === 'fr' ? langs : toggleIn(langs, id, v)), keyPrefix),
+    h('p', { class: 'hint' }, 'Français toujours inclus (langue par défaut, sans préfixe) ; les autres sous /en/, /es/, /ar/… — arabe en RTL. Une langue de plus = un fichier tools/dsgen/vitrine/locales/<code>.py.'));
 }
 
 function cliFor(G) {
@@ -442,7 +464,8 @@ function cliFor(G) {
       if (a.database === 'postgres' && a.db_url.trim()) add('--db-url', shellQuote(a.db_url.trim()));
       if (a.auth) add('--auth');
       if (a.auth && a.auth_plugins.length) add('--auth-plugin', a.auth_plugins.join(','));
-      if (a.i18n.length) add('--i18n', a.i18n.join(','));
+      if (a.ui !== 'none' && langsArg(a.langs)) add('--langs', langsArg(a.langs));
+      else if (a.ui === 'none' && a.i18n.length) add('--i18n', a.i18n.join(','));
       if (a.docker) add('--docker');
       if (a.ci) add('--ci');
     }
@@ -453,12 +476,16 @@ function cliFor(G) {
     if (l.pest) add('--pest');
     if (l.database !== 'sqlite') add('--db', l.database);
     if (l.frontend) add('--frontend');
-    if (l.ui) add('--ui', 'css');
+    if (l.ui) add('--ui', l.starwind ? 'starwind' : 'css');
+    if (l.ui && l.auth) add('--auth');
+    if (l.ui && langsArg(l.langs)) add('--langs', langsArg(l.langs));
   } else if (G.framework === 'wagtail') {
     const pk = G.wagtail.packages.split(/[\s,]+/).filter(Boolean);
     if (pk.length) add('--package', shellQuote(pk.join(',')));
     if (!G.wagtail.migrate) add('--no-migrate');
-    if (G.wagtail.ui) add('--ui', 'css');
+    if (G.wagtail.ui) add('--ui', G.wagtail.starwind ? 'starwind' : 'css');
+    if (G.wagtail.ui && G.wagtail.auth) add('--auth');
+    if (G.wagtail.ui && langsArg(G.wagtail.langs)) add('--langs', langsArg(G.wagtail.langs));
   } else {
     const r = G.rust;
     if (r.kind !== 'bin') add('--kind', r.kind);
@@ -689,6 +716,7 @@ function applyPreset(a, p) {
   a.auth = !!o.auth;
   a.auth_plugins = [...(o.auth_plugins || [])];
   a.i18n = [...(o.i18n || [])];
+  if (o.i18n && o.i18n.length && a.ui !== 'none') a.langs = [...o.i18n];
   a.docker = !!o.docker;
   a.ci = !!o.ci;
   a.theme_on = !!o.theme;
@@ -756,7 +784,8 @@ function platformOptions(G, o, change) {
         if (!v) a.auth_plugins = [];
       }, { rebuild: true }), { key: 'auth' }),
       a.auth ? multiCheck(o.auth_plugins, a.auth_plugins, (id, v) => change(() => (a.auth_plugins = toggleIn(a.auth_plugins, id, v))), 'plg', blocked) : null),
-    h('fieldset', { disabled: blocked }, h('legend', {}, 'Langues (i18n)'),
+    a.ui !== 'none' && platform ? siteLangs(o, a.langs, (v) => change(() => (a.langs = v), { rebuild: true }), 'alang') : null,
+    a.ui !== 'none' ? null : h('fieldset', { disabled: blocked }, h('legend', {}, 'Langues (i18n)'),
       multiCheck(o.locales, a.i18n, (id, v) => change(() => (a.i18n = toggleIn(a.i18n, id, v)), { rebuild: true }), 'loc', blocked),
       a.i18n.length === 1 ? h('p', { class: 'hint warn' }, 'Choisissez au moins deux langues (la première est la langue par défaut).') : h('p', { class: 'hint' }, 'Messages fr/en/es/ar, routage Astro, arabe en RTL, sélecteur de langue.')),
     h('fieldset', { disabled: blocked }, h('legend', {}, 'Déploiement'),
@@ -879,8 +908,11 @@ function frameworkOptions(G, o, change) {
         checkbox('Mode sombre (Breeze)', null, l.dark, (v) => change(() => (l.dark = v)), { key: 'dark', disabled: !hasKit || l.starter === 'breeze-api' }),
         checkbox('Pest au lieu de PHPUnit', 'Kit Breeze uniquement', l.pest, (v) => change(() => (l.pest = v)), { key: 'pest', disabled: !hasKit }),
         checkbox('Compiler le front (npm)', 'npm install && npm run build même sans kit', l.frontend, (v) => change(() => (l.frontend = v)), { key: 'frontend' }),
-        checkbox('Catalogue de composants (CSS)', 'Composants Blade <x-ds.*>, Vite + Tailwind v4, page /components — squelette sans Breeze', l.ui, (v) => change(() => (l.ui = v)), { key: 'ui', disabled: hasKit }),
+        checkbox('Site vitrine et catalogue de composants', 'Composants Blade <x-ds.*>, Vite + Tailwind v4, page /components, site multilingue — squelette sans Breeze', l.ui, (v) => change(() => (l.ui = v), { rebuild: true }), { key: 'ui', disabled: hasKit }),
+        l.ui ? checkbox('Kit Tailwind + Starwind', 'Sinon design kit CSS pur (même rendu)', l.starwind, (v) => change(() => (l.starwind = v)), { key: 'lsw' }) : null,
+        l.ui ? checkbox('Comptes du site (Fortify)', 'Connexion, inscription, Mon compte', l.auth, (v) => change(() => (l.auth = v)), { key: 'lauth' }) : null,
       ),
+      l.ui ? siteLangs(o, l.langs, (v) => change(() => (l.langs = v), { rebuild: true }), 'llang') : null,
     );
   }
   if (G.framework === 'wagtail') {
@@ -893,7 +925,10 @@ function frameworkOptions(G, o, change) {
         h('input', { id: 'f-pkgs', type: 'text', value: w.packages, placeholder: 'django-debug-toolbar, psycopg[binary]', autocomplete: 'off', spellcheck: 'false', oninput: (e) => change(() => (w.packages = e.target.value)) }),
         h('p', { class: 'hint' }, 'Séparés par des espaces ou virgules ; ajoutés à requirements.txt. Un venv Python est toujours créé (.venv).')),
       checkbox('Exécuter les migrations', 'manage.py migrate (SQLite)', w.migrate, (v) => change(() => (w.migrate = v)), { key: 'migrate' }),
-      checkbox('Catalogue de composants (CSS)', 'Application ds : balises {% ds_* %}, fichiers statiques, page /components/', w.ui, (v) => change(() => (w.ui = v)), { key: 'ui' }),
+      checkbox('Site vitrine et catalogue de composants', 'Application ds : balises {% ds_* %}, fichiers statiques, page /components/, site multilingue', w.ui, (v) => change(() => (w.ui = v), { rebuild: true }), { key: 'ui' }),
+      w.ui ? checkbox('Kit Tailwind + Starwind', 'Sinon design kit CSS pur (même rendu)', w.starwind, (v) => change(() => (w.starwind = v)), { key: 'wsw' }) : null,
+      w.ui ? checkbox('Comptes du site (auth Django)', 'Connexion, inscription, Mon compte', w.auth, (v) => change(() => (w.auth = v)), { key: 'wauth' }) : null,
+      w.ui ? siteLangs(o, w.langs, (v) => change(() => (w.langs = v), { rebuild: true }), 'wlang') : null,
       !G.install ? h('div', { class: 'callout warn' }, 'Wagtail exige l’installation : `wagtail start` a besoin de wagtail dans le venv.') : null,
     );
   }

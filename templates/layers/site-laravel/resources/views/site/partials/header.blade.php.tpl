@@ -51,20 +51,22 @@
             <x-ds.button :href="$site['cta']['url'] ?? ''" variant="primary" size="sm" class="site-header__cta">
                 {{ $site['cta']['label'] ?? '' }}
             </x-ds.button>
-            <nav class="site-lang" aria-label="{{ $site['ui']['language'] ?? '' }}">
-                <ul class="site-lang__list">
-                    @foreach ($site['languages'] ?? [] as $lang)
-                        <li>
-                            <a class="site-lang__link" href="{{ $lang['url'] ?? '' }}" hreflang="{{ $lang['code'] ?? '' }}" lang="{{ $lang['code'] ?? '' }}" @if (! empty($lang['current']))aria-current="{{ $lang['current'] }}"@endif title="{{ $lang['name'] ?? '' }}">
-                                <x-site.icon :name="$lang['flag'] ?? ''" :size="16" />
-                                <span>
-                                    {{ $lang['label'] ?? '' }}
-                                </span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
-            </nav>
+            @if (! empty($site['multilingual']))
+                <nav class="site-lang" aria-label="{{ $site['ui']['language'] ?? '' }}">
+                    <ul class="site-lang__list">
+                        @foreach ($site['languages'] ?? [] as $lang)
+                            <li>
+                                <a class="site-lang__link" href="{{ $lang['url'] ?? '' }}" hreflang="{{ $lang['code'] ?? '' }}" lang="{{ $lang['code'] ?? '' }}" @if (! empty($lang['current']))aria-current="{{ $lang['current'] }}"@endif title="{{ $lang['name'] ?? '' }}">
+                                    <x-site.icon :name="$lang['flag'] ?? ''" :size="16" />
+                                    <span>
+                                        {{ $lang['label'] ?? '' }}
+                                    </span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </nav>
+            @endif
             <x-ds.theme-toggle size="sm" :aria-label="$site['ui']['theme'] ?? ''" />
             <x-ds.sheet class="site-header__mobile">
                 <x-ds.sheet.trigger :as-child="true">
@@ -72,7 +74,7 @@
                         <x-site.icon name="menu" :size="22" />
                     </x-ds.button>
                 </x-ds.sheet.trigger>
-                <x-ds.sheet.content side="right" class="site-mobile">
+                <x-ds.sheet.content :side="$site['sheet_side'] ?? ''" class="site-mobile">
                     <x-ds.sheet.header>
                         <x-ds.sheet.title>
                             {{ $site['name'] ?? '' }}

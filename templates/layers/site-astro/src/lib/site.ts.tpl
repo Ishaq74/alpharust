@@ -2,6 +2,7 @@
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
 import { getCollection } from 'astro:content';
 import raw from '../data/site.json';
+import fr from '../data/locales/fr.json';
 
 /** Lien normalisé : `current` vaut 'page' (page exacte), 'true' (rubrique) ou null — même règle partout. */
 export type Link = { label: string; url: string; current?: 'page' | 'true' | null };
@@ -9,7 +10,10 @@ export type NavItem = Link & { children: Link[] | null };
 export type Language = { code: string; label: string; name: string; flag: string; url: string; current: 'page' | null };
 export type Site = {
   locale: string;
+  dir: string;
   languages: Language[];
+  multilingual: boolean;
+  sheet_side: 'left' | 'right';
   ui: Record<string, string>;
   name: string;
   initial: string;
@@ -29,8 +33,15 @@ export type Site = {
 // Les sections sont des objets de contenu libres (voir src/data/site.json) : un type par composant de sections/.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Section = Record<string, any>;
-export type PageKey = keyof typeof raw.data.fr.pages;
+export type PageKey = keyof typeof fr.pages;
 type Data = {
+  code: string;
+  name: string;
+  label: string;
+  dir: string;
+  flag: string;
+  dateLocale: string;
+  order: number;
   site: Record<string, any>;
   pages: Record<string, { url: string; title: string; description: string; sections: Section[] }>;
   contactFields: Record<string, any>[];
@@ -38,12 +49,14 @@ type Data = {
 };
 type AuthField = { name: string; type: string; autocomplete: string };
 const all = raw as unknown as {
-  locales: { code: string; name: string; label: string }[];
   default: string;
-  data: Record<string, Data>;
   auth: { routes: Record<'sign_in' | 'sign_up' | 'account', string>; fields: Record<string, AuthField[]>; passwordMin: number };
 };
-export const LOCALES = all.locales.map((l) => l.code);
+// Une langue = un fichier src/data/locales/<langue>.json (langues choisies à la génération : --langs).
+const files = import.meta.glob<Data>('../data/locales/*.json', { eager: true, import: 'default' });
+const locales = Object.values(files).sort((a, b) => a.order - b.order);
+const byCode: Record<string, Data> = Object.fromEntries(locales.map((l) => [l.code, l]));
+export const LOCALES = locales.map((l) => l.code);
 export const DEFAULT_LOCALE = all.default;
 
 /** Langue d'une adresse : `/en/…` -> en, sinon la langue par défaut (routage i18n d'Astro, prefixDefaultLocale: false). */
@@ -51,16 +64,16 @@ export function localeOf(pathname: string): string {
   const first = pathname.split('/')[1] ?? '';
   return LOCALES.includes(first) && first !== DEFAULT_LOCALE ? first : DEFAULT_LOCALE;
 }
-const data = (locale: string) => all.data[locale] ?? all.data[DEFAULT_LOCALE];
+const data = (locale: string) => byCode[locale] ?? byCode[DEFAULT_LOCALE];
 /** Adresse sans préfixe de langue (`/en/blog/` -> `/blog/`). */
 function unprefixed(pathname: string): string {
   const loc = localeOf(pathname);
   return loc === DEFAULT_LOCALE ? pathname : pathname.slice(loc.length + 1) || '/';
 }
 
-const DATE_LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-US' };
+/** Date longue dans la langue (dateLocale du fichier de langue, ex. ar-u-nu-latn : chiffres latins comme Laravel et Django). */
 export const formatDate = (d: Date, locale = DEFAULT_LOCALE) =>
-  new Intl.DateTimeFormat(DATE_LOCALES[locale] ?? locale, { dateStyle: 'long', timeZone: 'UTC' }).format(d);
+  new Intl.DateTimeFormat(data(locale).dateLocale, { dateStyle: 'long', timeZone: 'UTC' }).format(d);
 export const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Adresse interne au format Astro (barre finale), préfixée par la langue hors langue par défaut. */
@@ -128,14 +141,17 @@ export async function getSite(pathname: string, user?: SiteUser): Promise<Site> 
   const rest = unprefixed(pathname);
   return {
     locale,
-    languages: all.locales.map((l) => ({
+    dir: d.dir,
+    languages: locales.map((l) => ({
       code: l.code,
       label: l.label,
       name: l.name,
-      flag: `flag-${l.code}`,
+      flag: l.flag,
       url: href(rest, l.code),
       current: l.code === locale ? 'page' : null,
     })),
+    multilingual: locales.length > 1,
+    sheet_side: d.dir === 'rtl' ? 'left' : 'right',
     ui: d.ui,
     name: s.name,
     initial: s.name.charAt(0).toUpperCase(),

@@ -16,6 +16,6 @@ const icon = (data.icons as Record<string, { body: string; width: number; height
 
 {
   icon && (
-    <svg width={size} height={size} viewBox={`0 0 ${icon.width} ${icon.height}`} fill="currentColor" aria-hidden="true" class="site-icon" set:html={icon.body} />
+    <svg width={size} height={size} viewBox={`0 0 ${icon.width} ${icon.height}`} fill="currentColor" aria-hidden="true" class="site-icon" data-icon={name} set:html={icon.body} />
   )
 }

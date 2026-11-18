@@ -111,6 +111,8 @@ pub struct LaravelOptions {
     pub auth: bool,
     /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
     pub icons: Option<String>,
+    /// Langues du site vitrine (`--langs`, vide = fr,en) : localisation officielle de Laravel.
+    pub langs: Vec<String>,
 }
 
 impl Default for LaravelOptions {
@@ -126,6 +128,7 @@ impl Default for LaravelOptions {
             theme: None,
             auth: false,
             icons: None,
+            langs: vec![],
         }
     }
 }
@@ -138,9 +141,10 @@ impl LaravelOptions {
         if self.dark && !self.starter.has_frontend() {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
         }
-        if (self.auth || self.icons.is_some()) && !self.ui {
-            anyhow::bail!("--auth et --icons s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        if (self.auth || self.icons.is_some() || !self.langs.is_empty()) && !self.ui {
+            anyhow::bail!("--auth, --icons et --langs s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
         }
+        super::site::validate(&self.langs)?;
         if let Some(set) = &self.icons {
             if !super::internal::valid_icon_set(set) {
                 anyhow::bail!(
@@ -168,13 +172,15 @@ impl LaravelOptions {
     }
 
     pub fn flags(&self) -> Vec<(&'static str, bool)> {
-        vec![
+        let mut v = vec![
             ("breeze", self.starter != Starter::None),
             ("sqlite", self.database == Database::Sqlite),
             ("ui", self.ui),
             ("starwind", self.ui && self.starwind),
             ("auth", self.ui && self.auth),
-        ]
+        ];
+        v.extend(super::site::flags(&self.langs));
+        v
     }
 }
 

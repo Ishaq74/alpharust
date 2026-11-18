@@ -1,4 +1,4 @@
-@@meta mode=replace when=vitrine&auth@@
+@@meta mode=replace when=vitrine&auth&lang_en@@
 ---
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
 import { Alert, AlertTitle } from '@atoms/alert';

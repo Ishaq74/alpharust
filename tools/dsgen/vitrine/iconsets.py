@@ -9,6 +9,7 @@ Les tracés sont copiés dans iconsets.json (sous-ensemble utile, licences compr
 des couches (gen_ds.py) ne dépend ni du réseau ni de node_modules.
 """
 import json, os
+from .locales import load as _locales
 
 DEFAULT_SET = 'mdi'
 FLAG_SET = 'circle-flags'
@@ -57,8 +58,9 @@ CANDIDATES = {
     'github': ['github', 'brand-github', 'github-logo'], 'linkedin': ['linkedin', 'brand-linkedin', 'linkedin-logo'],
     'mastodon': ['mastodon', 'brand-mastodon', 'mastodon-logo'],
 }
-# Drapeaux (Circle Flags) par langue du site.
-FLAGS = {'fr': 'fr', 'en': 'gb', 'es': 'es', 'de': 'de', 'it': 'it', 'ar': 'sa'}
+# Drapeau de chaque langue : META['flag'] de locales/<code>.py (l'arabe, langue de nombreux pays, prend le drapeau
+# de langue lang-ar plutôt qu'un drapeau national).
+FLAGS = {m.META['code']: m.META['flag'] for m in _locales()}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, 'iconsets.json')

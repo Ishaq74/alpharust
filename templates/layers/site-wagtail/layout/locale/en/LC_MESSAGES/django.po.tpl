@@ -1,4 +1,5 @@
-# Généré par tools/dsgen/vitrine (i18n.py) : traductions anglaises du site.
+@@meta when=lang_en@@
+# Généré par tools/dsgen/vitrine (locales/en.py) : traductions « en » du site.
 msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -42,6 +43,12 @@ msgstr "What’s included"
 
 msgid "Tous les articles"
 msgstr "All articles"
+
+msgid "Services"
+msgstr "Services"
+
+msgid "Blog"
+msgstr "Blog"
 
 msgid "Accueil"
 msgstr "Home"
@@ -118,6 +125,12 @@ msgstr "All fields are required."
 msgid "Une erreur est survenue, réessayez."
 msgstr "Something went wrong, please try again."
 
+msgid "Nouveau message depuis le site"
+msgstr "New message from the website"
+
+msgid "Principal"
+msgstr "Main"
+
 msgid "Des sites web rapides, accessibles et faciles à faire évoluer."
 msgstr "Fast, accessible websites that are easy to grow."
 
@@ -135,7 +148,4 @@ msgstr "12 rue de la Paix, 75002 Paris"
 
 msgid "Du lundi au vendredi, 9 h – 18 h"
 msgstr "Monday to Friday, 9 am – 6 pm"
-
-msgid "Services"
-msgstr "Services"
 

@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Accessibility (RGAA)"
 summary: "RGAA / WCAG 2.2 AA audit and remediation, accessibility statement included."

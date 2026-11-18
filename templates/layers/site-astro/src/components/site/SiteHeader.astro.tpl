@@ -78,22 +78,26 @@ const { site } = Astro.props;
       <Button href={site.cta.url} variant="primary" size="sm" class="site-header__cta">
         {site.cta.label}
       </Button>
-      <nav class="site-lang" aria-label={site.ui.language}>
-        <ul class="site-lang__list">
-          {(site.languages ?? []).map((lang: any) => (
-            <Fragment>
-              <li>
-                <a class="site-lang__link" href={lang.url} hreflang={lang.code} lang={lang.code} aria-current={lang.current || undefined} title={lang.name}>
-                  <SiteIcon name={lang.flag} size={16} />
-                  <span>
-                    {lang.label}
-                  </span>
-                </a>
-              </li>
-            </Fragment>
-          ))}
-        </ul>
-      </nav>
+      {site.multilingual && (
+        <Fragment>
+          <nav class="site-lang" aria-label={site.ui.language}>
+            <ul class="site-lang__list">
+              {(site.languages ?? []).map((lang: any) => (
+                <Fragment>
+                  <li>
+                    <a class="site-lang__link" href={lang.url} hreflang={lang.code} lang={lang.code} aria-current={lang.current || undefined} title={lang.name}>
+                      <SiteIcon name={lang.flag} size={16} />
+                      <span>
+                        {lang.label}
+                      </span>
+                    </a>
+                  </li>
+                </Fragment>
+              ))}
+            </ul>
+          </nav>
+        </Fragment>
+      )}
       <ThemeToggle size="sm" ariaLabel={site.ui.theme} />
       <Sheet class="site-header__mobile">
         <SheetTrigger asChild>
@@ -101,7 +105,7 @@ const { site } = Astro.props;
             <SiteIcon name="menu" size={22} />
           </Button>
         </SheetTrigger>
-        <SheetContent side="right" class="site-mobile">
+        <SheetContent side={site.sheet_side} class="site-mobile">
           <SheetHeader>
             <SheetTitle>
               {site.name}

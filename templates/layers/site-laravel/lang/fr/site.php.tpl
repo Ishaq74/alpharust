@@ -480,6 +480,8 @@ return [
         'details' => 'Coordonnées',
         'included' => 'Ce qui est inclus',
         'all_posts' => 'Tous les articles',
+        'services' => 'Services',
+        'blog' => 'Blog',
         'home' => 'Accueil',
         'not_found' => 'Page introuvable',
         'not_found_text' => 'La page demandée n’existe pas ou a été déplacée.',
@@ -505,5 +507,7 @@ return [
         'err_password' => 'Le mot de passe doit contenir au moins 8 caractères.',
         'err_required' => 'Tous les champs sont obligatoires.',
         'err_generic' => 'Une erreur est survenue, réessayez.',
+        'mail_subject' => 'Nouveau message depuis le site',
+        'menu_main' => 'Principal',
     ],
 ];

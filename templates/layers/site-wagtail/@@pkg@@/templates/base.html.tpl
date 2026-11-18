@@ -2,7 +2,7 @@
 {% load i18n static wagtailcore_tags wagtailuserbar %}
 {# Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel. #}
 {% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
-<html lang="{{ LANGUAGE_CODE }}">
+<html lang="{{ LANGUAGE_CODE }}" dir="{{ site.dir }}">
     <head>
         <meta charset="utf-8" />
         <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}</title>

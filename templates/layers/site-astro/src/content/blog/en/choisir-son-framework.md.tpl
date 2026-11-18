@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Astro, Laravel or Wagtail: choosing your framework"
 description: "Three excellent tools, three ways of working. Our criteria for choosing without regret."

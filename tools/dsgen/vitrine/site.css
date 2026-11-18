@@ -58,7 +58,7 @@
 .site-container { width: min(100% - 2 * var(--site-gutter), var(--site-width)); margin-inline: auto; }
 .site-container--narrow { width: min(100% - 2 * var(--site-gutter), 48rem); }
 .site-skip {
-  position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: 0.5rem 1rem; border-radius: 0.5rem;
+  position: absolute; inset-inline-start: 1rem; top: -4rem; z-index: 100; padding: 0.5rem 1rem; border-radius: 0.5rem;
   background: var(--brand); color: var(--brand-contrast); font-weight: 600; text-decoration: none;
 }
 .site-skip:focus { top: 1rem; }
@@ -84,7 +84,7 @@
 .site-body .site-nav__link:hover, .site-body .site-nav__link[aria-current] { color: var(--text); background: var(--site-soft); }
 .site-nav__menu { min-width: 15rem; }
 .site-nav__menu a { text-decoration: none; color: inherit; }
-.site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-inline-start: auto; }
 /* Sélecteur de langue (FR / EN) : liens vers la même page dans l'autre langue. */
 .site-lang__list { display: flex; align-items: center; gap: 0.125rem; margin: 0; padding: 0; list-style: none; }
 .site-lang__link {
@@ -98,7 +98,7 @@
 .site-mobile__list { display: grid; gap: 0.15rem; }
 .site-mobile__link {
   display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0.7rem 0.75rem; border: 0;
-  border-radius: 0.5rem; background: transparent; color: var(--text); font: inherit; font-weight: 500; text-align: left;
+  border-radius: 0.5rem; background: transparent; color: var(--text); font: inherit; font-weight: 500; text-align: start;
   text-decoration: none; cursor: pointer;
 }
 .site-mobile__link:hover, .site-mobile__link[aria-current] { background: var(--site-soft); }
@@ -190,7 +190,7 @@
 .site-form__notice { margin-bottom: 1rem; }
 .site-field { display: grid; gap: 0.4rem; }
 .site-field__error { color: var(--tone-error, #b91c1c); font-size: 0.875rem; }
-.site-required { margin-left: 0.2rem; color: var(--tone-error, #b91c1c); }
+.site-required { margin-inline-start: 0.2rem; color: var(--tone-error, #b91c1c); }
 .site-form [type="submit"] { justify-self: start; }
 .site-contact__list { display: grid; gap: 1rem; }
 .site-contact__list li { display: flex; align-items: flex-start; gap: 0.75rem; }
@@ -297,3 +297,7 @@ body.site-body [data-slot='avatar-fallback'] { position: absolute; inset: 0; dis
 .site-auth__details { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.25rem; margin: 0; }
 .site-auth__details dt { color: var(--site-muted); }
 .site-auth__details dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* Écriture de droite à gauche (dir="rtl", ex. arabe) : la mise en page suit les propriétés logiques ci-dessus ; seules
+   les flèches de direction sont retournées. */
+[dir='rtl'] .site-icon[data-icon^='arrow-'] { transform: scaleX(-1); }

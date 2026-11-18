@@ -22,15 +22,32 @@ def php(v, ind=0):
         return '[\n' + ''.join(f"{q}'{k}' => {php(x, ind + 1)},{ign(x)}\n" for k, x in v.items()) + p + ']'
     raise TypeError(v)
 
+def lang_cond(loc):
+    """Drapeau de couche d'une langue choisie (--langs) ; le français, langue par défaut, est toujours présent."""
+    return None if loc == D.DEFAULT else f'lang_{loc}'
+
+def locales_php(ind):
+    """Entrées 'locales' de config/site.php, une par langue, chacune conditionnée par son drapeau (--langs)."""
+    out = []
+    for loc in D.LOCALES:
+        m = D.META[loc]
+        entry = {'name': m['name'], 'label': m['label'], 'dir': m['dir'], 'date': m['date_php']}
+        line = '    ' * ind + f"'{loc}' => {php(entry, ind)},\n"
+        cond = lang_cond(loc)
+        out.append(line if not cond else f'@@if {cond}@@\n{line}@@end@@\n')
+    return ''.join(out)
+
 def config():
-    s = {'locale': D.DEFAULT, 'locales': {c: {'name': n, 'label': l} for c, n, l in I18N.LOCALES},
+    s = {'locale': D.DEFAULT, 'locales': '__LOCALES__',
          # Comptes (--auth, Laravel Fortify) : mêmes adresses et champs qu'Astro et Wagtail.
          'auth': {'routes': D.AUTH_ROUTES, 'fields': {k: [{'name': n, 'type': t, 'autocomplete': a} for n, t, a in v]
                                                      for k, v in D.AUTH_FIELDS.items()}, 'password_min': D.PASSWORD_MIN}}
-    return ("<?php\n\n" + PHPGEN + "// Langues du site (localisation officielle de Laravel, doc « localization »)\n"
+    body = php(s).replace("'locales' => '__LOCALES__',\n", "'locales' => [\n" + locales_php(2) + "    ],\n")
+    return ("<?php\n\n" + PHPGEN + "// Langues du site (localisation officielle de Laravel, doc « localization ») : celles choisies à la génération\n"
+            "// (--langs). dir : sens d'écriture (rtl pour l'arabe) ; date : format Carbon translatedFormat des articles.\n"
             "// Le contenu (navigation, pied de page, pages, libellés) est dans lang/<langue>/site.php ; les services et\n"
-            "// les articles sont en base, une ligne par langue (modèles Service et Post, database/seeders/SiteSeeder.php).\n\n"
-            "return " + php(s) + ";\n")
+            "// les articles sont en base, une ligne par langue (modèles Service et Post), semés depuis database/data/site/<langue>.php.\n\n"
+            "return " + body + ";\n")
 
 def lang_file(loc):
     L = D.L[loc]
@@ -38,18 +55,19 @@ def lang_file(loc):
     s['pages'] = L.PAGES
     s['contact_fields'] = L.FIELDS
     s['ui'] = L.UI
-    return ("<?php\n\n" + PHPGEN + f"// Textes du site en « {loc} » : lus par App\\Support\\SiteData via trans('site').\n\n"
+    head = '' if loc == D.DEFAULT else f'@@meta when={lang_cond(loc)}@@\n'
+    return (head + "<?php\n\n" + PHPGEN + f"// Textes du site en « {loc} » : lus par App\\Support\\SiteData via trans('site').\n\n"
             "return " + php(s) + ";\n")
 
 ICON = (GEN + "{{-- Icônes du site : resources/data/icons.json (MDI par défaut, drapeaux Circle Flags), comme Astro et Django. --}}\n"
         "@props(['name', 'size' => 20])\n@php($icon = \\App\\Support\\SiteData::icon($name))\n"
         "@if ($icon)\n<svg width=\"{{ $size }}\" height=\"{{ $size }}\" viewBox=\"0 0 {{ $icon['width'] }} {{ $icon['height'] }}\" "
-        "fill=\"currentColor\" aria-hidden=\"true\" class=\"site-icon\">{!! $icon['body'] !!}</svg>\n@endif\n")
+        "fill=\"currentColor\" aria-hidden=\"true\" class=\"site-icon\" data-icon=\"{{ $name }}\">{!! $icon['body'] !!}</svg>\n@endif\n")
 
 LAYOUT = GEN + """{{-- Gabarit commun du site (modèle manecms : composant « shell » + partials head/header/footer). --}}
 @props(['title' => null, 'description' => null])
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $site['dir'] }}">
 <head>
     @include('site.partials.head', ['title' => $title, 'description' => $description])
 </head>
@@ -199,6 +217,9 @@ final class SiteData
 
         return [
             'locale' => $locale,
+            'dir' => config("site.locales.{$locale}.dir", 'ltr'),
+            'multilingual' => count(config('site.locales')) > 1,
+            'sheet_side' => config("site.locales.{$locale}.dir") === 'rtl' ? 'left' : 'right',
             'languages' => array_map(fn (string $code, array $l) => [
                 'code' => $code,
                 'label' => $l['label'],
@@ -456,7 +477,7 @@ class ServiceController extends Controller
         return view('site.service', ['page' => $service->toCard() + [
             'description' => $service->summary,
             'body' => $service->body,
-            'crumbs' => SiteData::crumbs('Services', '/services'),
+            'crumbs' => SiteData::crumbs(trans('site.ui.services'), '/services'),
         ]]);
     }
 }
@@ -479,7 +500,7 @@ class BlogController extends Controller
         return view('site.post', ['page' => $post->toCard() + [
             'description' => $post->excerpt,
             'body' => $post->body,
-            'crumbs' => SiteData::crumbs('Blog', '/blog'),
+            'crumbs' => SiteData::crumbs(trans('site.ui.blog'), '/blog'),
             'back_url' => SiteData::href('/blog'),
         ]]);
     }
@@ -591,7 +612,7 @@ class Post extends Model
             'category' => $this->category,
             'author' => $this->author,
             'date_iso' => $this->published_at->toDateString(),
-            'date_label' => $this->published_at->locale($this->locale)->translatedFormat($this->locale === 'en' ? 'F j, Y' : 'j F Y'),
+            'date_label' => $this->published_at->locale($this->locale)->translatedFormat(config("site.locales.{$this->locale}.date", 'j F Y')),
         ];
     }
 }
@@ -704,15 +725,29 @@ return new class extends Migration
 """,
 }
 
+def seed_data(loc):
+    """Services et articles d'une langue (database/data/site/<langue>.php), lus par SiteSeeder."""
+    L = D.L[loc]
+    services = [{'slug': s['slug'], 'title': s['title'], 'summary': s['summary'], 'icon': s['icon'], 'price': s['price'],
+                 'features': s['features'], 'body': s['body_html'], 'position': s['order']} for s in L.SERVICES]
+    posts = [{'slug': p['slug'], 'title': p['title'], 'excerpt': p['excerpt'], 'category': p['category'],
+              'author': p['author'], 'published_at': p['date'], 'body': p['body_html']} for p in L.POSTS]
+    head = '' if loc == D.DEFAULT else f'@@meta when={lang_cond(loc)}@@\n'
+    return (head + "<?php\n\n" + PHPGEN + f"// Services et articles en « {loc} » (semés par database/seeders/SiteSeeder.php).\n\n"
+            "return " + php({'services': services, 'posts': posts}) + ";\n")
+
 def seeder():
-    services = [{'locale': loc, 'slug': s['slug'], 'title': s['title'], 'summary': s['summary'], 'icon': s['icon'], 'price': s['price'],
-                 'features': s['features'], 'body': s['body_html'], 'position': s['order']} for loc, L in D.L.items() for s in L.SERVICES]
-    posts = [{'locale': loc, 'slug': p['slug'], 'title': p['title'], 'excerpt': p['excerpt'], 'category': p['category'],
-              'author': p['author'], 'published_at': p['date'], 'body': p['body_html']} for loc, L in D.L.items() for p in L.POSTS]
     return ("<?php\n\nnamespace Database\\Seeders;\n\nuse App\\Models\\Post;\nuse App\\Models\\Service;\nuse Illuminate\\Database\\Seeder;\n\n"
-            + PHPGEN + "class SiteSeeder extends Seeder\n{\n    public function run(): void\n    {\n"
-            "        foreach (" + php(services, 2) + " as $s) {\n            Service::updateOrCreate(['locale' => $s['locale'], 'slug' => $s['slug']], $s);\n        }\n"
-            "        foreach (" + php(posts, 2) + " as $p) {\n            Post::updateOrCreate(['locale' => $p['locale'], 'slug' => $p['slug']], $p);\n        }\n    }\n}\n")
+            + PHPGEN + "class SiteSeeder extends Seeder\n{\n    /** Une ligne par langue de config/site.php : database/data/site/<langue>.php. */\n"
+            "    public function run(): void\n    {\n"
+            "        foreach (array_keys(config('site.locales')) as $locale) {\n"
+            "            /** @var array{services: list<array<string, mixed>>, posts: list<array<string, mixed>>} $data */\n"
+            "            $data = require database_path(\"data/site/{$locale}.php\");\n"
+            "            foreach ($data['services'] as $s) {\n"
+            "                Service::updateOrCreate(['locale' => $locale, 'slug' => $s['slug']], ['locale' => $locale] + $s);\n            }\n"
+            "            foreach ($data['posts'] as $p) {\n"
+            "                Post::updateOrCreate(['locale' => $locale, 'slug' => $p['slug']], ['locale' => $locale] + $p);\n            }\n"
+            "        }\n    }\n}\n")
 
 ROUTES = """@@meta mode=replace@@
 <?php
@@ -756,7 +791,26 @@ foreach (array_keys(config('site.locales')) as $locale) {
 require __DIR__.'/pages.php';
 """
 
-TEST = """<?php
+def translated_rows(text):
+    """Lignes des tests de langue (une par langue choisie : --langs), dans les fournisseurs de données de SiteTest."""
+    def q(t): return "'" + t.replace('\\', '\\\\').replace("'", "\\'") + "'"
+    rows, switch = '', ''
+    for loc in D.LOCALES:
+        if loc == D.DEFAULT:
+            continue
+        L, m = D.L[loc], D.META[loc]
+        cases = {'home': ('', L.PAGES['home']['sections'][0]['title']),
+                 'about': ('/a-propos', L.PAGES['about']['sections'][0]['title']),
+                 'service': ('/services/accessibilite', L.UI['included']),
+                 'article': ('/blog/choisir-son-framework', L.UI['all_posts']),
+                 'contact': ('/contact', L.PAGES['contact']['sections'][0]['title'])}
+        body = ''.join(f"            '{loc} {k}' => [{q(loc)}, {q(m['dir'])}, {q('/' + loc + u)}, {q(t)}, {q(L.UI['main_nav'])}],\n"
+                       for k, (u, t) in cases.items())
+        rows += f'@@if lang_{loc}@@\n{body}@@end@@\n'
+        switch += f"@@if lang_{loc}@@\n            '{loc}' => [{q(loc)}, {q(L.UI['not_found'])}],\n@@end@@\n"
+    return text.replace('__ROWS__', rows).replace('__SWITCH__', switch)
+
+TEST = translated_rows("""<?php
 
 namespace Tests\\Feature;
 
@@ -804,35 +858,41 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
-    public static function englishPages(): array
+@@if multilingual@@
+    public static function translatedPages(): array
     {
         return [
-            'home' => ['/en', 'Fast, accessible websites'],
-            'about' => ['/en/a-propos', 'A small team'],
-            'service' => ['/en/services/accessibilite', 'What’s included'],
-            'article' => ['/en/blog/choisir-son-framework', 'All articles'],
-            'contact' => ['/en/contact', 'Let’s talk about your project'],
-        ];
+__ROWS__        ];
     }
 
-    /** @dataProvider englishPages */
-    #[\\PHPUnit\\Framework\\Attributes\\DataProvider('englishPages')]
-    public function test_english_pages_are_translated(string $url, string $text): void
+    /** @dataProvider translatedPages */
+    #[\\PHPUnit\\Framework\\Attributes\\DataProvider('translatedPages')]
+    public function test_translated_pages(string $locale, string $dir, string $url, string $text, string $nav): void
     {
         $this->get($url)
             ->assertOk()
-            ->assertSee('<html lang="en">', false)
+            ->assertSee('<html lang="'.$locale.'" dir="'.$dir.'">', false)
             ->assertSee($text)
-            ->assertSee('aria-label="Main navigation"', false)
+            ->assertSee('aria-label="'.$nav.'"', false)
             ->assertSee('hreflang="fr"', false);
     }
 
-    public function test_the_language_switcher_links_to_the_same_page(): void
+    public static function switcherPages(): array
     {
-        $this->get('/blog')->assertSee('href="/en/blog"', false);
-        $this->get('/en/blog')->assertSee('href="/blog"', false)->assertSee('href="/en/blog" aria-current="page"', false);
-        $this->get('/en/nope')->assertNotFound()->assertSee('Page not found');
+        return [
+__SWITCH__        ];
     }
+
+    /** @dataProvider switcherPages */
+    #[\\PHPUnit\\Framework\\Attributes\\DataProvider('switcherPages')]
+    public function test_the_language_switcher_links_to_the_same_page(string $locale, string $notFound): void
+    {
+        $this->get('/blog')->assertSee('href="/'.$locale.'/blog"', false);
+        $this->get('/'.$locale.'/blog')->assertSee('href="/blog"', false)
+            ->assertSee('href="/'.$locale.'/blog" aria-current="page"', false);
+        $this->get('/'.$locale.'/nope')->assertNotFound()->assertSee($notFound);
+    }
+@@end@@
 
     public function test_the_current_page_is_marked_in_the_menu(): void
     {
@@ -855,7 +915,7 @@ class SiteTest extends TestCase
         $this->withSession(['status' => 'sent'])->get('/contact')->assertSee('Votre message a bien été envoyé');
     }
 }
-"""
+""")
 
 MIDDLEWARE = """<?php
 
@@ -1050,14 +1110,24 @@ class AuthTest extends TestCase
     public function test_the_header_links_to_the_sign_in_page(): void
     {
         $this->get('/')->assertOk()->assertSee('href="/auth/sign-in"', false)->assertSee('Connexion');
+@@if lang_en@@
         $this->get('/en')->assertOk()->assertSee('href="/en/auth/sign-in"', false)->assertSee('Sign in');
+@@end@@
+@@if lang_ar@@
+        $this->get('/ar')->assertOk()->assertSee('href="/ar/auth/sign-in"', false)->assertSee('تسجيل الدخول');
+@@end@@
     }
 
     public function test_auth_pages_render_in_the_site_layout(): void
     {
         $this->get('/auth/sign-in')->assertOk()->assertSee('Accédez à votre espace client')->assertSee('site-header', false);
         $this->get('/auth/sign-up')->assertOk()->assertSee('Créer mon compte')->assertSee('autocomplete="new-password"', false);
+@@if lang_en@@
         $this->get('/en/auth/sign-up')->assertOk()->assertSee('Create my account');
+@@end@@
+@@if lang_es@@
+        $this->get('/es/auth/sign-up')->assertOk()->assertSee('Crear mi cuenta');
+@@end@@
         $this->get('/auth/dashboard')->assertRedirect('/auth/sign-in');
     }
 
@@ -1067,10 +1137,17 @@ class AuthTest extends TestCase
             ->assertRedirect('/auth/dashboard');
         $this->assertAuthenticated();
         $this->get('/auth/dashboard')->assertOk()->assertSee('ada@example.com')->assertSee('href="/auth/dashboard"', false);
+@@if lang_en@@
         $this->post('/auth/sign-out', ['locale' => 'en'])->assertRedirect('/en');
         $this->assertGuest();
         $this->post('/auth/sign-in', ['email' => 'ada@example.com', 'password' => 'motdepasse', 'locale' => 'en'])
             ->assertRedirect('/en/auth/dashboard');
+@@else@@
+        $this->post('/auth/sign-out', ['locale' => 'fr'])->assertRedirect('/');
+        $this->assertGuest();
+        $this->post('/auth/sign-in', ['email' => 'ada@example.com', 'password' => 'motdepasse', 'locale' => 'fr'])
+            ->assertRedirect('/auth/dashboard');
+@@end@@
         $this->assertAuthenticated();
     }
 
@@ -1141,6 +1218,7 @@ def files(cat, css):
     }
     for loc in D.LOCALES:
         out[f'lang/{loc}/site.php.tpl'] = lang_file(loc)
+        out[f'database/data/site/{loc}.php.tpl'] = seed_data(loc)
     for t, nodes in TPL.SECTIONS.items():
         out[f'resources/views/site/sections/{t}.blade.php.tpl'] = GEN + Blade(cat).nodes(nodes)
     for n, body in CONTROLLERS.items(): out[f'app/Http/Controllers/{n}.php.tpl'] = body

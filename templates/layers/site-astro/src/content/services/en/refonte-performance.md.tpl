@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Redesign and performance"
 summary: "An existing website made faster, clearer and better ranked, without losing your SEO."

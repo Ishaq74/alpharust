@@ -16,7 +16,7 @@ class ServiceController extends Controller
         return view('site.service', ['page' => $service->toCard() + [
             'description' => $service->summary,
             'body' => $service->body,
-            'crumbs' => SiteData::crumbs('Services', '/services'),
+            'crumbs' => SiteData::crumbs(trans('site.ui.services'), '/services'),
         ]]);
     }
 }

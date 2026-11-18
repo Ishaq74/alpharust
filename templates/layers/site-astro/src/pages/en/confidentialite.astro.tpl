@@ -1,4 +1,4 @@
-@@meta mode=replace when=vitrine@@
+@@meta mode=replace when=vitrine&lang_en@@
 ---
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
 import BaseLayout from '@layouts/BaseLayout.astro';

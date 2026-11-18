@@ -58,30 +58,62 @@ class SiteTests(TestCase):
         self.assertContains(response, "Votre message a bien été envoyé")
         self.assertEqual(ContactPage.objects.get(locale__language_code="fr").get_submission_class().objects.count(), 1)
 
-    EN_PAGES = {
-        "/en/": "Fast, accessible websites",
-        "/en/a-propos/": "A small team",
-        "/en/services/accessibilite/": "What’s included",
-        "/en/blog/choisir-son-framework/": "All articles",
-        "/en/contact/": "Let’s talk about your project",
-    }
+@@if multilingual@@
+    # Une ligne par langue choisie (--langs) : (langue, sens, adresse, texte attendu, libellé de la navigation).
+    TRANSLATED = [
+@@if lang_en@@
+        ("en", "ltr", "/en/", "Fast, accessible websites that are easy to grow", "Main navigation"),
+        ("en", "ltr", "/en/a-propos/", "A small team with high standards", "Main navigation"),
+        ("en", "ltr", "/en/services/accessibilite/", "What’s included", "Main navigation"),
+        ("en", "ltr", "/en/blog/choisir-son-framework/", "All articles", "Main navigation"),
+        ("en", "ltr", "/en/contact/", "Let’s talk about your project", "Main navigation"),
+@@end@@
+@@if lang_es@@
+        ("es", "ltr", "/es/", "Sitios rápidos, accesibles y fáciles de hacer evolucionar", "Navegación principal"),
+        ("es", "ltr", "/es/a-propos/", "Un equipo pequeño, con grandes exigencias", "Navegación principal"),
+        ("es", "ltr", "/es/services/accessibilite/", "Qué incluye", "Navegación principal"),
+        ("es", "ltr", "/es/blog/choisir-son-framework/", "Todos los artículos", "Navegación principal"),
+        ("es", "ltr", "/es/contact/", "Hablemos de su proyecto", "Navegación principal"),
+@@end@@
+@@if lang_ar@@
+        ("ar", "rtl", "/ar/", "مواقع سريعة وسهلة الوصول ويسهل تطويرها", "التنقل الرئيسي"),
+        ("ar", "rtl", "/ar/a-propos/", "فريق صغير بمعايير عالية", "التنقل الرئيسي"),
+        ("ar", "rtl", "/ar/services/accessibilite/", "ما تتضمنه الخدمة", "التنقل الرئيسي"),
+        ("ar", "rtl", "/ar/blog/choisir-son-framework/", "جميع المقالات", "التنقل الرئيسي"),
+        ("ar", "rtl", "/ar/contact/", "لنتحدث عن مشروعكم", "التنقل الرئيسي"),
+@@end@@
+    ]
 
-    def test_english_pages_are_translated(self):
-        for url, text in self.EN_PAGES.items():
+    def test_translated_pages(self):
+        for code, direction, url, text, nav in self.TRANSLATED:
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
                 html = response.content.decode()
-                self.assertIn('<html lang="en">', html)
+                self.assertIn(f'<html lang="{code}" dir="{direction}">', html)
                 self.assertIn(text, html)
-                self.assertIn('aria-label="Main navigation"', html)
+                self.assertIn(f'aria-label="{nav}"', html)
                 self.assertIn('hreflang="fr"', html)
 
+    SWITCHER = [
+@@if lang_en@@
+        ("en", "Page not found"),
+@@end@@
+@@if lang_es@@
+        ("es", "Página no encontrada"),
+@@end@@
+@@if lang_ar@@
+        ("ar", "الصفحة غير موجودة"),
+@@end@@
+    ]
+
     def test_the_language_switcher_links_to_the_same_page(self):
-        self.assertContains(self.client.get("/blog/"), 'href="/en/blog/"')
-        self.assertContains(self.client.get("/en/blog/"), 'href="/blog/"')
-        response = self.client.get("/en/nope/")
-        self.assertContains(response, "Page not found", status_code=404)
+        for code, not_found in self.SWITCHER:
+            with self.subTest(code=code):
+                self.assertContains(self.client.get("/blog/"), f'href="/{code}/blog/"')
+                self.assertContains(self.client.get(f"/{code}/blog/"), 'href="/blog/"')
+                self.assertContains(self.client.get(f"/{code}/nope/"), not_found, status_code=404)
+@@end@@
 
     def test_seeding_twice_changes_nothing(self):
         from wagtail.models import Page

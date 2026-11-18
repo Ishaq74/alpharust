@@ -28,10 +28,14 @@ STACKS = [s for s in ALL_STACKS if not _only or s[0] in _only]
 REF = 'astro-css' if any(s[0] == 'astro-css' for s in STACKS) else STACKS[0][0]
 PAGES = ['/', '/a-propos', '/services', '/services/accessibilite', '/blog', '/blog/choisir-son-framework', '/contact',
          '/mentions-legales', '/confidentialite', '/page-inexistante',
-         # anglais (même spec traduite : vitrine/i18n.py) et sélecteur de langue
+         # autres langues (même spec traduite : vitrine/locales/<langue>.py), sélecteur de langue ; arabe en RTL
          '/en', '/en/a-propos', '/en/services/accessibilite', '/en/blog/choisir-son-framework', '/en/contact', '/en/page-inexistante',
+         '/es', '/es/a-propos', '/es/services/accessibilite', '/es/blog', '/es/blog/choisir-son-framework', '/es/contact',
+         '/es/page-inexistante',
+         '/ar', '/ar/a-propos', '/ar/services/accessibilite', '/ar/blog', '/ar/blog/choisir-son-framework', '/ar/contact',
+         '/ar/page-inexistante',
          # comptes (--auth : Better Auth, Fortify, auth Django), déconnecté
-         '/auth/sign-in', '/auth/sign-up', '/en/auth/sign-in']
+         '/auth/sign-in', '/auth/sign-up', '/en/auth/sign-in', '/es/auth/sign-up', '/ar/auth/sign-in']
 
 SIGNATURE = r"""() => {
   const txt = (e) => (e.textContent || '').replace(/\s+/g, ' ').trim();
@@ -40,6 +44,7 @@ SIGNATURE = r"""() => {
   return {
     title: document.title,
     lang: document.documentElement.lang,
+    dir: document.documentElement.dir,
     languages: q('.site-lang a').map((e) => `${e.getAttribute('hreflang')}:${e.getAttribute('href')}:${e.getAttribute('aria-current') || ''}`),
     landmarks: q('header, nav, main, footer, aside, section, article').map((e) => e.tagName.toLowerCase() + (e.getAttribute('aria-label') ? `[${e.getAttribute('aria-label')}]` : '')),
     headings: q('main h1, main h2, main h3').map((e) => e.tagName.toLowerCase() + ':' + txt(e)),
@@ -94,7 +99,7 @@ def norm(v):
 def compare(report):
     """Différences de signature par page (référence : astro-css). Titre de l'onglet et casse des URL ignorés."""
     diffs = {}
-    keys = ['lang', 'landmarks', 'headings', 'nav', 'menu', 'mobile', 'footer', 'fields', 'buttons', 'cards', 'skip', 'current']
+    keys = ['lang', 'dir', 'languages', 'landmarks', 'headings', 'nav', 'menu', 'mobile', 'footer', 'fields', 'buttons', 'cards', 'skip', 'current']
     for page, by in report.items():
         ref = by[REF]
         for stack, sig in by.items():

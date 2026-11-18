@@ -27,7 +27,7 @@ jobs:
       - name: Tests (unitaires, intégration, CLI, GUI, générateurs)
         run: cargo test --all-targets
       - name: Kit partagé à jour (tools/dsgen régénère CSS pur, Blade, Django et catalog.toml)
-        run: python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers && test -z "$(git status --porcelain templates/layers)"
+        run: python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers tools/dsgen/vitrine/locales.json && test -z "$(git status --porcelain templates/layers tools/dsgen/vitrine)"
       - name: Règles, exemples et profils valides
         run: ./target/release/alpharust check-rules
       - name: Auto-lint du dépôt (profil strict)

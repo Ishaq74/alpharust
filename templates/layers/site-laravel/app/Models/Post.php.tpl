@@ -24,7 +24,7 @@ class Post extends Model
             'category' => $this->category,
             'author' => $this->author,
             'date_iso' => $this->published_at->toDateString(),
-            'date_label' => $this->published_at->locale($this->locale)->translatedFormat($this->locale === 'en' ? 'F j, Y' : 'j F Y'),
+            'date_label' => $this->published_at->locale($this->locale)->translatedFormat(config("site.locales.{$this->locale}.date", 'j F Y')),
         ];
     }
 }

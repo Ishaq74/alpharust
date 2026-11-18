@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Website creation"
 summary: "A custom website, fast and well ranked, delivered with its admin area."

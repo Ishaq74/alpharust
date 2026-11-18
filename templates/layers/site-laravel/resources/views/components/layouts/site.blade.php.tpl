@@ -2,7 +2,7 @@
 {{-- Gabarit commun du site (modèle manecms : composant « shell » + partials head/header/footer). --}}
 @props(['title' => null, 'description' => null])
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $site['dir'] }}">
 <head>
     @include('site.partials.head', ['title' => $title, 'description' => $description])
 </head>

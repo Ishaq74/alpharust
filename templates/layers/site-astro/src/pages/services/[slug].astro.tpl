@@ -25,11 +25,11 @@ export async function getStaticPaths() {
 const item = (await getServices(locale)).find((x) => x.entry.id === Astro.props.id)!;
 @@end@@
 const { Content } = await render(item.entry);
+const site = await getSite(Astro.url.pathname);
 const page = {
   ...item,
-  crumbs: crumbs(locale, ['Services', '/services']),
+  crumbs: crumbs(locale, [site.ui.services, '/services']),
 };
-const site = await getSite(Astro.url.pathname);
 ---
 
 <BaseLayout title={page.title} description={item.summary} bleed>

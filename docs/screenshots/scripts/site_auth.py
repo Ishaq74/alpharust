@@ -1,5 +1,5 @@
 """Parcours de compte sur les 6 combinaisons (comptes : --auth) : inscription, « Mon compte », déconnexion, erreurs,
-connexion en anglais — dans un vrai navigateur (Astro refuse les POST d'une autre origine).
+connexion en anglais et en arabe (RTL), erreur en espagnol — dans un vrai navigateur (Astro refuse les POST d'une autre origine).
 
 Usage : python site_auth.py <dossier-de-sortie>   (mêmes serveurs que site_parity.py)
 Écrit <sortie>/auth-<combo>-<étape>.png et site-auth.json ; code de sortie 1 au premier écart.
@@ -63,6 +63,29 @@ async def run(stack, browser, out, stamp):
     await submit({'email': email, 'password': 'motdepasse'})
     check('EN : connexion -> /en/auth/dashboard', page.url.rstrip('/').endswith('/en/auth/dashboard'), page.url)
     check('EN header: My account', await account_label() == 'My account', await account_label())
+    # arabe (RTL) : déconnexion depuis /ar/auth/dashboard, erreur puis connexion
+    await page.goto(base + '/ar/auth/dashboard')
+    check('AR : page compte en RTL', await page.evaluate('document.documentElement.dir') == 'rtl')
+    async with page.expect_navigation():
+        await page.click('.site-auth form [type=submit]')
+    check('AR : déconnexion -> /ar', page.url.rstrip('/').endswith('/ar'), page.url)
+    check('AR header: تسجيل الدخول', await account_label() == 'تسجيل الدخول', await account_label())
+    await page.goto(base + '/ar/auth/sign-in')
+    await submit({'email': email, 'password': 'mauvais!'})
+    err = await page.locator('.site-auth [data-slot=alert]').inner_text()
+    check('AR : identifiants refusés', 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' in err, err)
+    await page.screenshot(path=f'{out}/auth-{key}-sign-in-error-ar.png', full_page=True)
+    await submit({'email': email, 'password': 'motdepasse'})
+    check('AR : connexion -> /ar/auth/dashboard', page.url.rstrip('/').endswith('/ar/auth/dashboard'), page.url)
+    check('AR header: حسابي', await account_label() == 'حسابي', await account_label())
+    await page.screenshot(path=f'{out}/auth-{key}-dashboard-ar.png', full_page=True)
+    # espagnol : mot de passe trop court (déconnecté)
+    async with page.expect_navigation():
+        await page.click('.site-auth form [type=submit]')
+    await page.goto(base + '/es/auth/sign-up')
+    await submit({'name': 'Bob', 'email': f'bob-es-{key}-{stamp}@example.com', 'password': 'corta'})
+    err = await page.locator('.site-auth [data-slot=alert]').inner_text()
+    check('ES : mot de passe trop court', 'La contraseña debe tener al menos 8 caracteres.' in err, err)
     await ctx.close()
     return key, checks
 

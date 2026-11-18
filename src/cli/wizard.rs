@@ -228,6 +228,7 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 theme: None,
                 auth,
                 icons: None,
+                langs: if ui { site_langs(&theme)? } else { vec![] },
             })
         }
         Framework::Wagtail => {
@@ -273,6 +274,7 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 theme: None,
                 auth,
                 icons: None,
+                langs: if ui { site_langs(&theme)? } else { vec![] },
             })
         }
         Framework::Rust => {
@@ -396,6 +398,11 @@ fn platform_prompts(theme: &ColorfulTheme, o: &mut AstroOptions) -> Result<()> {
                 .collect();
         }
     }
+    if o.vitrine() {
+        // site vitrine : mêmes langues qu'en Laravel et Wagtail (--langs)
+        o.langs = site_langs(theme)?;
+        return Ok(());
+    }
     let labels: Vec<String> = LOCALES.iter().map(|(c, n)| format!("{c}  {n}")).collect();
     let chosen = MultiSelect::with_theme(theme)
         .with_prompt("Langues (i18n) — aucune ou au moins deux ; la première cochée est la langue par défaut")
@@ -406,4 +413,38 @@ fn platform_prompts(theme: &ColorfulTheme, o: &mut AstroOptions) -> Result<()> {
         o.i18n = chosen.iter().map(|i| LOCALES[*i].0.to_string()).collect();
     }
     Ok(())
+}
+
+/// Langues du site vitrine (`--langs`) : fr et en cochés par défaut ; le français (langue par défaut) est toujours inclus.
+fn site_langs(theme: &ColorfulTheme) -> Result<Vec<String>> {
+    let all = crate::scaffold::site::all();
+    let labels: Vec<String> = all
+        .iter()
+        .map(|l| {
+            format!(
+                "{:<3} {}{}",
+                l.code,
+                l.name,
+                if l.rtl { " (RTL)" } else { "" }
+            )
+        })
+        .collect();
+    let defaults: Vec<bool> = all
+        .iter()
+        .map(|l| crate::scaffold::site::DEFAULT_LANGS.contains(&l.code.as_str()))
+        .collect();
+    let chosen = MultiSelect::with_theme(theme)
+        .with_prompt("Langues du site (le français, langue par défaut, est toujours inclus)")
+        .items(&labels)
+        .defaults(&defaults)
+        .interact()
+        .map_err(err)?;
+    let mut langs: Vec<String> = chosen.iter().map(|i| all[*i].code.clone()).collect();
+    if !langs
+        .iter()
+        .any(|c| c == crate::scaffold::site::default_lang())
+    {
+        langs.insert(0, crate::scaffold::site::default_lang().to_string());
+    }
+    Ok(langs)
 }

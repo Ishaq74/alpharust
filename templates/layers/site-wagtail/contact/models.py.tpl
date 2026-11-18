@@ -32,7 +32,7 @@ class ContactPage(AbstractEmailForm):
             "E-mail de notification",
         ),
     ]
-    max_count_per_parent = 1  # une par langue (arborescences fr et en)
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "page de contact"

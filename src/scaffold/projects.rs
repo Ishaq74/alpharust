@@ -192,7 +192,7 @@ fn features(framework: Framework, o: &Value) -> Vec<String> {
     f
 }
 
-/// Site vitrine Laravel / Wagtail : kit, comptes, jeu d'icônes.
+/// Site vitrine Laravel / Wagtail : kit, comptes, jeu d'icônes, langues.
 fn site_features(o: &Value, f: &mut Vec<String>) {
     if o["ui"].as_bool() == Some(true) {
         f.push(if o["starwind"].as_bool() == Some(true) {
@@ -206,6 +206,17 @@ fn site_features(o: &Value, f: &mut Vec<String>) {
     }
     if let Some(icons) = o["icons"].as_str() {
         f.push(format!("icônes {icons}"));
+    }
+    if o["ui"].as_bool() == Some(true) {
+        let langs: Vec<String> = o["langs"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        f.push(format!("langues {}", super::site::codes(&langs).join(",")));
     }
 }
 

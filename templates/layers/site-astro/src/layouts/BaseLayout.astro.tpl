@@ -27,7 +27,7 @@ const site = await getSite(Astro.url.pathname);
 ---
 
 <!doctype html>
-<html lang={site.locale}>
+<html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
     <script is:inline>

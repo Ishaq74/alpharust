@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Lightweight images without quality loss"
 description: "Modern formats, explicit dimensions, lazy loading: the winning trio."

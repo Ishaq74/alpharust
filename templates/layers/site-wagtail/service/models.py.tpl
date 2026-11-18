@@ -14,7 +14,7 @@ class ServiceIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["service.ServicePage"]
-    max_count_per_parent = 1  # une par langue (arborescences fr et en)
+    max_count_per_parent = 1  # une par langue (une arborescence par langue)
 
     class Meta:
         verbose_name = "index des services"

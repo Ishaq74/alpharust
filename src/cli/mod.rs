@@ -291,6 +291,13 @@ struct GenOpts {
     )]
     icons: Option<String>,
     #[arg(
+        long,
+        value_delimiter = ',',
+        value_name = "LANGUES",
+        help = "[site vitrine] langues : fr (toujours), en, es, ar (RTL) ; défaut fr,en (astro, laravel, wagtail)"
+    )]
+    langs: Vec<String>,
+    #[arg(
         long = "auth-plugin",
         value_delimiter = ',',
         help = "[astro] plugins Better Auth : username, admin, organization"
@@ -409,6 +416,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || o.db_url.is_some()
         || (o.auth && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || (o.icons.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
+        || (!o.langs.is_empty() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.auth_plugins.is_empty()
         || !o.i18n.is_empty()
         || o.docker
@@ -480,6 +488,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             a.db_url = o.db_url.clone();
             a.auth = o.auth;
             a.icons = o.icons.clone();
+            a.langs = o.langs.clone();
             a.auth_plugins = o.auth_plugins.clone();
             a.i18n = o.i18n.clone();
             a.css_variants = o.css_variants.clone();
@@ -521,6 +530,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.theme = theme_from(o);
             l.auth = o.auth;
             l.icons = o.icons.clone();
+            l.langs = o.langs.clone();
             l.validate()?;
             Options::Laravel(l)
         }
@@ -534,6 +544,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
                 theme: theme_from(o),
                 auth: o.auth,
                 icons: o.icons.clone(),
+                langs: o.langs.clone(),
             };
             w.validate()?;
             Options::Wagtail(w)

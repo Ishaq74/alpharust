@@ -1,4 +1,4 @@
-@@meta when=vitrine@@
+@@meta when=vitrine&lang_en@@
 ---
 title: "Maintenance and hosting"
 summary: "Updates, backups, monitoring and small improvements, with no surprises."

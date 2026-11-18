@@ -18,24 +18,36 @@ SITE_PROPS = "import type { Site } from '@lib/site';\n\ninterface Props {\n  sit
 SECTION_PROPS = ("import type { Section, Site } from '@lib/site';\n\ninterface Props {\n  s: Section;\n  site: Site;\n}\n\n"
                  "const { s, site } = Astro.props;\nvoid site;\n")
 
+def locale_meta(loc):
+    m = D.META[loc]
+    return {'code': loc, 'name': m['name'], 'label': m['label'], 'dir': m['dir'], 'flag': f'flag-{loc}',
+            'dateLocale': m['date_intl'], 'order': m['order']}
+
 def site_json():
-    # Une entrée par langue (fr, en) : mêmes clés, textes traduits (vitrine/i18n.py).
+    # Données communes ; les textes de chaque langue sont dans src/data/locales/<langue>.json (une langue = un fichier).
     out = {
-        'locales': [{'code': c, 'name': n, 'label': l} for c, n, l in I18N.LOCALES],
         'default': D.DEFAULT,
-        'data': {loc: {
-            'site': {k: L.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')},
-            'pages': L.PAGES,
-            'contactFields': L.FIELDS,
-            'ui': L.UI,
-        } for loc, L in D.L.items()},
         'auth': {'routes': D.AUTH_ROUTES, 'fields': {k: [{'name': n, 'type': t, 'autocomplete': a} for n, t, a in v]
                                                      for k, v in D.AUTH_FIELDS.items()}, 'passwordMin': D.PASSWORD_MIN},
     }
     return META + json.dumps(out, ensure_ascii=False, indent=2) + '\n'
 
+def locale_json(loc):
+    """Textes d'une langue (copié seulement si la langue est choisie : --langs)."""
+    L = D.L[loc]
+    out = {**locale_meta(loc),
+           'site': {k: L.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')},
+           'pages': L.PAGES, 'contactFields': L.FIELDS, 'ui': L.UI}
+    return lang_meta(loc) + json.dumps(out, ensure_ascii=False, indent=2) + '\n'
+
+def lang_meta(loc, extra=''):
+    """En-tête de couche d'un fichier propre à une langue : le français (langue par défaut) est toujours là."""
+    cond = 'vitrine' + extra + ('' if loc == D.DEFAULT else f'&lang_{loc}')
+    return f'@@meta mode=replace when={cond}@@\n'
+
 LIB = META + HEAD + r"""import { getCollection } from 'astro:content';
 import raw from '../data/site.json';
+import fr from '../data/locales/fr.json';
 
 /** Lien normalisé : `current` vaut 'page' (page exacte), 'true' (rubrique) ou null — même règle partout. */
 export type Link = { label: string; url: string; current?: 'page' | 'true' | null };
@@ -43,7 +55,10 @@ export type NavItem = Link & { children: Link[] | null };
 export type Language = { code: string; label: string; name: string; flag: string; url: string; current: 'page' | null };
 export type Site = {
   locale: string;
+  dir: string;
   languages: Language[];
+  multilingual: boolean;
+  sheet_side: 'left' | 'right';
   ui: Record<string, string>;
   name: string;
   initial: string;
@@ -63,8 +78,15 @@ export type Site = {
 // Les sections sont des objets de contenu libres (voir src/data/site.json) : un type par composant de sections/.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Section = Record<string, any>;
-export type PageKey = keyof typeof raw.data.fr.pages;
+export type PageKey = keyof typeof fr.pages;
 type Data = {
+  code: string;
+  name: string;
+  label: string;
+  dir: string;
+  flag: string;
+  dateLocale: string;
+  order: number;
   site: Record<string, any>;
   pages: Record<string, { url: string; title: string; description: string; sections: Section[] }>;
   contactFields: Record<string, any>[];
@@ -72,12 +94,14 @@ type Data = {
 };
 type AuthField = { name: string; type: string; autocomplete: string };
 const all = raw as unknown as {
-  locales: { code: string; name: string; label: string }[];
   default: string;
-  data: Record<string, Data>;
   auth: { routes: Record<'sign_in' | 'sign_up' | 'account', string>; fields: Record<string, AuthField[]>; passwordMin: number };
 };
-export const LOCALES = all.locales.map((l) => l.code);
+// Une langue = un fichier src/data/locales/<langue>.json (langues choisies à la génération : --langs).
+const files = import.meta.glob<Data>('../data/locales/*.json', { eager: true, import: 'default' });
+const locales = Object.values(files).sort((a, b) => a.order - b.order);
+const byCode: Record<string, Data> = Object.fromEntries(locales.map((l) => [l.code, l]));
+export const LOCALES = locales.map((l) => l.code);
 export const DEFAULT_LOCALE = all.default;
 
 /** Langue d'une adresse : `/en/…` -> en, sinon la langue par défaut (routage i18n d'Astro, prefixDefaultLocale: false). */
@@ -85,16 +109,16 @@ export function localeOf(pathname: string): string {
   const first = pathname.split('/')[1] ?? '';
   return LOCALES.includes(first) && first !== DEFAULT_LOCALE ? first : DEFAULT_LOCALE;
 }
-const data = (locale: string) => all.data[locale] ?? all.data[DEFAULT_LOCALE];
+const data = (locale: string) => byCode[locale] ?? byCode[DEFAULT_LOCALE];
 /** Adresse sans préfixe de langue (`/en/blog/` -> `/blog/`). */
 function unprefixed(pathname: string): string {
   const loc = localeOf(pathname);
   return loc === DEFAULT_LOCALE ? pathname : pathname.slice(loc.length + 1) || '/';
 }
 
-const DATE_LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-US' };
+/** Date longue dans la langue (dateLocale du fichier de langue, ex. ar-u-nu-latn : chiffres latins comme Laravel et Django). */
 export const formatDate = (d: Date, locale = DEFAULT_LOCALE) =>
-  new Intl.DateTimeFormat(DATE_LOCALES[locale] ?? locale, { dateStyle: 'long', timeZone: 'UTC' }).format(d);
+  new Intl.DateTimeFormat(data(locale).dateLocale, { dateStyle: 'long', timeZone: 'UTC' }).format(d);
 export const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Adresse interne au format Astro (barre finale), préfixée par la langue hors langue par défaut. */
@@ -162,14 +186,17 @@ export async function getSite(pathname: string, user?: SiteUser): Promise<Site> 
   const rest = unprefixed(pathname);
   return {
     locale,
-    languages: all.locales.map((l) => ({
+    dir: d.dir,
+    languages: locales.map((l) => ({
       code: l.code,
       label: l.label,
       name: l.name,
-      flag: `flag-${l.code}`,
+      flag: l.flag,
       url: href(rest, l.code),
       current: l.code === locale ? 'page' : null,
     })),
+    multilingual: locales.length > 1,
+    sheet_side: d.dir === 'rtl' ? 'left' : 'right',
     ui: d.ui,
     name: s.name,
     initial: s.name.charAt(0).toUpperCase(),
@@ -319,7 +346,7 @@ def icon_component():
             "interface Props {\n  name: string;\n  size?: number;\n}\n\nconst { name, size = 20 } = Astro.props;\n"
             "const icon = (data.icons as Record<string, { body: string; width: number; height: number }>)[name];\n---\n\n"
             "{\n  icon && (\n    <svg width={size} height={size} viewBox={`0 0 ${icon.width} ${icon.height}`} fill=\"currentColor\" "
-            "aria-hidden=\"true\" class=\"site-icon\" set:html={icon.body} />\n  )\n}\n")
+            "aria-hidden=\"true\" class=\"site-icon\" data-icon={name} set:html={icon.body} />\n  )\n}\n")
 
 def pascal(t): return ''.join(w.capitalize() for w in t.split('_'))
 
@@ -360,7 +387,7 @@ const site = await getSite(Astro.url.pathname);
 ---
 
 <!doctype html>
-<html lang={site.locale}>
+<html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
     <script is:inline>
@@ -396,7 +423,7 @@ const site = await getSite(Astro.url.pathname);
 """
 
 def simple_page(key, locale='fr'):
-    return META + f"""---
+    return lang_meta(locale) + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import {{ getPage, getSite }} from '@lib/site';
@@ -411,7 +438,7 @@ const site = await getSite(Astro.url.pathname);
 """
 
 def home_page(locale='fr'):
-    return META + f"""---
+    return lang_meta(locale) + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import {{ getPage, getSite }} from '@lib/site';
@@ -426,7 +453,7 @@ const site = await getSite(Astro.url.pathname);
 """
 
 def contact_page(locale='fr'):
-    return META + f"""---
+    return lang_meta(locale) + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import {{ type ContactState, getPage, getSite, validateContact }} from '@lib/site';
@@ -463,17 +490,17 @@ def detail_page(cat, kind, locale='fr'):
     if kind == 'service':
         page_expr = """{
   ...item,
-  crumbs: crumbs(locale, ['Services', '/services']),
+  crumbs: crumbs(locale, [site.ui.services, '/services']),
 }"""
         desc = 'item.summary'
     else:
         page_expr = """{
   ...item,
-  crumbs: crumbs(locale, ['Blog', '/blog']),
+  crumbs: crumbs(locale, [site.ui.blog, '/blog']),
   back_url: href('/blog', locale),
 }"""
         desc = 'item.excerpt'
-    return META + f"""---
+    return lang_meta(locale) + f"""---
 {HEAD}{r.imports()}
 import {{ render }} from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
@@ -493,8 +520,8 @@ export async function getStaticPaths() {{
 const item = (await {getter}(locale)).find((x) => x.entry.id === Astro.props.id)!;
 @@end@@
 const {{ Content }} = await render(item.entry);
-const page = {page_expr};
 const site = await getSite(Astro.url.pathname);
+const page = {page_expr};
 ---
 
 <BaseLayout title={{page.title}} description={{{desc}}} bleed>
@@ -585,7 +612,7 @@ def auth_page(cat, kind, locale='fr'):
     r = Astro(cat)
     body = r.nodes(TPL.AUTH_FORM)
     fn = 'signIn' if kind == 'sign_in' else 'signUp'
-    return AUTH_META + f"""---
+    return lang_meta(locale, '&auth') + f"""---
 {HEAD}{r.imports()}
 import BaseLayout from '@layouts/BaseLayout.astro';
 import {{ AUTH_ROUTES, type AuthState, authPage, getSite, href, uiText, validateAuth }} from '@lib/site';
@@ -620,7 +647,7 @@ const site = await getSite(Astro.url.pathname, Astro.locals.user);
 def account_page(cat, locale='fr'):
     r = Astro(cat)
     body = r.nodes(TPL.ACCOUNT)
-    return AUTH_META + f"""---
+    return lang_meta(locale, '&auth') + f"""---
 {HEAD}{r.imports()}
 import BaseLayout from '@layouts/BaseLayout.astro';
 import {{ AUTH_ROUTES, accountPage, getSite, href }} from '@lib/site';
@@ -684,13 +711,13 @@ def content_files():
     for loc, L in D.L.items():
       for p in L.POSTS:
         files[f"src/content/blog/{loc}/{p['slug']}.md.tpl"] = (
-            "@@meta when=vitrine@@\n---\n"
+            lang_meta(loc).replace('mode=replace ', '') + "---\n"
             f"title: {yaml_str(p['title'])}\ndescription: {yaml_str(p['excerpt'])}\npubDate: {p['date']}\n"
             f"category: {yaml_str(p['category'])}\nauthor: {yaml_str(p['author'])}\n---\n\n{p['body_md'].strip()}\n")
       for s in L.SERVICES:
         feats = ''.join(f"\n  - {yaml_str(f)}" for f in s['features'])
         files[f"src/content/services/{loc}/{s['slug']}.md.tpl"] = (
-            "@@meta when=vitrine@@\n---\n"
+            lang_meta(loc).replace('mode=replace ', '') + "---\n"
             f"title: {yaml_str(s['title'])}\nsummary: {yaml_str(s['summary'])}\nicon: {s['icon']}\nprice: {yaml_str(s['price'])}\n"
             f"order: {s['order']}\nfeatures:{feats}\n---\n\n{s['body_md'].strip()}\n")
     return files
@@ -712,6 +739,7 @@ def files(cat, css):
     }
     # Pages de chaque langue : src/pages/ (fr, langue par défaut) et src/pages/en/ (routage i18n d'Astro, dossiers par langue).
     for loc in D.LOCALES:
+        out[f'src/data/locales/{loc}.json.tpl'] = locale_json(loc)
         d = 'src/pages/' if loc == D.DEFAULT else f'src/pages/{loc}/'
         out.update({
             f'{d}index.astro.tpl': home_page(loc),

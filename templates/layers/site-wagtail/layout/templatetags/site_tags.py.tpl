@@ -15,10 +15,11 @@ def site_icon(name, size=20):
     if not icon:
         return ""
     return format_html(
-        '<svg width="{}" height="{}" viewBox="0 0 {} {}" fill="currentColor" aria-hidden="true" class="site-icon">{}</svg>',
+        '<svg width="{}" height="{}" viewBox="0 0 {} {}" fill="currentColor" aria-hidden="true" class="site-icon" data-icon="{}">{}</svg>',
         size,
         size,
         icon["width"],
         icon["height"],
+        name,
         mark_safe(icon["body"]),
     )

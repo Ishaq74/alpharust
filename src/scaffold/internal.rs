@@ -123,6 +123,9 @@ pub fn build_ctx(req: &Request, plan: &Plan) -> Ctx {
             ctx.flag("ui", o.ui);
             ctx.flag("starwind", o.ui && o.starwind);
             ctx.flag("auth", o.ui && o.auth);
+            for (k, on) in super::site::flags(&o.langs) {
+                ctx.flag(k, on);
+            }
         }
         Options::Rust(o) => {
             ctx.flag("bin", o.kind == super::rust::CrateKind::Bin);
@@ -354,8 +357,8 @@ fn run_internal(
         Internal::DesignTheme(t, dt) => write_design_theme(target, t, *dt).map(Some),
         Internal::StarwindConfig => patch_starwind_config(target).map(Some),
         Internal::DesignKit(dt) => write_design_kit(target, *dt).map(Some),
-        Internal::WagtailDesign(starwind) => {
-            patch_wagtail_design(target, &req.name, *starwind).map(Some)
+        Internal::WagtailDesign(starwind, langs) => {
+            patch_wagtail_design(target, &req.name, *starwind, langs).map(Some)
         }
         Internal::CompileMessages => compile_messages(target).map(Some),
         Internal::SiteIcons(set) => site_icons(target, set, cancel, on_line).map(Some),
@@ -690,10 +693,20 @@ fn insert_after(text: &str, anchor: &str, add: &str, what: &str) -> Result<Strin
 }
 
 /// Wagtail : application `ds`, route `/components/`, feuille de style et script du catalogue.
-/// Réglages de langue ajoutés à `settings/base.py` (fr par défaut, en ; pages et menus traduits).
-const I18N_SETTINGS: &str = "\n# Langues du site : internationalisation de Wagtail (pages et snippets traduits), routes /en/… via i18n_patterns.\nWAGTAIL_I18N_ENABLED = True\nLANGUAGES = WAGTAIL_CONTENT_LANGUAGES = [(\"fr\", \"Français\"), (\"en\", \"English\")]\n";
+/// Réglages de langue ajoutés à `settings/base.py` (fr par défaut, langues de `--langs` ; pages et menus traduits).
+fn i18n_settings(langs: &[String]) -> String {
+    format!(
+        "\n# Langues du site (--langs) : internationalisation de Wagtail (pages et snippets traduits), routes /<langue>/… via i18n_patterns.\nWAGTAIL_I18N_ENABLED = True\nLANGUAGES = WAGTAIL_CONTENT_LANGUAGES = [{}]\n",
+        super::site::django_languages(langs)
+    )
+}
 
-pub fn patch_wagtail_design(target: &Path, name: &str, starwind: bool) -> Result<String> {
+pub fn patch_wagtail_design(
+    target: &Path,
+    name: &str,
+    starwind: bool,
+    langs: &[String],
+) -> Result<String> {
     let pkg = Vars::new(name)?.pkg;
     let edit = |rel: String, anchor: &str, add: &str| -> Result<()> {
         let path = target.join(&rel);
@@ -758,7 +771,7 @@ pub fn patch_wagtail_design(target: &Path, name: &str, starwind: bool) -> Result
     let mut text = fs::read_to_string(&settings)?
         .replace("LANGUAGE_CODE = \"en-us\"", "LANGUAGE_CODE = \"fr\"");
     if !text.contains("WAGTAIL_I18N_ENABLED") {
-        text.push_str(I18N_SETTINGS);
+        text.push_str(&i18n_settings(langs));
     }
     fs::write(&settings, text)?;
     let urls = target.join(format!("{pkg}/urls.py"));

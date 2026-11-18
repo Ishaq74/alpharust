@@ -1,3 +1,4 @@
+@@meta when=lang_en@@
 <?php
 
 // Généré par tools/dsgen/vitrine (spec.py) : même contenu qu’Astro et Wagtail.
@@ -480,6 +481,8 @@ return [
         'details' => 'Contact details',
         'included' => 'What’s included',
         'all_posts' => 'All articles',
+        'services' => 'Services',
+        'blog' => 'Blog',
         'home' => 'Home',
         'not_found' => 'Page not found',
         'not_found_text' => 'The requested page does not exist or has been moved.',
@@ -505,5 +508,7 @@ return [
         'err_password' => 'The password must be at least 8 characters.',
         'err_required' => 'All fields are required.',
         'err_generic' => 'Something went wrong, please try again.',
+        'mail_subject' => 'New message from the website',
+        'menu_main' => 'Main',
     ],
 ];

@@ -52,20 +52,22 @@
             {% ds_button href=site.cta.url variant="primary" size="sm" class_="site-header__cta" %}
                 {{ site.cta.label }}
             {% endds_button %}
-            <nav class="site-lang" aria-label="{{ site.ui.language }}">
-                <ul class="site-lang__list">
-                    {% for lang in site.languages %}
-                        <li>
-                            <a class="site-lang__link" href="{{ lang.url }}" hreflang="{{ lang.code }}" lang="{{ lang.code }}"{% if lang.current %} aria-current="{{ lang.current }}"{% endif %} title="{{ lang.name }}">
-                                {% site_icon lang.flag size=16 %}
-                                <span>
-                                    {{ lang.label }}
-                                </span>
-                            </a>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </nav>
+            {% if site.multilingual %}
+                <nav class="site-lang" aria-label="{{ site.ui.language }}">
+                    <ul class="site-lang__list">
+                        {% for lang in site.languages %}
+                            <li>
+                                <a class="site-lang__link" href="{{ lang.url }}" hreflang="{{ lang.code }}" lang="{{ lang.code }}"{% if lang.current %} aria-current="{{ lang.current }}"{% endif %} title="{{ lang.name }}">
+                                    {% site_icon lang.flag size=16 %}
+                                    <span>
+                                        {{ lang.label }}
+                                    </span>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            {% endif %}
             {% ds_theme_toggle size="sm" aria_label=site.ui.theme %}{% endds_theme_toggle %}
             {% ds_sheet class_="site-header__mobile" %}
                 {% ds_sheet_trigger as_child=True %}
@@ -73,7 +75,7 @@
                         {% site_icon "menu" size=22 %}
                     {% endds_button %}
                 {% endds_sheet_trigger %}
-                {% ds_sheet_content side="right" class_="site-mobile" %}
+                {% ds_sheet_content side=site.sheet_side class_="site-mobile" %}
                     {% ds_sheet_header %}
                         {% ds_sheet_title %}
                             {{ site.name }}

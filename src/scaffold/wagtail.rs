@@ -24,6 +24,8 @@ pub struct WagtailOptions {
     pub auth: bool,
     /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
     pub icons: Option<String>,
+    /// Langues du site vitrine (`--langs`, vide = fr,en) : internationalisation de Wagtail.
+    pub langs: Vec<String>,
 }
 
 impl Default for WagtailOptions {
@@ -36,6 +38,7 @@ impl Default for WagtailOptions {
             theme: None,
             auth: false,
             icons: None,
+            langs: vec![],
         }
     }
 }
@@ -56,9 +59,10 @@ impl WagtailOptions {
                 bail!("paquet pip invalide : `{p}`");
             }
         }
-        if (self.auth || self.icons.is_some()) && !self.ui {
-            bail!("--auth et --icons s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        if (self.auth || self.icons.is_some() || !self.langs.is_empty()) && !self.ui {
+            bail!("--auth, --icons et --langs s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
         }
+        super::site::validate(&self.langs)?;
         if let Some(set) = &self.icons {
             if !super::internal::valid_icon_set(set) {
                 bail!(
@@ -221,12 +225,12 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "design-wire",
             Phase::Configure,
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
-            Internal::WagtailDesign(o.starwind),
+            Internal::WagtailDesign(o.starwind, super::site::codes(&o.langs)),
         ));
         steps.push(Step::internal(
             "compilemessages",
             Phase::Configure,
-            "Compiler les traductions du site (layout/locale/en/LC_MESSAGES/django.po -> django.mo)",
+            "Compiler les traductions du site (layout/locale/<langue>/LC_MESSAGES/django.po -> django.mo)",
             Internal::CompileMessages,
         ));
         if o.starwind {
@@ -408,7 +412,7 @@ mod tests {
         );
         assert!(s
             .iter()
-            .any(|s| matches!(s.action, Action::Do(Internal::WagtailDesign(true)))));
+            .any(|s| matches!(s.action, Action::Do(Internal::WagtailDesign(true, _)))));
         let tw = s
             .iter()
             .position(|s| s.id == "tailwind")
