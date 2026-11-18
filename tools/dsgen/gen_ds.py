@@ -836,6 +836,11 @@ exec(open(os.path.join(HERE, 'ext_write.py')).read())
 ext = sorted(d for d in os.listdir(ATOMIC) if os.path.isdir(f'{ATOMIC}/{d}') and d not in parts_by_comp)
 exec(open(os.path.join(HERE, 'ext_server.py')).read())
 
+# ---------- site complet (même site en Astro, Laravel et Wagtail : tools/dsgen/vitrine/spec.py) ----------
+from vitrine.write import write_all as write_site
+write_site(ROOT)
+print('site-astro + site-laravel + site-wagtail ok')
+
 # ---------- catalog.toml ----------
 import glob
 slot_of = {}

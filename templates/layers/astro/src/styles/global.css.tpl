@@ -48,9 +48,17 @@
 @import "./components/futuristic.css" layer(concordia);
 @@end@@
 @@else@@
+@@if tailwind@@
+@import "./base.css" layer(base); /* couche `base` : les utilitaires Tailwind (text-*, bg-*) l'emportent */
+@@else@@
 @import "./base.css";
 @@end@@
+@@end@@
+@@if tailwind@@
+@import "./components/layout.css" layer(base);
+@@else@@
 @import "./components/layout.css";
+@@end@@
 @@if !concordia@@
 @import "./components/button.css";
 @import "./components/card.css";

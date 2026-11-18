@@ -285,6 +285,11 @@ impl AstroOptions {
         self.ui != UiKit::None || self.database != Db::None || self.auth || !self.i18n.is_empty()
     }
 
+    /// Site complet (couche `site-astro`) : le même site qu'en Laravel et Wagtail, dès qu'un kit d'interface est choisi.
+    pub fn vitrine(&self) -> bool {
+        self.ui != UiKit::None && self.template == Template::Alpharust
+    }
+
     /// Le projet généré embarque des tests (vitest).
     pub fn has_tests(&self) -> bool {
         self.database != Db::None || !self.i18n.is_empty()
@@ -580,6 +585,7 @@ impl AstroOptions {
             ("official", self.template != Template::Alpharust),
             ("typecheck", self.typecheck && install),
             ("site", self.site.is_some()),
+            ("vitrine", self.vitrine()),
         ]);
         v
     }
@@ -762,6 +768,10 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         UiKit::Concordia => layers.extend(["ui-concordia", "ui-css", "ui-catalog"]),
         UiKit::Starwind => layers.extend(["ui-atomic", "ui-catalog"]),
         UiKit::None => {}
+    }
+    if o.vitrine() {
+        // Site complet (en-tête, pied de page, pages, collections) généré depuis tools/dsgen/vitrine/spec.py.
+        layers.push("site-astro");
     }
     steps.push(Step::internal(
         "layer",
@@ -1223,7 +1233,8 @@ mod tests {
                         "platform",
                         "ui-concordia",
                         "ui-css",
-                        "ui-catalog"
+                        "ui-catalog",
+                        "site-astro"
                     ]
                 );
             }

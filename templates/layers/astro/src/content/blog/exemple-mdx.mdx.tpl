@@ -1,4 +1,4 @@
-@@meta when=mdx&!official@@
+@@meta when=mdx&!official&!vitrine@@
 ---
 title: 'Exemple MDX'
 description: 'Un article MDX avec du JSX dans le contenu.'

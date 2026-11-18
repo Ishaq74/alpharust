@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!vitrine@@
 ---
 title: 'Bienvenue sur @@title@@'
 description: 'Premier article : comment ce site est organisé.'

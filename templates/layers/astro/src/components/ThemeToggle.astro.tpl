@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!vitrine@@
 <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Changer de thème (clair / sombre)">
   <span aria-hidden="true">◐</span>
 </button>

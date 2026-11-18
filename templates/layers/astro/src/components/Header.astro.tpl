@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!vitrine@@
 ---
 import { SITE_TITLE@@if !messages@@, NAV_LINKS@@end@@ } from '../consts';
 import ThemeToggle from './ThemeToggle.astro';

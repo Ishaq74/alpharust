@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!vitrine@@
 ---
 title: 'Structure du projet'
 description: 'Où se trouvent les composants, layouts, pages et styles.'

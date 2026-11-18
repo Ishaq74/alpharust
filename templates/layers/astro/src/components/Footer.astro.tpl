@@ -1,4 +1,4 @@
-@@meta when=!official@@
+@@meta when=!official&!vitrine@@
 ---
 import { SITE_TITLE } from '../consts';
 
