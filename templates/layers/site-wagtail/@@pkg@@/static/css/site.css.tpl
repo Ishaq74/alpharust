@@ -3,6 +3,20 @@
  * (Tailwind + Starwind ou CSS pur), Laravel et Wagtail. Ne lit que le contrat de jetons (--bg, --text, --brand…) :
  * pour changer d'identité, modifiez le thème, pas ce fichier. Les composants (boutons, cartes…) gardent leur CSS.
  */
+/* Palette neutre commune : mêmes gris dans tous les kits (Starwind/atomic a des neutres chauds, Concordia du slate).
+   Les deux familles de noms sont posées : jetons Starwind (--background, --card…) et contrat du kit CSS (--bg, --surface…). */
+.site-body {
+  --background: #ffffff; --foreground: #151821; --card: #f5f6fa; --card-foreground: #151821;
+  --popover: #ffffff; --popover-foreground: #151821; --muted: #eceef5; --muted-foreground: #4a5163;
+  --accent: #eceef5; --accent-foreground: #151821; --border: #dde0ea; --input: #dde0ea;
+  --bg: #ffffff; --surface: #f5f6fa; --surface-2: #eceef5; --text: #151821; --text-muted: #4a5163; --site-error: #b91c1c;
+}
+:root[data-theme='dark'] .site-body, .dark .site-body {
+  --background: #0f1117; --foreground: #eceef5; --card: #181b25; --card-foreground: #eceef5;
+  --popover: #181b25; --popover-foreground: #eceef5; --muted: #222635; --muted-foreground: #a9b0c4;
+  --accent: #222635; --accent-foreground: #eceef5; --border: #2a2f3f; --input: #2a2f3f;
+  --bg: #0f1117; --surface: #181b25; --surface-2: #222635; --text: #eceef5; --text-muted: #a9b0c4; --site-error: #f87171;
+}
 .site-body {
   --site-width: 72rem;
   --site-gutter: clamp(1rem, 4vw, 2rem);
@@ -28,7 +42,7 @@
 .site-body p, .site-body li { margin: 0; max-width: none; }
 .site-body a { text-underline-offset: 0.2em; }
 /* Liens : taille héritée (Concordia fixe une taille propre aux liens) ; les règles .site-* plus bas priment. */
-.site-body :where(a:not([data-slot])) { font-size: inherit; line-height: inherit; }
+.site-body :where(a:not([data-slot])) { font-size: inherit; font-weight: inherit; line-height: inherit; }
 .site-body ul.site-nav__list, .site-body ul.site-mobile__list, .site-body ul.site-mobile__sub, .site-body ul.site-footer__links,
 .site-body ul.site-social, .site-body ul.site-checklist, .site-body ul.site-contact__list, .site-body ul.site-team {
   list-style: none; margin: 0; padding: 0;
@@ -140,6 +154,16 @@
 .site-person__role { color: var(--site-muted); font-size: 0.9rem; }
 
 .site-faq__list { border-top: 1px solid var(--site-line); }
+.site-faq__item { border-bottom: 1px solid var(--site-line); }
+.site-faq__question {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0;
+  font-weight: 500; cursor: pointer; list-style: none; border-radius: 0.375rem;
+}
+.site-faq__question::-webkit-details-marker { display: none; }
+.site-faq__question:hover span { text-decoration: underline; text-underline-offset: 0.2em; }
+.site-faq__question .site-icon { color: var(--site-muted); transition: transform 0.2s; }
+.site-faq__item[open] .site-faq__question .site-icon { transform: rotate(180deg); }
+.site-faq__answer { padding-bottom: 1rem; color: var(--site-muted); }
 
 .site-cta {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.5rem; padding: clamp(2rem, 5vw, 3rem);
@@ -217,3 +241,38 @@
 .site-body .site-prose code { padding: 0.1em 0.35em; border-radius: 0.35rem; background: var(--site-soft); font-size: 0.9em; }
 .site-body .site-prose > :first-child { margin-top: 0; }
 .site-body .site-prose > :last-child { margin-bottom: 0; }
+
+/* Cartes : même filet, ombre et arrondi (Starwind dessine un anneau en box-shadow, le kit CSS une bordure). */
+.site-body .site-card { border: 1px solid var(--border); border-radius: 0.75rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); background: var(--card); color: var(--card-foreground); }
+
+/* Formes communes des composants dans le site (Starwind et kit CSS ont des tailles par défaut différentes) :
+   seules les dimensions sont fixées ici, les couleurs restent celles des variantes du kit. */
+body.site-body [data-slot='button'] { height: 2.75rem; padding: 0 1.25rem; gap: 0.375rem; font-size: 1rem; font-weight: 500; line-height: 1; border-radius: 0.5rem; }
+body.site-body [data-slot='button'][data-size='sm'] { height: 2.25rem; padding: 0 1rem; font-size: 0.875rem; }
+body.site-body [data-slot='button'][data-size='lg'] { height: 3rem; padding: 0 2rem; font-size: 1.125rem; }
+body.site-body [data-slot='button']:is([data-size='icon'], [data-size='icon-sm']) { width: 2.25rem; height: 2.25rem; padding: 0; }
+body.site-body [data-slot='button'] svg { width: 1.125rem; height: 1.125rem; }
+body.site-body [data-slot='badge'] { padding: 0.125rem 0.75rem; gap: 0.375rem; font-size: 0.875rem; font-weight: 500; line-height: 1.4; border-radius: 9999px; }
+body.site-body [data-slot='label'] { margin: 0; display: flex; align-items: center; gap: 0.25rem; font-size: 1rem; font-weight: 500; line-height: 1.2; }
+body.site-body :is([data-slot='input'], [data-slot='textarea']) {
+  width: 100%; padding: 0 0.75rem; font: inherit; font-size: 1rem; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 0.5rem; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+body.site-body [data-slot='input'] { height: 2.75rem; }
+body.site-body [data-slot='textarea'] { min-height: 5rem; padding-block: 0.5rem; }
+body.site-body [data-slot='breadcrumb-list'] { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0; padding: 0; font-size: 0.875rem; color: var(--text-muted); }
+body.site-body [data-slot='breadcrumb-item'] { display: inline-flex; align-items: center; gap: 0.375rem; font-size: inherit; }
+body.site-body [data-slot='breadcrumb-link'] { color: inherit; font-size: inherit; text-decoration: none; }
+body.site-body [data-slot='breadcrumb-link']:hover { color: var(--text); text-decoration: underline; }
+body.site-body [data-slot='breadcrumb-page'] { color: var(--text); font-weight: 500; font-size: inherit; }
+body.site-body [data-slot='breadcrumb-separator'] svg { width: 0.875rem; height: 0.875rem; }
+body.site-body [data-slot='theme-toggle'] { width: 2.25rem; height: 2.25rem; min-width: 0; padding: 0; border-radius: 0.5rem; }
+body.site-body .site-required { margin: 0; color: var(--site-error); }
+body.site-body blockquote.site-quote__text { padding: 0; border: 0; color: var(--text); font-style: normal; }
+body.site-body [data-slot='badge'] { border: 1px solid transparent; }
+body.site-body [data-slot='badge'][data-variant='outline'] { border-color: var(--border); color: var(--text); background: transparent; }
+body.site-body [data-slot='button'][data-variant='outline'] { color: var(--text); background: var(--bg); border: 1px solid var(--border); }
+body.site-body [data-slot='button'][data-variant='ghost'] { color: var(--text); background: transparent; border: 1px solid transparent; }
+body.site-body [data-slot='button'][data-variant='primary'] { border: 1px solid transparent; }
+body.site-body [data-slot='avatar'] { position: relative; display: inline-block; flex-shrink: 0; width: 2.5rem; height: 2.5rem; margin: 0; overflow: hidden; font-size: 0.875rem; line-height: 1.6; color: var(--text); background: var(--surface-2); border: 2px solid var(--border); border-radius: 9999px; }
+body.site-body [data-slot='avatar-fallback'] { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: inherit; font-weight: 500; line-height: inherit; background: transparent; border-radius: 9999px; }

@@ -90,6 +90,7 @@ def build_site(request):
         },
         "year": date.today().year,
         "copyright": org.copyright,
+        "copyright_line": f"© {date.today().year} {name} · {org.copyright}",
     }
 
 

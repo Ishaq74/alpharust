@@ -60,6 +60,11 @@ formulaire) et obtenir **le même résultat** quel que soit le framework (Astro,
 
 * Un changement de page, de section ou de menu se fait dans `spec.py`/`templates.py` puis `gen_ds.py` : les trois
   frameworks suivent.
-* Différences restantes connues, propres aux kits : le déclencheur d'accordéon de Starwind est un `<button>` (CSS pur :
-  `<summary>`), les neutres de Starwind (atomic) sont chauds, les ombres et anneaux de cartes diffèrent légèrement.
-* En Astro, le formulaire de contact ne traite le POST qu’en rendu serveur (`ssr`, adaptateur Node) ; en site statique il reste affiché sans traitement.
+* **Parité au pixel** : `site.css` pose une palette neutre commune (jetons Starwind `--background`, `--card`… et contrat
+  du kit CSS `--bg`, `--surface`…, clair et sombre) et les formes des composants utilisés par le site (boutons, badges,
+  champs, libellés, fil d'Ariane, avatar, cartes, bascule de thème) ; seules les couleurs de variantes restent celles du
+  kit. La FAQ utilise des `<details name>` natifs (une seule réponse ouverte, sans script) dans tous les kits. L'API des
+  composants Starwind n'est pas modifiée. Mesure (`site_parity.py`, 10 pages × bureau + mobile, référence Astro CSS) :
+  Laravel et Wagtail 0,00 à 0,03 % de pixels différents, Astro Starwind 0 à 0,84 %.
+* En Astro, le site statique reçoit l'adaptateur Node : seule la page `/contact` est rendue à la demande
+  (`prerender = false`, doc Astro « On-demand rendering »), le POST est donc traité même sans `--db`/`--auth`.

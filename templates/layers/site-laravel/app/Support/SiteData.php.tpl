@@ -73,6 +73,7 @@ final class SiteData
             ],
             'year' => (int) date('Y'),
             'copyright' => $s['copyright'],
+            'copyright_line' => '© '.date('Y').' '.$s['name'].' · '.$s['copyright'],
         ];
     }
 

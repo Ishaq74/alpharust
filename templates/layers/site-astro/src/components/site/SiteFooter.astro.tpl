@@ -76,11 +76,7 @@ const { site } = Astro.props;
   </div>
   <div class="site-container site-footer__bottom">
     <p>
-      ©
-      {site.year}
-      {site.name}
-      ·
-      {site.copyright}
+      {site.copyright_line}
     </p>
   </div>
 </footer>

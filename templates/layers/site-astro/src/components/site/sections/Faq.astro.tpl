@@ -1,7 +1,6 @@
 @@meta mode=replace when=vitrine@@
 ---
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@atoms/accordion';
 import { Button } from '@atoms/button';
 import type { Section, Site } from '@lib/site';
 
@@ -42,21 +41,24 @@ void site;
         </div>
       </Fragment>
     )}
-    <Accordion type="single" class="site-faq__list">
+    <div class="site-faq__list">
       {(s.items ?? []).map((item: any) => (
         <Fragment>
-          <AccordionItem value={item.question}>
-            <AccordionTrigger>
-              {item.question}
-            </AccordionTrigger>
-            <AccordionContent>
+          <details class="site-faq__item" name="faq">
+            <summary class="site-faq__question">
+              <span>
+                {item.question}
+              </span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
+            </summary>
+            <div class="site-faq__answer">
               <p>
                 {item.answer}
               </p>
-            </AccordionContent>
-          </AccordionItem>
+            </div>
+          </details>
         </Fragment>
       ))}
-    </Accordion>
+    </div>
   </div>
 </section>

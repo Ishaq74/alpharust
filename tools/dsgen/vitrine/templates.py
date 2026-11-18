@@ -109,7 +109,7 @@ FOOTER = [E('footer', cls('site-footer'), [
         ]),
     ]),
     E('div', cls('site-container site-footer__bottom'), [
-        E('p', [], [T('©'), O(V('site.year')), O(V('site.name')), T('·'), O(V('site.copyright'))]),
+        E('p', [], [O(V('site.copyright_line'))]),
     ]),
 ])]
 
@@ -201,10 +201,12 @@ SECTIONS = {
         ])])])]),
     'posts': section('posts', [head(), E('div', cls('site-grid site-grid--3'), [
         For('item', V('s.items'), [post_card()])])]),
-    'faq': section('faq', [head(), C('Accordion', [('type', 'single'), ('class', 'site-faq__list')], [
-        For('item', V('s.items'), [C('AccordionItem', [('value', V('item.question'))], [
-            C('AccordionTrigger', [], [O(V('item.question'))]),
-            C('AccordionContent', [], [E('p', [], [O(V('item.answer'))])]),
+    # FAQ : <details name> natifs (une seule réponse ouverte, clavier et lecteurs d'écran sans script) — même élément
+    # dans tous les kits (l'accordéon Starwind est un <button> scripté, celui du CSS pur un <details>).
+    'faq': section('faq', [head(), E('div', cls('site-faq__list'), [
+        For('item', V('s.items'), [E('details', [('class', 'site-faq__item'), ('name', 'faq')], [
+            E('summary', cls('site-faq__question'), [E('span', [], [O(V('item.question'))]), Icon('chevron-down', 18)]),
+            E('div', cls('site-faq__answer'), [E('p', [], [O(V('item.answer'))])]),
         ])])])], narrow=True),
     'cta': section('cta', [E('div', cls('site-cta'), [
         E('div', [], [

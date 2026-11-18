@@ -44,6 +44,7 @@ export type Site = {
   social: { label: string; url: string; icon: string }[];
   contact: Record<string, string>;
   year: number;
+  copyright_line: string;
   copyright: string;
 };
 // Les sections sont des objets de contenu libres (voir src/data/site.json) : un type par composant de sections/.
@@ -130,6 +131,7 @@ export async function getSite(pathname: string): Promise<Site> {
     },
     year: new Date().getFullYear(),
     copyright: s.copyright,
+    copyright_line: `© ${new Date().getFullYear()} ${s.name} · ${s.copyright}`,
   };
 }
 
