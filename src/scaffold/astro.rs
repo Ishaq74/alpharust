@@ -366,10 +366,16 @@ impl AstroOptions {
         if self.ui == UiKit::Starwind && !v.iter().any(|i| i == "tailwind") {
             v.insert(0, "tailwind".into());
         }
-        if self.ssr() {
+        if self.adapter() {
             v.push("node".into());
         }
         v
+    }
+
+    /// Adaptateur Node : rendu serveur complet (`ssr`), ou site statique dont certaines pages sont rendues à la
+    /// demande (`prerender = false`, ex. le formulaire de contact du site vitrine). Doc Astro : « On-demand rendering ».
+    pub fn adapter(&self) -> bool {
+        self.ssr() || self.vitrine()
     }
 
     pub fn validate(&self, install: bool) -> Result<()> {
@@ -1212,6 +1218,18 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("alpharust"));
+    }
+
+    #[test]
+    fn static_vitrine_gets_the_node_adapter_for_its_contact_form() {
+        let r = platform_req(|o| o.ui = UiKit::Concordia);
+        match &r.options {
+            Options::Astro(o) => {
+                assert!(!o.ssr() && o.vitrine());
+                assert!(o.astro_add_list().iter().any(|i| i == "node"));
+            }
+            _ => unreachable!(),
+        }
     }
 
     #[test]
