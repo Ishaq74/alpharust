@@ -1,0 +1,27 @@
+/*
+ * Barre de progression — <progress data-slot="progress"> (sémantique et accessibilité natives)
+ * Sans attribut value : état indéterminé. Attribut : data-variant (default, primary, secondary, info, success, warning, error)
+ */
+[data-slot='progress'] {
+  --_c: var(--text);
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  color: var(--_c);
+  background: var(--surface-2);
+  border: 0;
+  border-radius: 9999px;
+}
+
+[data-slot='progress'][data-variant='primary'] { --_c: var(--brand); }
+[data-slot='progress'][data-variant='secondary'] { --_c: var(--tone-secondary); }
+[data-slot='progress'][data-variant='info'] { --_c: var(--tone-info); }
+[data-slot='progress'][data-variant='success'] { --_c: var(--tone-success); }
+[data-slot='progress'][data-variant='warning'] { --_c: var(--tone-warning); }
+[data-slot='progress'][data-variant='error'] { --_c: var(--tone-error); }
+
+[data-slot='progress']::-webkit-progress-bar { background: var(--surface-2); }
+[data-slot='progress']::-webkit-progress-value { background: var(--_c); border-radius: 9999px; transition: width 0.3s; }
+[data-slot='progress']::-moz-progress-bar { background: var(--_c); border-radius: 9999px; }

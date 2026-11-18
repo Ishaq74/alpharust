@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"span"> & {
+  side?: "top" | "right" | "bottom" | "left";
+};
+
+const { side = "top", class: className, ...rest } = Astro.props;
+---
+
+<span class={className} role="tooltip" {...rest} data-slot="tooltip-content" data-side={side}>
+  <slot />
+</span>

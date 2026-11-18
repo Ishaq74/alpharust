@@ -1,0 +1,58 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  maxLength?: number;
+  value?: string;
+  defaultValue?: string;
+  disabled?: boolean;
+  /** Caractères admis (défaut : chiffres). */
+  pattern?: RegExp | string;
+  name?: string;
+  id?: string;
+  required?: boolean;
+};
+
+const {
+  maxLength = 6,
+  value,
+  defaultValue,
+  disabled = false,
+  pattern,
+  name,
+  id,
+  required,
+  class: className,
+  ...rest
+} = Astro.props;
+
+const patternStr = pattern instanceof RegExp ? pattern.source : (pattern ?? "^\\d+$");
+const inputMode = /\\d|0-9/.test(patternStr) && !/[a-zA-Z]-|\\w/.test(patternStr) ? "numeric" : "text";
+---
+
+<div
+  class={className}
+  data-max-length={maxLength}
+  data-value={value || defaultValue || ""}
+  data-disabled={disabled}
+  data-pattern={patternStr}
+  role="group"
+  aria-label={`OTP input, ${maxLength} digits`}
+  {...rest}
+  data-slot="input-otp"
+>
+  <input
+    autocomplete="one-time-code"
+    inputmode={inputMode}
+    name={name}
+    id={id}
+    class="sr-only"
+    required={required}
+    maxlength={maxLength.toString()}
+    value={value || defaultValue || ""}
+    disabled={disabled}
+    aria-label={`OTP, ${maxLength}`}
+    data-otp-hidden-input
+  />
+  <slot />
+</div>

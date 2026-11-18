@@ -1,0 +1,9 @@
+{
+  "name": "clean-node-project",
+  "dependencies": {
+    "left-pad": "^1.3.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.0.0"
+  }
+}

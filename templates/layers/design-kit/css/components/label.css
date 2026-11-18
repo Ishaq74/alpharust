@@ -1,0 +1,11 @@
+/* Étiquette — [data-slot='label'] ; data-size (sm, md, lg). Toujours liée à son champ (for / id). */
+[data-slot='label'] {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+[data-slot='label'][data-size='sm'] { font-size: 0.875rem; }
+[data-slot='label'][data-size='lg'] { font-size: 1.125rem; }

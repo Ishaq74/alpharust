@@ -1,0 +1,39 @@
+/*
+ * Liste native — native-select-wrapper > native-select (<select>) + native-select-icon
+ * Attribut : data-size (sm, md, lg). Jeton : --select-border-radius
+ */
+[data-slot='native-select-wrapper'] { position: relative; display: block; width: 100%; }
+
+[data-slot='native-select'] {
+  appearance: none;
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 2.25rem 0 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--select-border-radius, var(--radius, 0.5rem));
+  box-shadow: var(--shadow-sm, none);
+  cursor: pointer;
+}
+
+[data-slot='native-select'][data-size='sm'] { height: 2.25rem; font-size: 0.875rem; }
+[data-slot='native-select'][data-size='lg'] { height: 3rem; font-size: 1.125rem; }
+[data-slot='native-select']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
+[data-slot='native-select']:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-slot='native-select'][aria-invalid='true'] { border-color: var(--tone-error); }
+
+[data-slot='native-select-icon'] {
+  position: absolute;
+  top: 50%;
+  right: 0.875rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: -0.3rem;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  pointer-events: none;
+}

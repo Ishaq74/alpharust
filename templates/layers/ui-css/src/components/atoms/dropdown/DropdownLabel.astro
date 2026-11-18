@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  inset?: boolean;
+};
+
+const { inset = false, class: className, ...rest } = Astro.props;
+---
+
+<div class={className} data-inset={inset ? "" : undefined} {...rest} data-slot="dropdown-label">
+  <slot />
+</div>

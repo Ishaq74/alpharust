@@ -1,0 +1,52 @@
+/*
+ * Interrupteur — switch > switch-button (<button role="switch" aria-checked>) > switch-toggle + switch-label
+ * Le basculement de aria-checked est assuré par ds.js. Attributs : data-size (sm, md, lg), data-variant
+ */
+[data-slot='switch'] { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+[data-slot='switch-button'] {
+  --_c: var(--text);
+  position: relative;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 1.5rem;
+  padding: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+[data-slot='switch-button'][data-variant='primary'] { --_c: var(--brand); }
+[data-slot='switch-button'][data-variant='secondary'] { --_c: var(--tone-secondary); }
+[data-slot='switch-button'][data-variant='info'] { --_c: var(--tone-info); }
+[data-slot='switch-button'][data-variant='success'] { --_c: var(--tone-success); }
+[data-slot='switch-button'][data-variant='warning'] { --_c: var(--tone-warning); }
+[data-slot='switch-button'][data-variant='error'] { --_c: var(--tone-error); }
+[data-slot='switch-button'][data-size='sm'] { width: 2rem; height: 1.25rem; }
+[data-slot='switch-button'][data-size='lg'] { width: 3rem; height: 1.75rem; }
+
+[data-slot='switch-toggle'] {
+  position: absolute;
+  top: 50%;
+  left: 0.1875rem;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.15s, background-color 0.15s;
+}
+
+[data-slot='switch-button'][data-size='sm'] [data-slot='switch-toggle'] { width: 0.8125rem; height: 0.8125rem; }
+[data-slot='switch-button'][data-size='lg'] [data-slot='switch-toggle'] { width: 1.3125rem; height: 1.3125rem; }
+
+[data-slot='switch-button'][aria-checked='true'] { background: var(--_c); border-color: var(--_c); }
+[data-slot='switch-button'][aria-checked='true'] [data-slot='switch-toggle'] { background: var(--bg); transform: translate(1.0625rem, -50%); }
+[data-slot='switch-button'][data-size='sm'][aria-checked='true'] [data-slot='switch-toggle'] { transform: translate(0.75rem, -50%); }
+[data-slot='switch-button'][data-size='lg'][aria-checked='true'] [data-slot='switch-toggle'] { transform: translate(1.25rem, -50%); }
+[data-slot='switch-button']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='switch-button']:disabled { opacity: 0.5; cursor: not-allowed; }
+[data-slot='switch-label'] { font-size: 1rem; font-weight: 500; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { [data-slot='switch-button'], [data-slot='switch-toggle'] { transition: none; } }

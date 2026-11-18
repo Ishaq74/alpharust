@@ -1,0 +1,3 @@
+/* Vidéo — video (<video> natif avec piste de sous-titres, ou <iframe> YouTube sans cookies) : 16/9, 9/16 pour les Shorts. */
+[data-slot='video'] { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; border: 0; border-radius: var(--video-border-radius, var(--radius, 0.5rem)); }
+[data-slot='video'][data-video-type='youtube-shorts'] { max-width: 22rem; aspect-ratio: 9 / 16; margin-inline: auto; }

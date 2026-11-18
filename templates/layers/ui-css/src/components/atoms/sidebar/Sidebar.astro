@@ -1,0 +1,55 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import Sheet from "../sheet/Sheet.astro";
+import SheetContent from "../sheet/SheetContent.astro";
+import SheetDescription from "../sheet/SheetDescription.astro";
+import SheetHeader from "../sheet/SheetHeader.astro";
+import SheetTitle from "../sheet/SheetTitle.astro";
+
+type Props = HTMLAttributes<"div"> & {
+  side?: "left" | "right";
+  variant?: "sidebar" | "floating" | "inset";
+  collapsible?: "offcanvas" | "icon" | "none";
+};
+
+const { side = "left", variant = "sidebar", collapsible = "offcanvas", class: className, ...rest } = Astro.props;
+---
+
+{
+  collapsible === "none" ? (
+    <div class={className} data-collapsible-mode="none" {...rest} data-slot="sidebar">
+      <slot />
+    </div>
+  ) : (
+    <>
+      <div
+        class={className}
+        data-state="expanded"
+        data-collapsible=""
+        data-collapsible-mode={collapsible}
+        data-variant={variant}
+        data-side={side}
+        data-slot="sidebar"
+      >
+        <div data-slot="sidebar-gap"></div>
+        <div {...rest} data-slot="sidebar-container">
+          <div data-slot="sidebar-inner">
+            <slot />
+          </div>
+        </div>
+      </div>
+      <Sheet data-slot="sidebar-mobile" data-sidebar-mobile>
+        <SheetContent side={side} data-sidebar="mobile">
+          <SheetHeader class="sr-only">
+            <SheetTitle>Sidebar</SheetTitle>
+            <SheetDescription>Mobile navigation sidebar</SheetDescription>
+          </SheetHeader>
+          <div data-sidebar-mobile-inner>
+            <slot />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+}

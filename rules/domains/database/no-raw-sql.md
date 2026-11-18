@@ -1,8 +1,15 @@
 ---
 name: no-raw-sql
-apply: "*"
+apply: "*.py,*.php,*.js,*.jsx,*.ts,*.tsx,*.rb,*.go,*.java,*.rs"
 severity: warning
-pattern: "(SELECT|INSERT|UPDATE|DELETE).*FROM"
+pattern: "\\b(SELECT\\s.+\\sFROM|INSERT\\s+INTO|UPDATE\\s+\\w+\\s+SET|DELETE\\s+FROM)\\b"
+examples:
+  bad:
+    - "db.query(\"SELECT id FROM users WHERE id = \" + id)"
+    - "cur.execute(\"DELETE FROM users\")"
+  good:
+    - "User.objects.filter(id=id)"
+    - "let sel = \"selected from list\";"
 ---
 
 # Éviter le SQL brut non paramétré

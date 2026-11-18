@@ -1,0 +1,26 @@
+/* Bascule — toggle (<button aria-pressed>, data-state : on / off, data-variant : default, outline, data-size : sm, md, lg). */
+[data-slot='toggle'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 0.625rem;
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 0.5rem);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+[data-slot='toggle'][data-variant='outline'] { border-color: var(--border); box-shadow: var(--shadow-sm, none); }
+[data-slot='toggle']:hover { color: var(--text-muted); background: var(--surface-2); }
+[data-slot='toggle'][data-state='on'] { color: var(--text); background: var(--surface-2); }
+[data-slot='toggle']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='toggle']:disabled { opacity: 0.5; pointer-events: none; }
+[data-slot='toggle'][data-size='sm'] { min-width: 2.25rem; height: 2.25rem; padding: 0 0.5rem; font-size: 0.875rem; }
+[data-slot='toggle'][data-size='lg'] { min-width: 3rem; height: 3rem; padding: 0 0.75rem; font-size: 1.125rem; }
+[data-slot='toggle'] svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }

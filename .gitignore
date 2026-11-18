@@ -1,4 +1,7 @@
 /target
-Cargo.lock
 .DS_Store
 *.swp
+.alpharust-cache/
+/sites/*
+!/sites/README.md
+__pycache__/

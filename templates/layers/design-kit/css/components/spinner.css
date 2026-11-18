@@ -1,0 +1,12 @@
+/* Indicateur de chargement — [data-slot='spinner'] (role="status") */
+[data-slot='spinner'] {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: ds-spin 0.7s linear infinite;
+}
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { [data-slot='spinner'] { animation-duration: 3s; } }

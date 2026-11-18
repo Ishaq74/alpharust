@@ -1,0 +1,17 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  size?: "sm" | "md" | "lg";
+  index?: number;
+};
+
+const { size = "md", index, class: className, ...rest } = Astro.props;
+---
+
+<div class={className} data-otp-slot data-index={index} data-size={size} aria-hidden="true" {...rest} data-slot="input-otp-slot">
+  <span data-otp-char></span>
+  <div data-otp-caret hidden>
+    <slot name="caret"><div data-otp-caret-line></div></slot>
+  </div>
+</div>

@@ -1,0 +1,9 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<div class={className} aria-live="polite" aria-label="Uploaded files" {...rest} data-slot="dropzone-files-list"></div>

@@ -1,14 +1,26 @@
 [package]
 name = "alpharust"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "AlphaRust"
+rust-version = "1.85"
+resolver = "3"
+description = "AlphaRust — moteur de règles (regex + checkers sémantiques), générateurs de projets, CLI, TUI et GUI web"
 license = "MIT"
+repository = "https://github.com/Ishaq74/alpharust"
+readme = "README.md"
+
+[lib]
+name = "alpharust"
+path = "src/lib.rs"
+
+[[bin]]
+name = "alpharust"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_yaml = "0.9"
 regex = "1.10"
 walkdir = "2.5"
@@ -17,4 +29,13 @@ toml = "0.8"
 ratatui = "0.28"
 crossterm = "0.28"
 axum = "0.7"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+include_dir = "0.7.4"
+dialoguer = "0.12.0"
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+getrandom = "0.3"
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

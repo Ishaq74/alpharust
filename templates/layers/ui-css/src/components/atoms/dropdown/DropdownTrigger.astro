@@ -1,0 +1,30 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"button">, "role" | "type"> & {
+  /** Habille un élément enfant (ex. <Button>) au lieu de rendre son propre <button>. */
+  asChild?: boolean;
+};
+
+const { asChild = false, class: className, ...rest } = Astro.props;
+---
+
+{
+  asChild ? (
+    <div class={className} data-slot="dropdown-trigger" data-as-child aria-haspopup="true" aria-expanded="false">
+      <slot />
+    </div>
+  ) : (
+    <button
+      class={className}
+      type="button"
+      aria-haspopup="true"
+      aria-expanded="false"
+      data-state="closed"
+      {...rest}
+      data-slot="dropdown-trigger"
+    >
+      <slot />
+    </button>
+  )
+}

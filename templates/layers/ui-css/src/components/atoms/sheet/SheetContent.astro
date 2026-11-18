@@ -1,0 +1,20 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"dialog"> & {
+  side?: "top" | "right" | "bottom" | "left";
+};
+
+const { side = "right", class: className, ...rest } = Astro.props;
+---
+
+<!-- Fond : ::backdrop natif ; l'élément reste pour la parité du balisage. -->
+<slot name="backdrop">
+  <div data-state="closed" data-slot="dialog-backdrop" aria-hidden="true"></div>
+</slot>
+<dialog class={className} data-side={side} data-state="closed" data-close-duration="300" {...rest} data-slot="sheet-content">
+  <slot />
+  <button type="button" data-slot="sheet-close" aria-label="Close dialog">
+    <slot name="icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></slot>
+  </button>
+</dialog>

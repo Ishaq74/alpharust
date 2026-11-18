@@ -1,0 +1,124 @@
+@@meta when=!official&starwind@@
+/*
+ * Couleurs — jeux « Fire Brand » du dépôt atomic (OKLCH, WCAG AAA vérifié), copiés tels quels par-dessus starwind.css.
+ * Seules les couleurs primaires suivent la palette de marque `--brand-primary` (themes/theme.css) quand elle existe ;
+ * `--radius` est défini dans tokens/spacing.css.
+ */
+:root {
+  /* Surfaces */
+  --background:              oklch(1      0      0   );    /* white           */
+  --foreground:              oklch(0.148  0.018  75  );    /* warm near-black */
+  --card:                    oklch(0.985  0.008  80  );    /* warm off-white  */
+  --card-foreground:         oklch(0.148  0.018  75  );
+  --popover:                 oklch(0.985  0.008  80  );
+  --popover-foreground:      oklch(0.148  0.018  75  );
+
+  /* Primary — golden yellow h=68° : fg/bg 11:1 ✅ AAA */
+  --primary: var(--brand-primary, oklch(0.880 0.200 68));    /* golden yellow   */
+  --primary-foreground: var(--on-brand-primary, oklch(0.148 0.018 75));    /* near-black      */
+  --primary-accent: var(--brand-primary, oklch(0.820 0.205 68));    /* deeper yellow   */
+  --primary-deep: var(--brand-primary, oklch(0.500 0.120 68));    /* dark gold — ≥5:1 on white ✅ AA */
+
+  /* Secondary — warm stone-200 bg + near-black : 12:1 ✅ AAA */
+  --secondary:               oklch(0.922  0.012  75  );
+  --secondary-foreground:    oklch(0.148  0.018  75  );
+  --secondary-accent:        oklch(0.148  0.018  75  );
+
+  /* Muted — warm stone-100 bg, stone-700 text : 9.5:1 ✅ AAA (card bg ≥ 8:1) */
+  --muted:                   oklch(0.962  0.008  78  );
+  --muted-foreground:        oklch(0.400  0.016  75  );
+
+  /* Accent — warm stone-100 bg + near-black : 13:1 ✅ AAA */
+  --accent:                  oklch(0.962  0.008  78  );
+  --accent-foreground:       oklch(0.148  0.018  75  );
+
+  /* Status tokens (pastel bg + deep fg) */
+  --info:                    oklch(0.828  0.111 211.664);  /* sky-300         */
+  --info-foreground:         oklch(0.164  0.056 232.539);  /* sky-950         */
+  --success:                 oklch(0.871  0.150 151.336);  /* green-300       */
+  --success-foreground:      oklch(0.157  0.052 156.743);  /* green-950       */
+  /* Warning — orange h=38° (visually distinct from yellow primary h=68°) */
+  --warning:                 oklch(0.870  0.200  38  );    /* warm orange     */
+  --warning-foreground:      oklch(0.148  0.018  75  );    /* near-black      */
+  --error:                   oklch(0.444  0.177  26.899);  /* red-800 7.7:1 ✅ */
+  --error-foreground:        oklch(0.985  0.002  75  );
+
+  /* Gradient accents (used as gradient-from / gradient-to stops) */
+  --gradient-warm:           oklch(0.640  0.220  50  );    /* deep orange     */
+  --gradient-cool:           oklch(0.480  0.220 240  );    /* electric blue   */
+
+  /* Structural */
+  --border:                  oklch(0.882  0.016  75  );
+  --input:                   oklch(0.882  0.016  75  );
+  --outline:                 oklch(0.652  0.020  75  );
+
+  /* Sidebar */
+  --sidebar-background:            oklch(0.962  0.008  78  );
+  --sidebar-foreground:            oklch(0.148  0.018  75  );
+  --sidebar-primary: var(--brand-primary, oklch(0.880 0.200 68));
+  --sidebar-primary-foreground: var(--on-brand-primary, oklch(0.148 0.018 75));
+  --sidebar-accent:                oklch(0.922  0.012  75  );
+  --sidebar-accent-foreground:     oklch(0.148  0.018  75  );
+  --sidebar-border:                oklch(0.882  0.016  75  );
+  --sidebar-outline:               oklch(0.652  0.020  75  );
+}
+
+
+.dark {
+  /* Surfaces */
+  --background:              oklch(0.148  0.018  75  );    /* warm near-black */
+  --foreground:              oklch(0.975  0.008  80  );    /* warm near-white */
+  --card:                    oklch(0.220  0.015  75  );    /* warm stone-900  */
+  --card-foreground:         oklch(0.975  0.008  80  );
+  --popover:                 oklch(0.310  0.014  75  );    /* warm stone-800  */
+  --popover-foreground:      oklch(0.975  0.008  80  );
+
+  /* Primary — SAME golden yellow h=68° — brand identity consistent in dark ✅ */
+  --primary: var(--brand-primary, oklch(0.880 0.200 68));
+  --primary-foreground: var(--on-brand-primary, oklch(0.148 0.018 75));    /* near-black 11:1 ✅ */
+  --primary-accent: var(--brand-primary, oklch(0.820 0.205 68));
+  --primary-deep: var(--brand-primary, oklch(0.880 0.200 68));    /* same as primary — fine on dark bg */
+
+  /* Secondary — warm stone-800 bg + near-white : 12:1 ✅ AAA */
+  --secondary:               oklch(0.310  0.014  75  );
+  --secondary-foreground:    oklch(0.975  0.008  80  );
+  --secondary-accent:        oklch(0.975  0.008  80  );
+
+  /* Muted — warm stone-800 bg, stone-400 text : 8.5:1 ✅ AAA */
+  --muted:                   oklch(0.310  0.014  75  );
+  --muted-foreground:        oklch(0.745  0.016  75  );
+
+  /* Accent — warm stone-700 bg + stone-100 text : 9:1 ✅ AAA */
+  --accent:                  oklch(0.410  0.018  75  );
+  --accent-foreground:       oklch(0.920  0.010  75  );
+
+  /* Status — identical pastels (readable on dark bg too) */
+  --info:                    oklch(0.828  0.111 211.664);
+  --info-foreground:         oklch(0.164  0.056 232.539);
+  --success:                 oklch(0.871  0.150 151.336);
+  --success-foreground:      oklch(0.157  0.052 156.743);
+  --warning:                 oklch(0.870  0.200  38  );
+  --warning-foreground:      oklch(0.148  0.018  75  );
+  --error:                   oklch(0.505  0.213  27.325);  /* red-700, brighter on dark */
+  --error-foreground:        oklch(0.975  0.008  80  );
+
+  /* Gradient accents — brighter on dark surface */
+  --gradient-warm:           oklch(0.740  0.210  50  );    /* vibrant orange  */
+  --gradient-cool:           oklch(0.590  0.215 240  );    /* electric blue   */
+
+  /* Structural — translucent to avoid dark mode artifacts */
+  --border:                  oklch(1 0 0 / 12%);
+  --input:                   oklch(1 0 0 / 18%);
+  --outline:                 oklch(0.620  0.020  75  );
+
+  /* Sidebar */
+  --sidebar-background:            oklch(0.220  0.015  75  );
+  --sidebar-foreground:            oklch(0.975  0.008  80  );
+  --sidebar-primary: var(--brand-primary, oklch(0.880 0.200 68));
+  --sidebar-primary-foreground: var(--on-brand-primary, oklch(0.148 0.018 75));
+  --sidebar-accent:                oklch(0.310  0.014  75  );
+  --sidebar-accent-foreground:     oklch(0.920  0.010  75  );
+  --sidebar-border:                oklch(0.310  0.014  75  );
+  --sidebar-outline:               oklch(0.527  0.020  75  );
+}
+

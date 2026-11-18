@@ -1,5 +1,7 @@
 name = "core"
+description = "Règles universelles minimales"
 rules = [
   "core/no-eval",
   "core/no-plaintext-secrets",
+  "core/no-command-injection",
 ]

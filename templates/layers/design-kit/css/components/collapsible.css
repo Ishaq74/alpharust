@@ -1,0 +1,21 @@
+/* Repliable — collapsible (data-state) > collapsible-trigger (aria-expanded) + collapsible-content (hidden). ds.js relie aria-controls. */
+[data-slot='collapsible'] { display: grid; gap: 0.5rem; }
+[data-slot='collapsible'][data-disabled] [data-slot='collapsible-trigger'] { opacity: 0.5; pointer-events: none; }
+[data-slot='collapsible-trigger'][data-as-child] { display: contents; }
+[data-slot='collapsible-trigger']:not([data-as-child]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 0.5rem);
+  cursor: pointer;
+}
+[data-slot='collapsible-trigger']:not([data-as-child]):hover { background: var(--surface-2); }
+[data-slot='collapsible-trigger']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='collapsible-content'][hidden] { display: none; }
+[data-slot='collapsible-content'][data-state='open'] { animation: ds-fade-in 0.2s ease-out; }

@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"span"> & {
+  placeholder?: string;
+};
+
+const { placeholder = "select", class: className, ...rest } = Astro.props;
+---
+
+<span class={className} data-placeholder={placeholder} {...rest} data-slot="select-value">
+  {placeholder}
+</span>

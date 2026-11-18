@@ -1,8 +1,14 @@
 ---
 name: consistent-spacing
-apply: "*"
+apply: "*.rs,*.js,*.jsx,*.ts,*.tsx,*.css,*.scss,*.py,*.php,*.html,*.astro,*.vue,*.json,*.yml,*.yaml"
 severity: info
-pattern: ""
+checker: indent-consistency
+examples:
+  bad:
+    - "a\n  b\n  c\n\td\n"
+  good:
+    - "a\n\tb\n\tc\n"
+    - "a\n  b\n    c\n"
 ---
 
 # Espacement cohérent

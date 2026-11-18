@@ -1,0 +1,35 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  animationDuration?: number;
+};
+
+const {
+  side = "bottom",
+  align = "start",
+  sideOffset = 4,
+  animationDuration = 150,
+  class: className,
+  ...rest
+} = Astro.props;
+---
+
+<div
+  class={className}
+  role="menu"
+  data-side={side}
+  data-align={align}
+  data-state="closed"
+  tabindex="-1"
+  aria-orientation="vertical"
+  hidden
+  style={{ "--ds-offset": `${sideOffset}px`, "--ds-duration": `${animationDuration}ms` }}
+  {...rest}
+  data-slot="dropdown-content"
+>
+  <slot />
+</div>

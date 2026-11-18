@@ -1,8 +1,13 @@
 ---
 name: no-important
-apply: "*"
+apply: "*.css,*.scss,*.sass,*.less,*.html,*.astro,*.vue,*.svelte"
 severity: warning
 pattern: "!important"
+examples:
+  bad:
+    - ".a { color: red !important; }"
+  good:
+    - ".a { color: red; }"
 ---
 
 # Éviter !important

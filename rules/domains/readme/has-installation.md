@@ -1,8 +1,18 @@
 ---
 name: has-installation
-apply: readme
+apply: "/readme*"
 severity: warning
-pattern: ""
+checker: readme-sections
+args:
+  any: ["install"]
+  message: "section « Installation » manquante"
+examples:
+  file: "README.md"
+  bad:
+    - "# X\n## Usage\n"
+  good:
+    - "# X\n## Installation\n"
+    - "# X\n## Installation rapide\n"
 ---
 
 # Section Installation requise

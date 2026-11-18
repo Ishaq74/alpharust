@@ -1,8 +1,13 @@
 ---
 name: nodemailer-secure-transport
-apply: nodemailer
+apply: "nodemailer"
 severity: error
-pattern: "secure:\s*false"
+pattern: "secure:\\s*false"
+examples:
+  bad:
+    - "nodemailer.createTransport({ secure: false })"
+  good:
+    - "nodemailer.createTransport({ secure: true })"
 ---
 
 # Transport Nodemailer sécurisé

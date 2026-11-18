@@ -1,0 +1,273 @@
+# Catalogue de composants AlphaRust — source de vérité du contrat de balisage.
+# Chaque composant « core » existe dans les quatre cibles : Starwind (Tailwind), CSS pur (Astro),
+# Blade (Laravel) et balises de gabarit (Django/Wagtail). Le test de parité (src/scaffold/catalog.rs)
+# vérifie ce fichier contre les fichiers réels.
+
+[meta]
+contract = "data-slot"
+
+[[component]]
+name = "accordion"
+kind = "core"
+parts = ["Accordion", "AccordionContent", "AccordionItem", "AccordionTrigger"]
+slots = ["accordion", "accordion-content", "accordion-item", "accordion-trigger"]
+
+[[component]]
+name = "alert"
+kind = "core"
+parts = ["Alert", "AlertDescription", "AlertTitle"]
+slots = ["alert", "alert-description", "alert-title"]
+
+[[component]]
+name = "avatar"
+kind = "core"
+parts = ["Avatar", "AvatarFallback", "AvatarImage"]
+slots = ["avatar", "avatar-fallback", "avatar-image"]
+
+[[component]]
+name = "badge"
+kind = "core"
+parts = ["Badge"]
+slots = ["badge"]
+
+[[component]]
+name = "breadcrumb"
+kind = "core"
+parts = ["Breadcrumb", "BreadcrumbEllipsis", "BreadcrumbItem", "BreadcrumbLink", "BreadcrumbList", "BreadcrumbPage", "BreadcrumbSeparator"]
+slots = ["breadcrumb", "breadcrumb-ellipsis", "breadcrumb-item", "breadcrumb-link", "breadcrumb-list", "breadcrumb-page", "breadcrumb-separator"]
+
+[[component]]
+name = "button"
+kind = "core"
+parts = ["Button"]
+slots = ["button"]
+
+[[component]]
+name = "card"
+kind = "core"
+parts = ["Card", "CardAction", "CardContent", "CardDescription", "CardFooter", "CardHeader", "CardTitle"]
+slots = ["card", "card-action", "card-content", "card-description", "card-footer", "card-header", "card-title"]
+
+[[component]]
+name = "checkbox"
+kind = "core"
+parts = ["Checkbox"]
+slots = ["checkbox", "checkbox-input", "checkbox-label"]
+
+[[component]]
+name = "dialog"
+kind = "core"
+parts = ["Dialog", "DialogClose", "DialogContent", "DialogDescription", "DialogFooter", "DialogHeader", "DialogTitle", "DialogTrigger"]
+slots = ["dialog", "dialog-close", "dialog-content", "dialog-description", "dialog-footer", "dialog-header", "dialog-title", "dialog-trigger"]
+atom_only = ["dialog-backdrop"]
+
+[[component]]
+name = "input"
+kind = "core"
+parts = ["Input"]
+slots = ["input"]
+
+[[component]]
+name = "kbd"
+kind = "core"
+parts = ["Kbd", "KbdGroup"]
+slots = ["kbd", "kbd-group"]
+atom_only = ["tooltip-content"]
+
+[[component]]
+name = "label"
+kind = "core"
+parts = ["Label"]
+slots = ["label"]
+
+[[component]]
+name = "native-select"
+kind = "core"
+parts = ["NativeSelect", "NativeSelectOptGroup", "NativeSelectOption"]
+slots = ["native-select", "native-select-icon", "native-select-optgroup", "native-select-option", "native-select-wrapper"]
+
+[[component]]
+name = "pagination"
+kind = "core"
+parts = ["Pagination", "PaginationContent", "PaginationEllipsis", "PaginationItem", "PaginationLink", "PaginationNext", "PaginationPrevious"]
+slots = ["pagination", "pagination-content", "pagination-ellipsis", "pagination-item", "pagination-link", "pagination-next", "pagination-previous"]
+
+[[component]]
+name = "progress"
+kind = "core"
+parts = ["Progress"]
+slots = ["progress"]
+
+[[component]]
+name = "separator"
+kind = "core"
+parts = ["Separator"]
+slots = ["separator"]
+
+[[component]]
+name = "skeleton"
+kind = "core"
+parts = ["Skeleton"]
+slots = ["skeleton"]
+
+[[component]]
+name = "spinner"
+kind = "core"
+parts = ["Spinner"]
+slots = ["spinner"]
+
+[[component]]
+name = "switch"
+kind = "core"
+parts = ["Switch"]
+slots = ["switch", "switch-button", "switch-label", "switch-toggle"]
+
+[[component]]
+name = "table"
+kind = "core"
+parts = ["Table", "TableBody", "TableCaption", "TableCell", "TableFoot", "TableHead", "TableHeader", "TableRow"]
+slots = ["table", "table-body", "table-caption", "table-cell", "table-container", "table-foot", "table-head", "table-header", "table-row"]
+
+[[component]]
+name = "tabs"
+kind = "core"
+parts = ["Tabs", "TabsContent", "TabsList", "TabsTrigger"]
+slots = ["tabs", "tabs-content", "tabs-list", "tabs-trigger"]
+
+[[component]]
+name = "textarea"
+kind = "core"
+parts = ["Textarea"]
+slots = ["textarea"]
+
+[[component]]
+name = "tooltip"
+kind = "core"
+parts = ["Tooltip", "TooltipContent", "TooltipTrigger"]
+slots = ["tooltip", "tooltip-content", "tooltip-trigger"]
+
+# Composants « étendus » : atomes Starwind ET équivalents CSS pur (Astro) aux mêmes noms, props et data-slot.
+# Leur style vit dans design-kit/css/components (donc aussi servi à Laravel et Wagtail) ;
+# Blade et Django couvrent les 46 composants. Tout dossier d'atomes doit être core ou css (test de parité).
+
+[[component]]
+name = "alert-dialog"
+kind = "css"
+slots = ["alert-dialog", "alert-dialog-action", "alert-dialog-backdrop", "alert-dialog-cancel", "alert-dialog-content", "alert-dialog-description", "alert-dialog-footer", "alert-dialog-header", "alert-dialog-title", "alert-dialog-trigger"]
+
+[[component]]
+name = "aspect-ratio"
+kind = "css"
+slots = ["aspect-ratio", "aspect-ratio-wrapper"]
+
+[[component]]
+name = "button-group"
+kind = "css"
+slots = ["button-group", "button-group-separator", "button-group-text"]
+
+[[component]]
+name = "carousel"
+kind = "css"
+slots = ["carousel", "carousel-container", "carousel-content", "carousel-item", "carousel-next", "carousel-previous"]
+
+[[component]]
+name = "collapsible"
+kind = "css"
+slots = ["collapsible", "collapsible-content", "collapsible-trigger"]
+
+[[component]]
+name = "container"
+kind = "css"
+slots = ["container"]
+
+[[component]]
+name = "dropdown"
+kind = "css"
+slots = ["dropdown", "dropdown-content", "dropdown-item", "dropdown-label", "dropdown-separator", "dropdown-sub", "dropdown-trigger"]
+
+[[component]]
+name = "dropzone"
+kind = "css"
+slots = ["dropzone", "dropzone-files-list", "dropzone-loading-indicator", "dropzone-upload-indicator"]
+
+[[component]]
+name = "image"
+kind = "css"
+slots = ["image"]
+
+[[component]]
+name = "input-group"
+kind = "css"
+slots = ["input-group", "input-group-addon", "input-group-control"]
+
+[[component]]
+name = "input-otp"
+kind = "css"
+slots = ["input-otp", "input-otp-group", "input-otp-separator", "input-otp-slot"]
+
+[[component]]
+name = "item"
+kind = "css"
+slots = ["item", "item-actions", "item-content", "item-description", "item-footer", "item-group", "item-header", "item-media", "item-separator", "item-title"]
+
+[[component]]
+name = "popover"
+kind = "css"
+slots = ["popover", "popover-content", "popover-description", "popover-header", "popover-title", "popover-trigger"]
+
+[[component]]
+name = "prose"
+kind = "css"
+slots = ["prose"]
+
+[[component]]
+name = "radio-group"
+kind = "css"
+slots = ["radio-group", "radio-group-item", "radio-group-item-control", "radio-group-item-wrapper"]
+
+[[component]]
+name = "select"
+kind = "css"
+slots = ["select", "select-content", "select-empty", "select-item", "select-label", "select-search", "select-search-wrapper", "select-separator", "select-trigger", "select-value"]
+
+[[component]]
+name = "sheet"
+kind = "css"
+slots = ["dialog-backdrop", "sheet", "sheet-close", "sheet-content", "sheet-description", "sheet-footer", "sheet-header", "sheet-title"]
+
+[[component]]
+name = "sidebar"
+kind = "css"
+slots = ["sidebar", "sidebar-container", "sidebar-content", "sidebar-footer", "sidebar-gap", "sidebar-group", "sidebar-group-content", "sidebar-group-label", "sidebar-header", "sidebar-inner", "sidebar-input", "sidebar-inset", "sidebar-menu", "sidebar-menu-action", "sidebar-menu-badge", "sidebar-menu-button", "sidebar-menu-item", "sidebar-menu-skeleton", "sidebar-menu-sub", "sidebar-menu-sub-button", "sidebar-menu-sub-item", "sidebar-mobile", "sidebar-provider", "sidebar-rail", "sidebar-separator", "sidebar-trigger"]
+
+[[component]]
+name = "slider"
+kind = "css"
+slots = ["slider", "slider-control", "slider-range", "slider-thumb", "slider-track"]
+
+[[component]]
+name = "theme-toggle"
+kind = "css"
+slots = ["theme-toggle"]
+
+[[component]]
+name = "toast"
+kind = "css"
+slots = ["toast", "toast-close", "toast-content", "toast-description", "toast-title", "toast-viewport"]
+
+[[component]]
+name = "toggle"
+kind = "css"
+slots = ["toggle"]
+
+[[component]]
+name = "video"
+kind = "css"
+slots = ["video"]
+
+# Écarts connus entre le DOM rendu par les atomes Starwind (dépôt atomic, repris tels quels) et le contrat.
+# Mesurés par le script de parité runtime (docs/tests.md) ; tout autre écart est une erreur.
+[known_gaps]
+atoms_missing_slots = ["checkbox", "switch", "tooltip-trigger"]
+atoms_extra_slots = ["dialog-backdrop"]
+atoms_slot_count_differs = []

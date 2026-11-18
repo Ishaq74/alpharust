@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  /** Élément rendu (ex. "a" avec href). */
+  as?: HTMLTag;
+  href?: string;
+  inset?: boolean;
+  disabled?: boolean;
+};
+
+const { inset = false, disabled = false, as: Tag = "div", class: className, ...rest } = Astro.props;
+---
+
+<Tag
+  class={className}
+  role="menuitem"
+  tabindex={disabled ? "-1" : "0"}
+  aria-disabled={disabled ? "true" : undefined}
+  data-disabled={disabled ? "true" : undefined}
+  data-inset={inset ? "" : undefined}
+  {...rest} data-slot="dropdown-item"
+ 
+>
+  <slot />
+</Tag>

@@ -1,0 +1,10 @@
+---
+import type { ComponentProps } from "astro/types";
+import Textarea from "../textarea/Textarea.astro";
+
+type Props = ComponentProps<typeof Textarea>;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<Textarea class={className} {...rest} data-slot="input-group-control" />

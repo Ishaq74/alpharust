@@ -1,0 +1,17 @@
+# Configuration AlphaRust du dépôt lui-même (« dogfooding » : `alpharust lint` doit passer).
+# Les règles, fixtures et templates contiennent volontairement des exemples de violations.
+profile = "strict"
+exclude = [
+  "todos/**",
+  "Cargo.lock",
+  "rules/**",
+  "tests/**",
+  "templates/**",
+  # sources des atomes CSS pur (texte de templates : SVG xmlns, URL d'embed vidéo d'atomic)
+  "tools/dsgen/ext_astro*.py",
+  # gabarits Blade/Django générés (mêmes SVG et URL d'embed) et liens vers la doc officielle de Blade et Django
+  "tools/dsgen/ext_server.py",
+  "sites/**",
+  "docs/screenshots/**",
+]
+fail_on = "error"

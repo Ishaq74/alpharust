@@ -1,3 +1,3 @@
 # Docs Generator
 
-Génère de la documentation technique cohérente.
+`alpharust docs <nom>` : documentation technique de départ (stdout). Les projets générés embarquent aussi `docs/index.md`.

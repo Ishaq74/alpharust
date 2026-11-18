@@ -1,0 +1,16 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"select">, "size"> & {
+  size?: "sm" | "md" | "lg";
+};
+
+const { size = "md", class: className, ...rest } = Astro.props;
+---
+
+<div data-slot="native-select-wrapper">
+  <select class={className} {...rest} data-slot="native-select" data-size={size}>
+    <slot />
+  </select>
+  <span data-slot="native-select-icon" aria-hidden="true"></span>
+</div>

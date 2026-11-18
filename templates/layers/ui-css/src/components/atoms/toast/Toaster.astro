@@ -1,0 +1,44 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+import ToastTemplate from "./ToastTemplate.astro";
+
+type Position = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
+
+type Props = HTMLAttributes<"div"> & {
+  position?: Position;
+  /** Nombre de notifications visibles. */
+  limit?: number;
+  gap?: string;
+  peek?: string;
+  /** Durée d'affichage par défaut (ms). */
+  duration?: number;
+};
+
+const { position = "bottom-right", gap = "0.5rem", peek = "1rem", limit = 3, duration = 5000, class: className, ...rest } = Astro.props;
+---
+
+<div
+  class={className}
+  data-position={position}
+  data-limit={limit}
+  data-duration={duration}
+  role="region"
+  aria-live="polite"
+  aria-atomic="false"
+  aria-relevant="additions text"
+  aria-label="Notifications"
+  tabindex={-1}
+  style={`--gap: ${gap}; --peek: ${peek};`}
+  {...rest}
+  data-slot="toast-viewport"
+>
+  <slot>
+    <ToastTemplate variant="default" />
+    <ToastTemplate variant="success" />
+    <ToastTemplate variant="error" />
+    <ToastTemplate variant="warning" />
+    <ToastTemplate variant="info" />
+    <ToastTemplate variant="loading" />
+  </slot>
+</div>

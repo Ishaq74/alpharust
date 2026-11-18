@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  orientation?: "horizontal" | "vertical";
+};
+
+const { orientation = "vertical", class: className, ...rest } = Astro.props;
+---
+
+<div class={className} role="separator" aria-orientation={orientation} data-orientation={orientation} {...rest} data-slot="button-group-separator"></div>

@@ -1,0 +1,2 @@
+/* Image — image (<img> optimisé par astro:assets, ou <img> simple ailleurs) : responsive par défaut. */
+[data-slot='image'] { display: block; max-width: 100%; height: auto; border-radius: var(--image-border-radius, 0); }

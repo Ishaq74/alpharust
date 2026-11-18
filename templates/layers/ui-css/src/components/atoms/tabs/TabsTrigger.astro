@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"button">, "type" | "role"> & {
+  value: string;
+  /** Rendu actif côté serveur (évite le saut de mise en page). */
+  defaultActive?: boolean;
+};
+
+const { value, defaultActive = false, class: className, ...rest } = Astro.props;
+---
+
+<button
+  type="button"
+  role="tab"
+  class={className}
+  aria-selected={defaultActive ? "true" : "false"}
+  tabindex={defaultActive ? 0 : -1}
+  {...rest} data-slot="tabs-trigger"
+  data-value={value}
+ 
+>
+  <slot />
+</button>

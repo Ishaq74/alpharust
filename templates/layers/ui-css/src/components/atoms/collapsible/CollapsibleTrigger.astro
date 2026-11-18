@@ -1,0 +1,22 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"button">, "type"> & {
+  /** Habille un élément enfant (ex. <Button>) au lieu de rendre son propre <button>. */
+  asChild?: boolean;
+};
+
+const { asChild = false, class: className, ...rest } = Astro.props;
+---
+
+{
+  asChild ? (
+    <div class={className} data-slot="collapsible-trigger" data-as-child aria-expanded="false">
+      <slot />
+    </div>
+  ) : (
+    <button type="button" class={className} aria-expanded="false" {...rest} data-slot="collapsible-trigger">
+      <slot />
+    </button>
+  )
+}

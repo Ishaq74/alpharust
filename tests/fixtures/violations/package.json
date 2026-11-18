@@ -1,0 +1,5 @@
+{
+  "name": "bad",
+  "dependencies": { "left-pad": "*", "lodash": "^4.0.0" },
+  "devDependencies": { "lodash": "^4.0.0" }
+}

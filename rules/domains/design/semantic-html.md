@@ -1,8 +1,14 @@
 ---
 name: semantic-html
-apply: "*"
+apply: "*.html,*.htm,*.astro,*.vue,*.svelte"
 severity: warning
-pattern: ""
+checker: html-semantic
+examples:
+  bad:
+    - "<body><div><div>x</div></div></body>"
+  good:
+    - "<body><header>h</header><main>m</main></body>"
+    - "<div>fragment</div>"
 ---
 
 # HTML sémantique

@@ -5,13 +5,86 @@ on:
     branches: [ main ]
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build:
+  rust:
+    name: fmt · clippy · build · tests · lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Build
         run: cargo build --release
-      - name: Test
-        run: cargo test --lib
+      - name: Tests (unitaires, intégration, CLI, GUI, générateurs)
+        run: cargo test --all-targets
+      - name: Kit partagé à jour (tools/dsgen régénère CSS pur, Blade, Django et catalog.toml)
+        run: python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers && test -z "$(git status --porcelain templates/layers)"
+      - name: Règles, exemples et profils valides
+        run: ./target/release/alpharust check-rules
+      - name: Auto-lint du dépôt (profil strict)
+        run: ./target/release/alpharust lint --profile strict
+      - name: Export SARIF
+        run: ./target/release/alpharust lint --profile strict --sarif > alpharust.sarif
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alpharust-sarif
+          path: alpharust.sarif
+
+  generated-projects:
+    name: projets générés pour de vrai (Astro · Laravel · Wagtail · Rust)
+    runs-on: ubuntu-latest
+    env:
+      PGPW: postgres
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, curl, zip, sqlite3, pdo_sqlite
+          tools: composer
+      - name: Outils détectés
+        run: cargo run --release -- doctor
+      - name: Base de test PostgreSQL de la plateforme Astro
+        env:
+          PGPASSWORD: ${{ env.PGPW }}
+        run: psql -h localhost -U postgres -c 'CREATE DATABASE ci_e2e_test'
+      - name: Générations réelles (create-astro, plateforme Astro, composer + Breeze, wagtail, cargo new)
+        env:
+          ALPHARUST_E2E: "1"
+          ALPHARUST_E2E_PG_URL: postgresql://postgres:${{ env.PGPW }}@localhost:5432/ci_e2e
+        run: cargo test --release --test generators e2e -- --test-threads=1 --nocapture

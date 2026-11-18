@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"input"> & {
+  size?: "sm" | "md" | "lg";
+};
+
+const { size = "md", class: className, ...rest } = Astro.props;
+---
+
+<input class={className} {...rest} data-slot="input" data-size={size} />

@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"textarea"> & {
+  size?: "sm" | "md" | "lg";
+  /** Texte initial. */
+  defaultValue?: string;
+};
+
+const { size = "md", class: className, defaultValue, ...rest } = Astro.props;
+---
+
+<textarea class={className} {...rest} data-slot="textarea" data-size={size}>{defaultValue ?? ''}</textarea>

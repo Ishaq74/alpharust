@@ -2,7 +2,14 @@
 name: no-plaintext-keys
 apply: "*"
 severity: error
-pattern: "(sk_live_|sk_test_|pk_live_|rk_live_)"
+pattern: "\\b(sk|rk)_(live|test)_[A-Za-z0-9]{6,}"
+examples:
+  bad:
+    - "key = \"sk_¦live_ABCDEF123456\""
+    - "rk_¦test_ABCDEF123456"
+  good:
+    - "key = process.env.STRIPE_KEY"
+    - "pk_live_ABCDEF123456"
 ---
 
 # Clés de paiement jamais en clair

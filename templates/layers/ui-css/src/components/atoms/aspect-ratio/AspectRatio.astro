@@ -1,0 +1,19 @@
+---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  /** Élément rendu (défaut : div). */
+  as?: HTMLTag;
+  /** Largeur / hauteur (ex. 16 / 9). */
+  ratio?: number;
+};
+
+const { ratio = 1, as: Tag = "div", class: className, ...rest } = Astro.props;
+---
+
+{/* alpharust-ignore: no-inline-styles — padding calculé par instance, comme l'atome d'atomic */}
+<div style={{ "--ds-ratio": String(ratio), paddingBottom: `${100 / ratio}%` }} data-slot="aspect-ratio-wrapper">
+  <Tag class={className} {...rest} data-slot="aspect-ratio">
+    <slot />
+  </Tag>
+</div>

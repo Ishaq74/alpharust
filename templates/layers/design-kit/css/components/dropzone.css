@@ -1,0 +1,33 @@
+/*
+ * Zone de dépôt — dropzone (<label> focusable contenant un <input type="file">) > dropzone-upload-indicator,
+ * dropzone-loading-indicator (data-is-uploading="true"), dropzone-files-list (aria-live). ds.js : glisser-déposer, liste des fichiers.
+ */
+[data-slot='dropzone'] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 10rem;
+  padding: 1.5rem;
+  color: var(--text-muted);
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius, 0.75rem);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+[data-slot='dropzone']:hover,
+[data-slot='dropzone'][data-drag-active='true'] { border-color: var(--brand); background: var(--surface-2); }
+[data-slot='dropzone']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='dropzone'] p { margin: 0.25rem 0 0; font-size: 0.875rem; }
+[data-slot='dropzone-upload-indicator'] svg,
+[data-slot='dropzone-loading-indicator'] svg { display: block; margin-inline: auto; }
+[data-slot='dropzone'][data-is-uploading='true'] [data-slot='dropzone-upload-indicator'] { display: none; }
+[data-slot='dropzone'][data-is-uploading='true'] [data-slot='dropzone-loading-indicator'] { display: block; }
+[data-slot='dropzone-loading-indicator'] svg { animation: ds-spin 1s linear infinite; }
+[data-slot='dropzone-files-list'] { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.375rem; font-size: 0.875rem; color: var(--text); }
+[data-slot='dropzone-files-list']:empty { display: none; }
+[data-slot='dropzone-files-list'] > * { padding: 0.125rem 0.5rem; background: var(--surface-2); border-radius: 999px; }

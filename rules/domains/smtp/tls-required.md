@@ -2,7 +2,14 @@
 name: smtp-tls-required
 apply: "*"
 severity: error
-pattern: "ssl\\s*=\\s*false|starttls\\s*=\\s*false|secure\\s*:\\s*false"
+pattern: "(?i)\\bssl\\s*=\\s*false|\\bstarttls\\s*=\\s*false|\\bsecure\\s*:\\s*false"
+examples:
+  bad:
+    - "starttls = false"
+    - "{ secure: false }"
+  good:
+    - "starttls = true"
+    - "{ secure: true }"
 ---
 
 # TLS obligatoire pour SMTP

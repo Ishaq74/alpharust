@@ -1,0 +1,14 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"a"> & {
+  /** Page courante : aria-current="page". */
+  isActive?: boolean;
+};
+
+const { isActive = false, class: className, ...rest } = Astro.props;
+---
+
+<a class={className} aria-current={isActive ? "page" : undefined} {...rest} data-slot="pagination-link">
+  <slot />
+</a>

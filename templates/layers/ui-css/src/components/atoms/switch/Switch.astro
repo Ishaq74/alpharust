@@ -1,0 +1,33 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = Omit<HTMLAttributes<"button">, "role" | "type" | "aria-checked"> & {
+  id: string;
+  label?: string;
+  checked?: boolean;
+  size?: "sm" | "md" | "lg";
+  variant?: "default" | "primary" | "secondary" | "info" | "success" | "warning" | "error";
+};
+
+const { id, label, checked = false, size = "md", variant = "default", class: className, ...rest } = Astro.props;
+const ariaLabel = rest["aria-label"] ?? label ?? "switch";
+delete rest["aria-label"];
+---
+
+<div data-slot="switch">
+  <button
+    type="button"
+    id={id}
+    role="switch"
+    aria-checked={checked ? "true" : "false"}
+    aria-label={ariaLabel}
+    class={className}
+    {...rest} data-slot="switch-button"
+    data-size={size}
+    data-variant={variant}
+   
+  >
+    <span data-slot="switch-toggle"></span>
+  </button>
+  {label && <label for={id} data-slot="switch-label">{label}</label>}
+</div>

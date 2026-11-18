@@ -1,0 +1,1 @@
+<div {{ $attributes->merge(['aria-hidden' => 'true', 'role' => 'separator', 'data-slot' => 'input-otp-separator']) }}><svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" data-icon="minus"><path d="M5 12h14"/></svg></div>

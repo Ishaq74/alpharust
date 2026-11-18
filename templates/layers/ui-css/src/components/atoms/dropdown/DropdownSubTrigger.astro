@@ -1,0 +1,26 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  inset?: boolean;
+  disabled?: boolean;
+};
+
+const { inset = false, disabled = false, class: className, ...rest } = Astro.props;
+---
+
+<div
+  class={className}
+  role="menuitem"
+  aria-haspopup="true"
+  aria-expanded="false"
+  tabindex={disabled ? "-1" : "0"}
+  data-disabled={disabled ? "true" : undefined}
+  data-inset={inset ? "" : undefined}
+  data-sub-trigger
+  {...rest}
+  data-slot="dropdown-item"
+>
+  <slot />
+  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon="chevron-right"><path d="m9 6 6 6-6 6"/></svg>
+</div>

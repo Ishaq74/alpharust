@@ -1,0 +1,78 @@
+---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  as?: HTMLTag;
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "prose" | "full";
+  gutter?: "none" | "sm" | "md" | "lg" | "xl";
+  paddingY?: "none" | "sm" | "md" | "lg" | "xl";
+  background?: "none" | "background" | "card" | "muted" | "accent" | "primary" | "secondary" | "dark";
+  border?: "none" | "all" | "top" | "bottom" | "x" | "y";
+  rounded?: "none" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
+  minHeight?: "none" | "screen" | "half";
+  layout?: "stack" | "centered" | "split";
+  /** Fond pleine largeur, contenu centré. */
+  bleed?: boolean;
+  centered?: boolean;
+};
+
+const {
+  as: Tag = "div",
+  bleed = false,
+  size = "lg",
+  gutter = "md",
+  paddingY = "none",
+  background = "none",
+  border = "none",
+  rounded = "none",
+  minHeight = "none",
+  layout: layoutProp,
+  centered,
+  class: className,
+  ...rest
+} = Astro.props;
+
+const layout = centered ? "centered" : (layoutProp ?? "stack");
+const useWrapper = bleed || layout === "split";
+---
+
+{
+  useWrapper ? (
+    <Tag
+      class={className}
+      data-background={background}
+      data-padding-y={paddingY}
+      data-min-height={minHeight}
+      data-border={border}
+      data-rounded={rounded}
+      data-bleed
+      {...rest} data-slot="container"
+     
+    >
+      <div data-container-inner data-size={size} data-gutter={gutter} data-layout={layout}>
+        <div data-container-main>
+          <slot />
+        </div>
+        <div data-container-media>
+          <slot name="media" />
+        </div>
+      </div>
+    </Tag>
+  ) : (
+    <Tag
+      class={className}
+      data-size={size}
+      data-gutter={gutter}
+      data-padding-y={paddingY}
+      data-background={background}
+      data-border={border}
+      data-rounded={rounded}
+      data-min-height={minHeight}
+      data-layout={layout}
+      {...rest} data-slot="container"
+     
+    >
+      <slot />
+    </Tag>
+  )
+}

@@ -1,3 +1,3 @@
 # README Builder
 
-Génère un README cohérent à partir des métadonnées du projet et des règles.
+`alpharust readme <nom>` : README structuré (Installation, Usage, License) conforme aux règles `domains/readme`.

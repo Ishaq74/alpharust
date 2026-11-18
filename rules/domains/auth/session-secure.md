@@ -2,7 +2,13 @@
 name: session-secure
 apply: "*"
 severity: error
-pattern: "secure\\s*[:=]\\s*false|httponly\\s*[:=]\\s*false"
+pattern: "(?i)(^|[^a-z])(secure|httponly)\\s*[:=]\\s*false"
+examples:
+  bad:
+    - "cookie: { secure: false }"
+    - "SESSION_COOKIE_HTTPONLY = false"
+  good:
+    - "cookie: { secure: true, httpOnly: true }"
 ---
 
 # Sessions sécurisées

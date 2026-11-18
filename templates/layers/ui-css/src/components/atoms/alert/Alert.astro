@@ -1,0 +1,16 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  variant?: "default" | "primary" | "secondary" | "info" | "success" | "warning" | "error";
+};
+
+const { variant = "default", class: className, ...rest } = Astro.props;
+
+// error / warning : lecteurs d'écran interrompus (role="alert"), sinon annonce polie (role="status")
+const inferredRole = rest.role ?? (variant === "error" || variant === "warning" ? "alert" : "status");
+---
+
+<div class={className} role={inferredRole} {...rest} data-slot="alert" data-variant={variant}>
+  <slot />
+</div>

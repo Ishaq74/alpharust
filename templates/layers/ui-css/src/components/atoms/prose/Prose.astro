@@ -1,0 +1,13 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  size?: "sm" | "default" | "lg";
+};
+
+const { size = "default", class: className, ...rest } = Astro.props;
+---
+
+<div class={className} data-size={size} {...rest} data-slot="prose">
+  <slot />
+</div>

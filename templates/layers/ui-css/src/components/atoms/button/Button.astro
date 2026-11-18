@@ -1,0 +1,15 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"button"> & Omit<HTMLAttributes<"a">, "type"> & {
+  variant?: "default" | "primary" | "secondary" | "outline" | "ghost" | "info" | "success" | "warning" | "error";
+  size?: "sm" | "md" | "lg" | "icon-sm" | "icon" | "icon-lg";
+};
+
+const { variant = "default", size = "md", class: className, ...rest } = Astro.props;
+const Tag = Astro.props.href ? "a" : "button";
+---
+
+<Tag class={className} type={Astro.props.href ? undefined : "button"} {...rest} data-slot="button" data-variant={variant} data-size={size}>
+  <slot />
+</Tag>

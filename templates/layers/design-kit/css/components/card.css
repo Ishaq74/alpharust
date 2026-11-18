@@ -1,0 +1,33 @@
+/*
+ * Carte — card, card-header, card-title, card-description, card-action, card-content, card-footer
+ * Attribut : data-size (default, sm) sur [data-slot='card']
+ * Jetons : --card-padding, --card-border-radius
+ */
+[data-slot='card'] {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: var(--card-padding, 1.5rem) 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-border-radius, var(--radius, 0.75rem));
+  box-shadow: var(--shadow-sm, none);
+}
+
+[data-slot='card'][data-size='sm'] { gap: 1rem; padding: 1rem 0; font-size: 0.9375rem; }
+
+[data-slot='card-header'] {
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 0.25rem;
+  align-items: start;
+  padding: 0 var(--card-padding, 1.5rem);
+}
+
+[data-slot='card-header']:has([data-slot='card-action']) { grid-template-columns: 1fr auto; }
+[data-slot='card-title'] { font-size: 1.125rem; font-weight: 600; line-height: 1.2; }
+[data-slot='card-description'] { color: var(--text-muted); font-size: 0.9375rem; }
+[data-slot='card-action'] { grid-column: 2; grid-row: 1 / span 2; align-self: start; justify-self: end; }
+[data-slot='card-content'] { padding: 0 var(--card-padding, 1.5rem); }
+[data-slot='card-footer'] { display: flex; align-items: center; gap: 0.5rem; padding: 0 var(--card-padding, 1.5rem); }

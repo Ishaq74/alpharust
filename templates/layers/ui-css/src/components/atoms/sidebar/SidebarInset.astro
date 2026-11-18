@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"main">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<main class={className} id="main" {...rest} data-slot="sidebar-inset">
+  <slot />
+</main>

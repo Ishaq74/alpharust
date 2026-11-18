@@ -1,0 +1,26 @@
+/*
+ * Groupe de boutons — button-group (role="group", data-orientation) > boutons, button-group-separator, button-group-text
+ * Les bordures intérieures sont fusionnées ; seul le premier et le dernier élément gardent leurs coins arrondis.
+ */
+[data-slot='button-group'] { display: inline-flex; align-items: stretch; width: fit-content; }
+[data-slot='button-group'][data-orientation='vertical'] { flex-direction: column; }
+[data-slot='button-group'] > * { border-radius: 0; }
+[data-slot='button-group'] > * + * { margin-inline-start: -1px; }
+[data-slot='button-group'][data-orientation='vertical'] > * + * { margin-inline-start: 0; margin-top: -1px; }
+[data-slot='button-group'] > :first-child { border-start-start-radius: var(--button-border-radius, var(--radius, 0.5rem)); border-end-start-radius: var(--button-border-radius, var(--radius, 0.5rem)); }
+[data-slot='button-group'] > :last-child { border-start-end-radius: var(--button-border-radius, var(--radius, 0.5rem)); border-end-end-radius: var(--button-border-radius, var(--radius, 0.5rem)); }
+[data-slot='button-group'][data-orientation='vertical'] > :first-child { border-radius: var(--button-border-radius, var(--radius, 0.5rem)) var(--button-border-radius, var(--radius, 0.5rem)) 0 0; }
+[data-slot='button-group'][data-orientation='vertical'] > :last-child { border-radius: 0 0 var(--button-border-radius, var(--radius, 0.5rem)) var(--button-border-radius, var(--radius, 0.5rem)); }
+[data-slot='button-group'] > :focus-visible { position: relative; z-index: 1; }
+[data-slot='button-group-separator'] { align-self: stretch; width: 1px; background: var(--border); }
+[data-slot='button-group-separator'][data-orientation='horizontal'] { width: auto; height: 1px; }
+[data-slot='button-group-text'] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}

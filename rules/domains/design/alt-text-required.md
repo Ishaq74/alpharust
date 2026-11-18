@@ -1,8 +1,16 @@
 ---
 name: alt-text-required
-apply: "*"
+apply: "*.html,*.htm,*.astro,*.vue,*.svelte,*.jsx,*.tsx,*.php,*.twig"
 severity: warning
-pattern: "<img(?![^>]*\\balt\\s*=)"
+checker: html-img-alt
+examples:
+  bad:
+    - "<img src=\"a.png\">"
+    - "<img\n  src=\"a.png\"\n  class=\"x\"\n>"
+  good:
+    - "<img src=\"a.png\" alt=\"Logo\">"
+    - "<img src=\"deco.png\" alt=\"\">"
+    - "<img {...props}>"
 ---
 
 # Texte alternatif requis

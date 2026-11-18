@@ -1,8 +1,14 @@
 ---
 name: mysql-ssl-required
-apply: mysql
+apply: "mysql"
 severity: error
-pattern: "ssl=false|useSSL=false"
+pattern: "(?i)ssl\\s*=\\s*false|useSSL\\s*=\\s*false"
+examples:
+  bad:
+    - "jdbc:mysql://db/app?useSSL=false"
+    - "mysql ssl=false"
+  good:
+    - "jdbc:mysql://db/app?useSSL=true"
 ---
 
 # MySQL SSL requis

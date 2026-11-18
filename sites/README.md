@@ -1,10 +1,7 @@
 # Sites
 
-Dossier de destination par défaut pour les projets générés par AlphaRust.
-
-Les commandes `init` et `generate` créent les projets ici sauf si un chemin explicite est fourni.
-
-Exemple :
+Dossier de destination par défaut des projets générés par AlphaRust (`init`, `generate`).
+Son contenu est ignoré par git (sauf ce fichier) ; `--path <dir>` choisit une autre destination.
 
 ```bash
 alpharust generate wagtail mon-site

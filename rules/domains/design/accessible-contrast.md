@@ -1,8 +1,15 @@
 ---
 name: accessible-contrast
-apply: "*"
+apply: "*.css,*.scss,*.sass,*.html,*.astro,*.vue,*.svelte"
 severity: warning
-pattern: ""
+checker: css-contrast
+examples:
+  bad:
+    - ".a { color: #777777; background: #888888; }"
+    - ".b {\n  color: #fff;\n  background-color: #ffff00;\n}"
+  good:
+    - ".a { color: #000; background: #fff; }"
+    - ".b { color: var(--fg); background: var(--bg); }"
 ---
 
 # Contraste accessible

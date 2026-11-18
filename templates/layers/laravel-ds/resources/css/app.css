@@ -1,0 +1,17 @@
+@@meta mode=replace@@
+/*
+ * Feuille d'entrée Vite (laravel-vite-plugin) — Tailwind CSS v4 + design system AlphaRust.
+ *
+ * Ordre des couches : le design system (`ds`) passe après la base de Tailwind (preflight) et avant ses
+ * utilitaires, donc `class="p-4"` sur un composant l'emporte. Vos règles hors couche l'emportent sur tout.
+ * Docs : https://laravel.com/docs/vite#working-with-stylesheets · https://tailwindcss.com/docs/installation/framework-guides/laravel/vite
+ */
+@layer theme, base, ds, components, utilities;
+
+@import 'tailwindcss';
+@import './design/index.css' layer(ds);
+@import './design/tokens/tailwind.css';
+@import './site.css'; /* gabarit du site (en-tête, pied de page, sections) : identique à Astro et Wagtail */
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';

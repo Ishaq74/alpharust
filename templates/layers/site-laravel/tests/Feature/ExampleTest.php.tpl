@@ -1,0 +1,20 @@
+@@meta mode=replace@@
+<?php
+
+namespace Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class ExampleTest extends TestCase
+{
+    // La page d'accueil du site lit les services et les articles en base.
+    use RefreshDatabase;
+
+    public function test_the_application_returns_a_successful_response(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertStatus(200);
+    }
+}

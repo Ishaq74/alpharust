@@ -1,0 +1,26 @@
+/* Bascule de thème — theme-toggle (une toggle) : soleil en clair, lune en sombre ; ds.js pose data-theme sur <html> et le mémorise. */
+[data-slot='theme-toggle'] [data-theme-icon-wrapper] { display: inline-flex; }
+[data-slot='theme-toggle'] [data-theme-icon='dark'],
+[data-slot='theme-toggle'][data-state='on'] [data-theme-icon='light'] { display: none; }
+[data-slot='theme-toggle'][data-state='on'] [data-theme-icon='dark'] { display: block; }
+/* allure d'une toggle (variante outline par défaut), sans dépendre d'un reset de formulaire du site */
+[data-slot='theme-toggle'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 0.625rem;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 0.5rem);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+[data-slot='theme-toggle'][data-variant='outline'] { border-color: var(--border); box-shadow: var(--shadow-sm, none); }
+[data-slot='theme-toggle']:hover { color: var(--text-muted); background: var(--surface-2); }
+[data-slot='theme-toggle']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='theme-toggle'][data-size='sm'] { min-width: 2.25rem; height: 2.25rem; padding: 0 0.5rem; }
+[data-slot='theme-toggle'][data-size='lg'] { min-width: 3rem; height: 3rem; padding: 0 0.75rem; }

@@ -1,0 +1,12 @@
+---
+// Ajoute ici tes props ou logique serveur si besoin
+---
+<div id="map" style="height: 400px;"></div>
+<script type="module" is:inline>
+  import { Map, TileLayer } from 'leaflet';
+  const map = new Map('map').setView([51.505, -0.09], 13);
+  new TileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+</script>

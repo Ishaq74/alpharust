@@ -1,8 +1,15 @@
 ---
 name: python-no-exec
-apply: python
+apply: "python"
 severity: error
 pattern: "\\b(exec|eval)\\s*\\("
+examples:
+  bad:
+    - "exec(code)"
+    - "result = eval(expr)"
+  good:
+    - "cursor.execute(q)"
+    - "ast.literal_eval(s)"
 ---
 
 # Interdiction d’exec et eval en Python

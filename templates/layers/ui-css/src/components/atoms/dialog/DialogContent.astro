@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"dialog">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<dialog class={className} {...rest} data-slot="dialog-content">
+  <slot />
+</dialog>

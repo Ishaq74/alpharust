@@ -1,0 +1,39 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"div"> & {
+  side?: "top" | "bottom";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+  animationDuration?: number;
+  size?: "sm" | "md" | "lg";
+};
+
+const {
+  side = "bottom",
+  align = "start",
+  size = "md",
+  sideOffset = 4,
+  animationDuration = 150,
+  class: className,
+  ...rest
+} = Astro.props;
+---
+
+<div
+  class={className}
+  role="listbox"
+  data-side={side}
+  data-align={align}
+  data-size={size}
+  data-state="closed"
+  tabindex="-1"
+  hidden
+  style={{ "--ds-offset": `${sideOffset}px`, "--ds-duration": `${animationDuration}ms` }}
+  {...rest}
+  data-slot="select-content"
+>
+  <div data-select-inner>
+    <slot />
+  </div>
+</div>

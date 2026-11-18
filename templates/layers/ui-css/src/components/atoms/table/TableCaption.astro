@@ -1,0 +1,11 @@
+---
+import type { HTMLAttributes } from "astro/types";
+
+type Props = HTMLAttributes<"caption">;
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<caption class={className} {...rest} data-slot="table-caption">
+  <slot />
+</caption>

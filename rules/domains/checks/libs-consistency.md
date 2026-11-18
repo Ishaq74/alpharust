@@ -1,8 +1,15 @@
 ---
 name: libs-consistency
-apply: "*"
+apply: "package.json,composer.json,Cargo.toml,requirements.txt"
 severity: warning
-pattern: ""
+checker: deps-consistency
+examples:
+  file: "package.json"
+  bad:
+    - "{\"dependencies\": {\"left-pad\": \"*\"}}"
+    - "{\"dependencies\": {\"a\": \"^1\"}, \"devDependencies\": {\"a\": \"^1\"}}"
+  good:
+    - "{\"dependencies\": {\"a\": \"^1\"}, \"devDependencies\": {\"b\": \"^2\"}}"
 ---
 
 # Cohérence des librairies

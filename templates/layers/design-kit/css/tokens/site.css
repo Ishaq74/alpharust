@@ -1,0 +1,27 @@
+/*
+ * Pont de jetons — le CONTRAT lu par les composants et par le gabarit.
+ * Les composants (components/*.css) n'emploient que ces noms ; ce fichier les relie aux jetons du kit.
+ * Pour changer d'identité : modifiez themes/theme.css ou tokens/colors.css, pas les composants.
+ */
+:root {
+  --bg: var(--background);
+  --surface: var(--card);
+  --surface-2: var(--muted);
+  --text: var(--foreground);
+  --text-muted: var(--muted-foreground);
+  --brand: var(--primary);
+  --brand-text: var(--primary);
+  --brand-contrast: var(--primary-foreground);
+  --focus: var(--outline);
+
+  --tone-secondary: var(--secondary);
+  --tone-secondary-contrast: var(--secondary-foreground);
+  --tone-info: var(--info);
+  --tone-info-contrast: var(--info-foreground);
+  --tone-success: var(--success);
+  --tone-success-contrast: var(--success-foreground);
+  --tone-warning: var(--warning);
+  --tone-warning-contrast: var(--warning-foreground);
+  --tone-error: var(--error);
+  --tone-error-contrast: var(--error-foreground);
+}

@@ -1,0 +1,51 @@
+/*
+ * Fenêtre contextuelle — popover > popover-trigger (aria-haspopup="dialog", aria-expanded) + popover-content (role="dialog")
+ *   > popover-header > popover-title, popover-description. data-side, data-align, --ds-offset.
+ * ds.js : ouvre/ferme, survol (data-open-on-hover), Échap rend le focus au déclencheur, clic extérieur ferme. Jeton : --popover-border-radius
+ */
+[data-slot='popover'] { position: relative; display: inline-block; }
+[data-slot='popover-trigger'][data-as-child] { display: contents; }
+[data-slot='popover-trigger']:not([data-as-child]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.75rem;
+  padding: 0 1rem;
+  font: inherit;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--button-border-radius, var(--radius, 0.5rem));
+  cursor: pointer;
+}
+[data-slot='popover-trigger']:not([data-as-child]):hover { background: var(--surface-2); }
+[data-slot='popover-trigger']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='popover-content'] {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 50%;
+  width: 18rem;
+  margin-top: var(--ds-offset, 4px);
+  padding: 1rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--popover-border-radius, var(--radius, 0.5rem));
+  box-shadow: var(--shadow-md, 0 10px 30px rgb(0 0 0 / 0.15));
+  transform: translateX(-50%);
+  animation: ds-fade-in var(--ds-duration, 150ms) ease-out;
+}
+[data-slot='popover-content'][hidden] { display: none; }
+[data-slot='popover-content']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+[data-slot='popover-content'][data-align='start'] { left: 0; transform: none; }
+[data-slot='popover-content'][data-align='end'] { right: 0; left: auto; transform: none; }
+[data-slot='popover-content'][data-side='top'] { top: auto; bottom: 100%; margin: 0 0 var(--ds-offset, 4px); }
+[data-slot='popover-content'][data-side='right'],
+[data-slot='popover-content'][data-side='left'] { top: 50%; transform: translateY(-50%); margin: 0; }
+[data-slot='popover-content'][data-side='right'] { left: calc(100% + var(--ds-offset, 4px)); }
+[data-slot='popover-content'][data-side='left'] { right: calc(100% + var(--ds-offset, 4px)); left: auto; }
+[data-slot='popover-header'] { display: grid; gap: 0.25rem; margin-bottom: 0.5rem; }
+[data-slot='popover-title'] { margin: 0; font-size: 1rem; font-weight: 600; }
+[data-slot='popover-description'] { margin: 0; font-size: 0.875rem; color: var(--text-muted); }

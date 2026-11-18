@@ -1,0 +1,72 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  variant?: "initial" | "retro" | "modern" | "futuristic";
+  color?: "default" | "primary" | "secondary" | "accent" | "success" | "warning" | "error";
+  text?: string;
+  icon?: {
+    name: string;
+    side?: "left" | "right";
+  };
+  dismissible?: boolean;
+  ariaLabel?: string;
+  className?: string;
+}
+
+const {
+  variant = "initial",
+  color = "default",
+  text,
+  icon,
+  dismissible = false,
+  ariaLabel,
+  className = "",
+} = Astro.props;
+
+const classes = [
+  "badge",
+  variant !== "initial" && variant,
+  color !== "default" && color,
+  className,
+]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<span class={classes} aria-label={ariaLabel}>
+  {icon?.side === "left" && <Icon name={icon.name} />}
+  {text ? text : <slot />}
+  {icon?.side === "right" && <Icon name={icon.name} />}
+  {dismissible && (
+    <button 
+      type="button" 
+      aria-label="Fermer"
+      onclick="this.parentElement.remove()"
+      style="background: none; border: none; cursor: pointer; padding: 0; margin-left: 0.25rem; display: inline-flex; align-items: center;"
+    >
+      <Icon name="mdi:close" style="width: 0.875em; height: 0.875em;" />
+    </button>
+  )}
+</span>
+
+
+<style>
+/* BADGE */
+.badge { 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  padding: var(--badge-padding-y) var(--badge-padding-x); 
+  border-radius: var(--badge-border-radius); 
+  font-size: var(--badge-font-size); 
+  border: 1px solid transparent; 
+  font-weight: 600; 
+  line-height: 1; 
+  white-space: nowrap;
+  max-width: fit-content;
+}
+.badge.primary { background: var(--badge-primary-bg); color: var(--badge-primary-color); }
+.badge.secondary { background: var(--badge-secondary-bg); color: var(--badge-secondary-color); }
+.badge.accent { background: var(--badge-accent-bg); color: var(--badge-accent-color); }
+</style>
