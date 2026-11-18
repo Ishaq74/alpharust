@@ -81,7 +81,7 @@ void site;
         <Card class="site-card">
           <CardHeader>
             <h2 class="site-card__title">
-              Coordonnées
+              {site.ui.details}
             </h2>
           </CardHeader>
           <CardContent>

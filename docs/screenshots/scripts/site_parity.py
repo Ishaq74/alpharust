@@ -27,7 +27,9 @@ _only = [k for k in os.environ.get('SITE_STACKS', '').split(',') if k]
 STACKS = [s for s in ALL_STACKS if not _only or s[0] in _only]
 REF = 'astro-css' if any(s[0] == 'astro-css' for s in STACKS) else STACKS[0][0]
 PAGES = ['/', '/a-propos', '/services', '/services/accessibilite', '/blog', '/blog/choisir-son-framework', '/contact',
-         '/mentions-legales', '/confidentialite', '/page-inexistante']
+         '/mentions-legales', '/confidentialite', '/page-inexistante',
+         # anglais (même spec traduite : vitrine/i18n.py) et sélecteur de langue
+         '/en', '/en/a-propos', '/en/services/accessibilite', '/en/blog/choisir-son-framework', '/en/contact', '/en/page-inexistante']
 
 SIGNATURE = r"""() => {
   const txt = (e) => (e.textContent || '').replace(/\s+/g, ' ').trim();
@@ -36,6 +38,7 @@ SIGNATURE = r"""() => {
   return {
     title: document.title,
     lang: document.documentElement.lang,
+    languages: q('.site-lang a').map((e) => `${e.getAttribute('hreflang')}:${e.getAttribute('href')}:${e.getAttribute('aria-current') || ''}`),
     landmarks: q('header, nav, main, footer, aside, section, article').map((e) => e.tagName.toLowerCase() + (e.getAttribute('aria-label') ? `[${e.getAttribute('aria-label')}]` : '')),
     headings: q('main h1, main h2, main h3').map((e) => e.tagName.toLowerCase() + ':' + txt(e)),
     nav: q('.site-nav > ul > li').map((li) => txt(li.querySelector('a, button'))),
@@ -45,6 +48,8 @@ SIGNATURE = r"""() => {
     fields: q('main form input:not([type=hidden]), main form textarea').map((e) => `${e.name}:${e.type}:${e.required}`),
     buttons: q('main a[data-slot=button], main button').filter(vis).map(txt),
     cards: q('main [data-slot=card]').length,
+    // adresses des liens (barre finale retirée : Astro/Wagtail /blog/, Laravel /blog)
+    hrefs: q('header a, main a, footer a').map((e) => (e.getAttribute('href') || '').replace(/(.)\/$/, '$1')),
     skip: !!document.querySelector('a[href="#contenu"]'),
     current: q('.site-nav [aria-current]').map(txt),
   };
@@ -72,7 +77,7 @@ async def capture(out):
                     if not suffix:
                         sig = await pg.evaluate(SIGNATURE)
                         # Le 404 attendu : la ressource principale répond 404, sans autre erreur.
-                        errs = [e for e in errs if not ('404' in e and page == '/page-inexistante')]
+                        errs = [e for e in errs if not ('404' in e and page.endswith('/page-inexistante'))]
                         report.setdefault(name, {})[key] = {'status': resp.status, 'errors': errs, **sig}
                 await ctx.close()
         await b.close()

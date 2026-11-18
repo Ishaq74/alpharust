@@ -9,7 +9,7 @@
                 {{ $site['name'] ?? '' }}
             </span>
         </a>
-        <nav class="site-nav" aria-label="Navigation principale">
+        <nav class="site-nav" aria-label="{{ $site['ui']['main_nav'] ?? '' }}">
             <ul class="site-nav__list">
                 @foreach ($site['nav'] ?? [] as $item)
                     <li>
@@ -43,10 +43,21 @@
             <x-ds.button :href="$site['cta']['url'] ?? ''" variant="primary" size="sm" class="site-header__cta">
                 {{ $site['cta']['label'] ?? '' }}
             </x-ds.button>
-            <x-ds.theme-toggle size="sm" aria-label="Changer de thème" />
+            <nav class="site-lang" aria-label="{{ $site['ui']['language'] ?? '' }}">
+                <ul class="site-lang__list">
+                    @foreach ($site['languages'] ?? [] as $lang)
+                        <li>
+                            <a class="site-lang__link" href="{{ $lang['url'] ?? '' }}" hreflang="{{ $lang['code'] ?? '' }}" lang="{{ $lang['code'] ?? '' }}" @if (! empty($lang['current']))aria-current="{{ $lang['current'] }}"@endif title="{{ $lang['name'] ?? '' }}">
+                                {{ $lang['label'] ?? '' }}
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </nav>
+            <x-ds.theme-toggle size="sm" :aria-label="$site['ui']['theme'] ?? ''" />
             <x-ds.sheet class="site-header__mobile">
                 <x-ds.sheet.trigger :as-child="true">
-                    <x-ds.button variant="ghost" size="icon" aria-label="Ouvrir le menu">
+                    <x-ds.button variant="ghost" size="icon" :aria-label="$site['ui']['open_menu'] ?? ''">
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                     </x-ds.button>
                 </x-ds.sheet.trigger>
@@ -56,7 +67,7 @@
                             {{ $site['name'] ?? '' }}
                         </x-ds.sheet.title>
                     </x-ds.sheet.header>
-                    <nav class="site-mobile__nav" aria-label="Navigation mobile">
+                    <nav class="site-mobile__nav" aria-label="{{ $site['ui']['mobile_nav'] ?? '' }}">
                         <ul class="site-mobile__list">
                             @foreach ($site['nav'] ?? [] as $item)
                                 <li>

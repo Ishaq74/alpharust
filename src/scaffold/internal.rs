@@ -356,6 +356,7 @@ fn run_internal(
         Internal::WagtailDesign(starwind) => {
             patch_wagtail_design(target, &req.name, *starwind).map(Some)
         }
+        Internal::CompileMessages => compile_messages(target).map(Some),
         Internal::TailwindStandalone => {
             tailwind_standalone(target, &req.name, cancel, on_line).map(Some)
         }
@@ -687,6 +688,9 @@ fn insert_after(text: &str, anchor: &str, add: &str, what: &str) -> Result<Strin
 }
 
 /// Wagtail : application `ds`, route `/components/`, feuille de style et script du catalogue.
+/// Réglages de langue ajoutés à `settings/base.py` (fr par défaut, en ; pages et menus traduits).
+const I18N_SETTINGS: &str = "\n# Langues du site : internationalisation de Wagtail (pages et snippets traduits), routes /en/… via i18n_patterns.\nWAGTAIL_I18N_ENABLED = True\nLANGUAGES = WAGTAIL_CONTENT_LANGUAGES = [(\"fr\", \"Français\"), (\"en\", \"English\")]\n";
+
 pub fn patch_wagtail_design(target: &Path, name: &str, starwind: bool) -> Result<String> {
     let pkg = Vars::new(name)?.pkg;
     let edit = |rel: String, anchor: &str, add: &str| -> Result<()> {
@@ -737,13 +741,42 @@ pub fn patch_wagtail_design(target: &Path, name: &str, starwind: bool) -> Result
         "\"django.contrib.messages.context_processors.messages\",",
         "                \"wagtail.contrib.settings.context_processors.settings\",\n                \"layout.context_processors.site\",\n",
     )?;
-    let settings = target.join(format!("{pkg}/settings/base.py"));
-    let text = fs::read_to_string(&settings)?;
-    fs::write(
-        &settings,
-        text.replace("LANGUAGE_CODE = \"en-us\"", "LANGUAGE_CODE = \"fr\""),
+    // Langues : internationalisation de Wagtail (doc Wagtail, « advanced_topics/i18n »).
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "INSTALLED_APPS = [",
+        "    \"wagtail.locales\",\n",
     )?;
-    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings), processeurs de contexte, LANGUAGE_CODE = fr, /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "\"django.contrib.sessions.middleware.SessionMiddleware\",",
+        "    \"django.middleware.locale.LocaleMiddleware\",\n",
+    )?;
+    let settings = target.join(format!("{pkg}/settings/base.py"));
+    let mut text = fs::read_to_string(&settings)?
+        .replace("LANGUAGE_CODE = \"en-us\"", "LANGUAGE_CODE = \"fr\"");
+    if !text.contains("WAGTAIL_I18N_ENABLED") {
+        text.push_str(I18N_SETTINGS);
+    }
+    fs::write(&settings, text)?;
+    let urls = target.join(format!("{pkg}/urls.py"));
+    let text = fs::read_to_string(&urls)?;
+    if !text.contains("i18n_patterns") {
+        let Some(i) = text.find("urlpatterns = urlpatterns + [") else {
+            bail!("{pkg}/urls.py : bloc `urlpatterns = urlpatterns + [` introuvable (fichier modifié ?)");
+        };
+        let Some(j) = text[i..].rfind("\n]").map(|j| i + j) else {
+            bail!("{pkg}/urls.py : fin du bloc wagtail_urls introuvable");
+        };
+        let patched = format!(
+            "from django.conf.urls.i18n import i18n_patterns\n{}urlpatterns = urlpatterns + i18n_patterns({}\n    prefix_default_language=False,\n){}",
+            &text[..i],
+            &text[i + "urlpatterns = urlpatterns + [".len()..j],
+            &text[j + 2..]
+        );
+        fs::write(&urls, patched)?;
+    }
+    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings), processeurs de contexte, LANGUAGE_CODE = fr, langues fr/en (wagtail.locales, LocaleMiddleware, i18n_patterns), /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.
@@ -887,6 +920,131 @@ fn append_requirements(target: &Path, pkgs: &[String]) -> Result<String> {
     }
     fs::write(&path, text)?;
     Ok(format!("{added} paquet(s) ajouté(s)"))
+}
+
+/// Lit un catalogue gettext (.po simple : msgid/msgstr, chaînes sur plusieurs lignes, échappements C).
+pub fn parse_po(text: &str) -> Vec<(String, String)> {
+    fn unquote(line: &str) -> String {
+        let t = line.trim();
+        let inner = t
+            .strip_prefix('"')
+            .and_then(|t| t.strip_suffix('"'))
+            .unwrap_or("");
+        let mut out = String::new();
+        let mut chars = inner.chars();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('n') => out.push('\n'),
+                    Some('t') => out.push('\t'),
+                    Some(o) => out.push(o),
+                    None => {}
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+    let mut entries = Vec::new();
+    let (mut id, mut msg, mut field) = (None::<String>, None::<String>, 0u8);
+    for line in text.lines().chain(std::iter::once("")) {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("msgid ") {
+            if let (Some(i), Some(m)) = (id.take(), msg.take()) {
+                entries.push((i, m));
+            }
+            id = Some(unquote(rest));
+            field = 1;
+        } else if let Some(rest) = t.strip_prefix("msgstr ") {
+            msg = Some(unquote(rest));
+            field = 2;
+        } else if t.starts_with('"') {
+            let target = if field == 1 {
+                id.as_mut()
+            } else {
+                msg.as_mut()
+            };
+            if let Some(s) = target {
+                s.push_str(&unquote(t));
+            }
+        } else if t.is_empty() || t.starts_with('#') {
+            if let (Some(i), Some(m)) = (id.take(), msg.take()) {
+                entries.push((i, m));
+            }
+            field = 0;
+        }
+    }
+    entries
+}
+
+/// Catalogue binaire .mo (format GNU gettext, sans table de hachage) : ce que produit `msgfmt` / `compilemessages`.
+pub fn compile_mo(entries: &[(String, String)]) -> Vec<u8> {
+    let mut e: Vec<&(String, String)> = entries.iter().filter(|(_, m)| !m.is_empty()).collect();
+    e.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
+    let n = e.len() as u32;
+    let (orig_at, trans_at) = (28u32, 28 + 8 * n);
+    let mut data_at = trans_at + 8 * n;
+    let (mut origs, mut transs, mut blob) = (Vec::new(), Vec::new(), Vec::new());
+    for (id, _) in &e {
+        origs.push((id.len() as u32, data_at));
+        blob.extend_from_slice(id.as_bytes());
+        blob.push(0);
+        data_at += id.len() as u32 + 1;
+    }
+    for (_, m) in &e {
+        transs.push((m.len() as u32, data_at));
+        blob.extend_from_slice(m.as_bytes());
+        blob.push(0);
+        data_at += m.len() as u32 + 1;
+    }
+    let mut out = Vec::new();
+    for v in [
+        0x9504_12de_u32,
+        0,
+        n,
+        orig_at,
+        trans_at,
+        0,
+        trans_at + 8 * n,
+    ] {
+        out.extend_from_slice(&v.to_le_bytes());
+    }
+    for (len, off) in origs.iter().chain(transs.iter()) {
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&off.to_le_bytes());
+    }
+    out.extend_from_slice(&blob);
+    out
+}
+
+/// Compile chaque `locale/<langue>/LC_MESSAGES/*.po` du projet en `.mo` (équivalent de `manage.py compilemessages`,
+/// sans dépendre de GNU gettext).
+fn compile_messages(target: &Path) -> Result<String> {
+    let mut n = 0;
+    for entry in walkdir::WalkDir::new(target)
+        .into_iter()
+        .filter_entry(|e| {
+            !matches!(
+                e.file_name().to_str(),
+                Some(".venv" | "node_modules" | ".git")
+            )
+        })
+        .filter_map(|e| e.ok())
+    {
+        let p = entry.path();
+        if p.extension().and_then(|x| x.to_str()) == Some("po")
+            && p.parent()
+                .and_then(|d| d.file_name())
+                .and_then(|d| d.to_str())
+                == Some("LC_MESSAGES")
+        {
+            let text = fs::read_to_string(p)?;
+            fs::write(p.with_extension("mo"), compile_mo(&parse_po(&text)))?;
+            n += 1;
+        }
+    }
+    Ok(format!("{n} catalogue(s) gettext compilé(s)"))
 }
 
 /// Version de la CLI autonome de Tailwind (même version majeure que `tailwindcss` côté Laravel et Astro).
@@ -1163,6 +1321,18 @@ fn lint(target: &Path, state: &mut State, on_line: &mut dyn FnMut(&str)) -> Resu
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn po_catalogs_compile_to_gettext_mo() {
+        let po = "# c\nmsgid \"\"\nmsgstr \"\"\n\"Language: en\\n\"\n\nmsgid \"Accueil\"\nmsgstr \"Home\"\n\nmsgid \"a \\\"b\\\"\"\nmsgstr \"\"\n\"multi\"\n\"line\"\n";
+        let e = parse_po(po);
+        assert_eq!(e[1], ("Accueil".to_string(), "Home".to_string()));
+        assert_eq!(e[2], ("a \"b\"".to_string(), "multiline".to_string()));
+        let mo = compile_mo(&e);
+        assert_eq!(&mo[..4], &0x9504_12de_u32.to_le_bytes());
+        assert_eq!(u32::from_le_bytes(mo[8..12].try_into().unwrap()), 3);
+        assert!(mo.windows(4).any(|w| w == b"Home"));
+    }
+
     use super::*;
 
     #[test]

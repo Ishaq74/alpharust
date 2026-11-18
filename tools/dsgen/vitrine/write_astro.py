@@ -1,6 +1,6 @@
 """Rendu Astro : layout + composants + pages + collections de contenu (couche site-astro)."""
 import json
-from . import data as D, templates as TPL
+from . import data as D, templates as TPL, i18n as I18N
 from .ir import Astro
 from .icons import ICONS
 
@@ -19,10 +19,16 @@ SECTION_PROPS = ("import type { Section, Site } from '@lib/site';\n\ninterface P
                  "const { s, site } = Astro.props;\nvoid site;\n")
 
 def site_json():
+    # Une entrée par langue (fr, en) : mêmes clés, textes traduits (vitrine/i18n.py).
     out = {
-        'site': {k: D.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')},
-        'pages': D.PAGES,
-        'contactFields': D.FIELDS,
+        'locales': [{'code': c, 'name': n, 'label': l} for c, n, l in I18N.LOCALES],
+        'default': D.DEFAULT,
+        'data': {loc: {
+            'site': {k: L.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')},
+            'pages': L.PAGES,
+            'contactFields': L.FIELDS,
+            'ui': L.UI,
+        } for loc, L in D.L.items()},
     }
     return META + json.dumps(out, ensure_ascii=False, indent=2) + '\n'
 
@@ -32,7 +38,11 @@ import raw from '../data/site.json';
 /** Lien normalisé : `current` vaut 'page' (page exacte), 'true' (rubrique) ou null — même règle partout. */
 export type Link = { label: string; url: string; current?: 'page' | 'true' | null };
 export type NavItem = Link & { children: Link[] | null };
+export type Language = { code: string; label: string; name: string; url: string; current: 'page' | null };
 export type Site = {
+  locale: string;
+  languages: Language[];
+  ui: Record<string, string>;
   name: string;
   initial: string;
   tagline: string;
@@ -50,76 +60,114 @@ export type Site = {
 // Les sections sont des objets de contenu libres (voir src/data/site.json) : un type par composant de sections/.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Section = Record<string, any>;
-export type PageKey = keyof typeof raw.pages;
-
-const data = raw as unknown as {
+export type PageKey = keyof typeof raw.data.fr.pages;
+type Data = {
   site: Record<string, any>;
   pages: Record<string, { url: string; title: string; description: string; sections: Section[] }>;
   contactFields: Record<string, any>[];
+  ui: Record<string, string>;
 };
+const all = raw as unknown as { locales: { code: string; name: string; label: string }[]; default: string; data: Record<string, Data> };
+export const LOCALES = all.locales.map((l) => l.code);
+export const DEFAULT_LOCALE = all.default;
 
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'UTC' });
-export const formatDate = (d: Date) => dateFormat.format(d);
+/** Langue d'une adresse : `/en/…` -> en, sinon la langue par défaut (routage i18n d'Astro, prefixDefaultLocale: false). */
+export function localeOf(pathname: string): string {
+  const first = pathname.split('/')[1] ?? '';
+  return LOCALES.includes(first) && first !== DEFAULT_LOCALE ? first : DEFAULT_LOCALE;
+}
+const data = (locale: string) => all.data[locale] ?? all.data[DEFAULT_LOCALE];
+/** Adresse sans préfixe de langue (`/en/blog/` -> `/blog/`). */
+function unprefixed(pathname: string): string {
+  const loc = localeOf(pathname);
+  return loc === DEFAULT_LOCALE ? pathname : pathname.slice(loc.length + 1) || '/';
+}
+
+const DATE_LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-US' };
+export const formatDate = (d: Date, locale = DEFAULT_LOCALE) =>
+  new Intl.DateTimeFormat(DATE_LOCALES[locale] ?? locale, { dateStyle: 'long', timeZone: 'UTC' }).format(d);
 export const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Adresse interne au format Astro (barre finale). */
-export function href(url: string): string {
-  if (url === '/' || /^[a-z]+:/.test(url)) return url;
-  return `${url.replace(/\/$/, '')}/`;
+/** Adresse interne au format Astro (barre finale), préfixée par la langue hors langue par défaut. */
+export function href(url: string, locale = DEFAULT_LOCALE): string {
+  if (/^[a-z]+:/.test(url)) return url;
+  const prefix = locale === DEFAULT_LOCALE ? '' : `/${locale}`;
+  if (url === '/') return prefix ? `${prefix}/` : '/';
+  return `${prefix}${url.replace(/\/$/, '')}/`;
 }
 
 function current(url: string, pathname: string): 'page' | 'true' | null {
   const u = href(url);
   const p = href(pathname);
   if (p === u) return 'page';
-  return u !== '/' && p.startsWith(u) ? 'true' : null;
+  return u !== href('/', localeOf(u)) && p.startsWith(u) ? 'true' : null;
 }
 
-export async function getServices() {
-  const entries = (await getCollection('services')).sort((a, b) => a.data.order - b.data.order);
+/** Entrées d'une langue : src/content/<collection>/<langue>/<slug>.md. */
+const inLocale = (id: string, locale: string) => id.startsWith(`${locale}/`);
+const slugOf = (id: string) => id.slice(id.indexOf('/') + 1);
+
+export async function getServices(locale = DEFAULT_LOCALE) {
+  const entries = (await getCollection('services', (e) => inLocale(e.id, locale))).sort((a, b) => a.data.order - b.data.order);
   return entries.map((e) => ({
     entry: e,
+    slug: slugOf(e.id),
     title: e.data.title,
-    url: href(`/services/${e.id}`),
+    url: href(`/services/${slugOf(e.id)}`, locale),
     summary: e.data.summary,
     icon: e.data.icon,
     price: e.data.price,
     features: e.data.features,
-    more_label: `En savoir plus : ${e.data.title}`,
+    more_label: `${data(locale).ui.more_label}${e.data.title}`,
   }));
 }
 
-export async function getPosts() {
-  const entries = (await getCollection('blog')).sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+export async function getPosts(locale = DEFAULT_LOCALE) {
+  const entries = (await getCollection('blog', (e) => inLocale(e.id, locale))).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+  );
   return entries.map((e) => ({
     entry: e,
+    slug: slugOf(e.id),
     title: e.data.title,
-    url: href(`/blog/${e.id}`),
+    url: href(`/blog/${slugOf(e.id)}`, locale),
     excerpt: e.data.description,
     category: e.data.category,
     author: e.data.author,
     date_iso: isoDate(e.data.pubDate),
-    date_label: formatDate(e.data.pubDate),
+    date_label: formatDate(e.data.pubDate, locale),
   }));
 }
 
 export async function getSite(pathname: string): Promise<Site> {
-  const s = data.site;
-  const services = await getServices();
+  const locale = localeOf(pathname);
+  const d = data(locale);
+  const s = d.site;
+  const services = await getServices(locale);
   const serviceLinks = services.map((x) => ({ label: x.title, url: x.url, current: current(x.url, pathname) }));
   const links = (v: any): Link[] =>
-    v === 'services' ? serviceLinks : (v as Link[]).map((l) => ({ label: l.label, url: href(l.url) }));
+    v === 'services' ? serviceLinks : (v as Link[]).map((l) => ({ label: l.label, url: href(l.url, locale) }));
+  const rest = unprefixed(pathname);
   return {
+    locale,
+    languages: all.locales.map((l) => ({
+      code: l.code,
+      label: l.label,
+      name: l.name,
+      url: href(rest, l.code),
+      current: l.code === locale ? 'page' : null,
+    })),
+    ui: d.ui,
     name: s.name,
     initial: s.name.charAt(0).toUpperCase(),
     tagline: s.tagline,
     description: s.description,
-    home_url: '/',
-    cta: { label: s.cta.label, url: href(s.cta.url) },
+    home_url: href('/', locale),
+    cta: { label: s.cta.label, url: href(s.cta.url, locale) },
     nav: s.nav.map((i: any) => ({
       label: i.label,
-      url: href(i.url),
-      current: current(i.url, pathname),
+      url: href(i.url, locale),
+      current: current(href(i.url, locale), pathname),
       children: i.children ? links(i.children) : null,
     })),
     footer: s.footer.map((c: any) => ({ title: c.title, links: links(c.links) })),
@@ -138,13 +186,14 @@ export async function getSite(pathname: string): Promise<Site> {
 export type ContactState = { sent?: boolean; values?: Record<string, string>; errors?: Record<string, string> };
 
 /** Sections d'une page, listes (services, articles) et formulaire résolus. */
-export async function getPage(key: PageKey, state: ContactState = {}) {
-  const page = data.pages[key];
-  const services = await getServices();
-  const posts = await getPosts();
+export async function getPage(key: PageKey, state: ContactState = {}, locale = DEFAULT_LOCALE) {
+  const d = data(locale);
+  const page = d.pages[key];
+  const services = await getServices(locale);
+  const posts = await getPosts(locale);
   const sections = page.sections.map((s) => {
-    const link = s.link ? { label: s.link.label, url: href(s.link.url) } : null;
-    const fix = (a: any) => (a ? { label: a.label, url: href(a.url) } : null);
+    const link = s.link ? { label: s.link.label, url: href(s.link.url, locale) } : null;
+    const fix = (a: any) => (a ? { label: a.label, url: href(a.url, locale) } : null);
     switch (s.type) {
       case 'services':
         return { ...s, link, items: s.limit ? services.slice(0, s.limit) : services };
@@ -157,9 +206,9 @@ export async function getPage(key: PageKey, state: ContactState = {}) {
       case 'contact':
         return {
           ...s,
-          action: href(page.url),
+          action: href(page.url, locale),
           sent: Boolean(state.sent),
-          fields: data.contactFields.map((f) => {
+          fields: d.contactFields.map((f) => {
             const error = state.errors?.[f.name] ?? null;
             const id = `contact-${f.name}`;
             return {
@@ -181,19 +230,20 @@ export async function getPage(key: PageKey, state: ContactState = {}) {
 }
 
 /** Validation du formulaire de contact (mêmes règles que Laravel et Wagtail). */
-export function validateContact(values: Record<string, string>) {
+export function validateContact(values: Record<string, string>, locale = DEFAULT_LOCALE) {
+  const d = data(locale);
   const errors: Record<string, string> = {};
-  for (const f of data.contactFields) {
+  for (const f of d.contactFields) {
     const v = (values[f.name] ?? '').trim();
-    if (f.required && !v) errors[f.name] = 'Ce champ est obligatoire.';
-    else if (f.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errors[f.name] = 'Adresse e-mail invalide.';
+    if (f.required && !v) errors[f.name] = d.ui.required;
+    else if (f.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errors[f.name] = d.ui.invalid_email;
   }
   return errors;
 }
 
-export const crumbs = (...items: [string, string][]) => [
-  { label: 'Accueil', url: '/' },
-  ...items.map(([label, url]) => ({ label, url: href(url) })),
+export const crumbs = (locale: string, ...items: [string, string][]) => [
+  { label: data(locale).ui.home, url: href('/', locale) },
+  ...items.map(([label, url]) => ({ label, url: href(url, locale) })),
 ];
 """
 
@@ -226,9 +276,6 @@ import SEO from '../components/SEO.astro';
 import SiteFooter from '../components/site/SiteFooter.astro';
 import SiteHeader from '../components/site/SiteHeader.astro';
 import { getSite } from '@lib/site';
-@@if messages@@
-import { DEFAULT_LOCALE, dirOf } from '@i18n/config';
-@@end@@
 
 interface Props {
   title: string;
@@ -239,17 +286,10 @@ interface Props {
 
 const { title, description, bleed = false } = Astro.props;
 const site = await getSite(Astro.url.pathname);
-@@if messages@@
-const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
-@@end@@
 ---
 
 <!doctype html>
-@@if messages@@
-<html lang={locale} dir={dirOf(locale)}>
-@@else@@
-<html lang="fr">
-@@end@@
+<html lang={site.locale}>
   <head>
     <SEO title={title} description={description ?? site.description} />
     <script is:inline>
@@ -268,7 +308,7 @@ const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
     </script>
   </head>
   <body class="site-body">
-    <a class="site-skip" href="#contenu">Aller au contenu</a>
+    <a class="site-skip" href="#contenu">{site.ui.skip}</a>
     <SiteHeader site={site} />
     <main id="contenu" class:list={['site-main', { 'site-main--page': !bleed }]} tabindex="-1">
       <slot />
@@ -284,14 +324,13 @@ const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
 </html>
 """
 
-def simple_page(key, depth=0):
-    up = '../' * (depth + 1)
+def simple_page(key, locale='fr'):
     return META + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import {{ getPage, getSite }} from '@lib/site';
 
-const page = await getPage('{key}');
+const page = await getPage('{key}', {{}}, '{locale}');
 const site = await getSite(Astro.url.pathname);
 ---
 
@@ -300,13 +339,13 @@ const site = await getSite(Astro.url.pathname);
 </BaseLayout>
 """
 
-def home_page():
+def home_page(locale='fr'):
     return META + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import {{ getPage, getSite }} from '@lib/site';
 
-const page = await getPage('home');
+const page = await getPage('home', {{}}, '{locale}');
 const site = await getSite(Astro.url.pathname);
 ---
 
@@ -315,7 +354,7 @@ const site = await getSite(Astro.url.pathname);
 </BaseLayout>
 """
 
-def contact_page():
+def contact_page(locale='fr'):
     return META + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
@@ -325,15 +364,16 @@ import {{ type ContactState, getPage, getSite, validateContact }} from '@lib/sit
 // (Astro vérifie l'origine des POST : security.checkOrigin).
 export const prerender = false;
 
+const locale = '{locale}';
 let state: ContactState = {{}};
 if (Astro.request.method === 'POST') {{
   const form = await Astro.request.formData();
   const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
-  const errors = validateContact(values);
+  const errors = validateContact(values, locale);
   state = Object.keys(errors).length ? {{ values, errors }} : {{ sent: true }};
   if (Object.keys(errors).length) Astro.response.status = 422;
 }}
-const page = await getPage('contact', state);
+const page = await getPage('contact', state, locale);
 const site = await getSite(Astro.url.pathname);
 ---
 
@@ -342,7 +382,7 @@ const site = await getSite(Astro.url.pathname);
 </BaseLayout>
 """
 
-def detail_page(cat, kind):
+def detail_page(cat, kind, locale='fr'):
     """services/[slug].astro et blog/[...slug].astro : rendu serveur (ssr) ou pages statiques."""
     coll = 'services' if kind == 'service' else 'blog'
     nodes = TPL.SERVICE_DETAIL if kind == 'service' else TPL.POST_DETAIL
@@ -352,14 +392,14 @@ def detail_page(cat, kind):
     if kind == 'service':
         page_expr = """{
   ...item,
-  crumbs: crumbs(['Services', '/services']),
+  crumbs: crumbs(locale, ['Services', '/services']),
 }"""
         desc = 'item.summary'
     else:
         page_expr = """{
   ...item,
-  crumbs: crumbs(['Blog', '/blog']),
-  back_url: href('/blog'),
+  crumbs: crumbs(locale, ['Blog', '/blog']),
+  back_url: href('/blog', locale),
 }"""
         desc = 'item.excerpt'
     return META + f"""---
@@ -368,17 +408,18 @@ import {{ render }} from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import {{ crumbs, {getter}, getSite, href }} from '@lib/site';
 void href;
+const locale = '{locale}';
 
 @@if ssr@@
 // Rendu serveur : l'entrée est résolue à la demande.
 export const prerender = false;
-const item = (await {getter}()).find((x) => x.entry.id === Astro.params.slug);
+const item = (await {getter}(locale)).find((x) => x.slug === Astro.params.slug);
 if (!item) return Astro.rewrite('/404');
 @@else@@
 export async function getStaticPaths() {{
-  return (await {getter}()).map((item) => ({{ params: {{ slug: item.entry.id }}, props: {{ id: item.entry.id }} }}));
+  return (await {getter}('{locale}')).map((item) => ({{ params: {{ slug: item.slug }}, props: {{ id: item.entry.id }} }}));
 }}
-const item = (await {getter}()).find((x) => x.entry.id === Astro.props.id)!;
+const item = (await {getter}(locale)).find((x) => x.entry.id === Astro.props.id)!;
 @@end@@
 const {{ Content }} = await render(item.entry);
 const page = {page_expr};
@@ -400,7 +441,7 @@ import {{ getSite }} from '@lib/site';
 const site = await getSite(Astro.url.pathname);
 ---
 
-<BaseLayout title="Page introuvable" bleed>
+<BaseLayout title={{site.ui.not_found}} bleed>
 {body}</BaseLayout>
 """
 
@@ -445,14 +486,15 @@ def yaml_str(s): return json.dumps(s, ensure_ascii=False)
 
 def content_files():
     files = {}
-    for p in D.POSTS:
-        files[f"src/content/blog/{p['slug']}.md.tpl"] = (
+    for loc, L in D.L.items():
+      for p in L.POSTS:
+        files[f"src/content/blog/{loc}/{p['slug']}.md.tpl"] = (
             "@@meta when=vitrine@@\n---\n"
             f"title: {yaml_str(p['title'])}\ndescription: {yaml_str(p['excerpt'])}\npubDate: {p['date']}\n"
             f"category: {yaml_str(p['category'])}\nauthor: {yaml_str(p['author'])}\n---\n\n{p['body_md'].strip()}\n")
-    for s in D.SERVICES:
+      for s in L.SERVICES:
         feats = ''.join(f"\n  - {yaml_str(f)}" for f in s['features'])
-        files[f"src/content/services/{s['slug']}.md.tpl"] = (
+        files[f"src/content/services/{loc}/{s['slug']}.md.tpl"] = (
             "@@meta when=vitrine@@\n---\n"
             f"title: {yaml_str(s['title'])}\nsummary: {yaml_str(s['summary'])}\nicon: {s['icon']}\nprice: {yaml_str(s['price'])}\n"
             f"order: {s['order']}\nfeatures:{feats}\n---\n\n{s['body_md'].strip()}\n")
@@ -468,18 +510,23 @@ def files(cat, css):
         'src/components/site/SiteFooter.astro.tpl': comp(cat, TPL.FOOTER, SITE_PROPS),
         'src/components/site/SiteIcon.astro.tpl': icon_component(),
         'src/components/site/Sections.astro.tpl': sections_component(),
-        'src/pages/index.astro.tpl': home_page(),
-        'src/pages/a-propos.astro.tpl': simple_page('about'),
-        'src/pages/mentions-legales.astro.tpl': simple_page('legal'),
-        'src/pages/confidentialite.astro.tpl': simple_page('privacy'),
-        'src/pages/services/index.astro.tpl': simple_page('services'),
-        'src/pages/blog/index.astro.tpl': simple_page('blog'),
-        'src/pages/contact.astro.tpl': contact_page(),
-        'src/pages/services/[slug].astro.tpl': detail_page(cat, 'service'),
-        'src/pages/blog/[...slug].astro.tpl': detail_page(cat, 'post'),
         'src/pages/404.astro.tpl': not_found(cat),
         'src/styles/site.css.tpl': META + css,
     }
+    # Pages de chaque langue : src/pages/ (fr, langue par défaut) et src/pages/en/ (routage i18n d'Astro, dossiers par langue).
+    for loc in D.LOCALES:
+        d = 'src/pages/' if loc == D.DEFAULT else f'src/pages/{loc}/'
+        out.update({
+            f'{d}index.astro.tpl': home_page(loc),
+            f'{d}a-propos.astro.tpl': simple_page('about', loc),
+            f'{d}mentions-legales.astro.tpl': simple_page('legal', loc),
+            f'{d}confidentialite.astro.tpl': simple_page('privacy', loc),
+            f'{d}services/index.astro.tpl': simple_page('services', loc),
+            f'{d}blog/index.astro.tpl': simple_page('blog', loc),
+            f'{d}contact.astro.tpl': contact_page(loc),
+            f'{d}services/[slug].astro.tpl': detail_page(cat, 'service', loc),
+            f'{d}blog/[...slug].astro.tpl': detail_page(cat, 'post', loc),
+        })
     for t, nodes in TPL.SECTIONS.items():
         out[f'src/components/site/sections/{pascal(t)}.astro.tpl'] = comp(cat, nodes, SECTION_PROPS)
     out.update(content_files())

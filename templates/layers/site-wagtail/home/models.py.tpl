@@ -11,4 +11,4 @@ class HomePage(Page):
     body = StreamField(SECTION_BLOCKS, blank=True, use_json_field=True, verbose_name="sections")
 
     content_panels = Page.content_panels + [FieldPanel("body")]
-    max_count = 1
+    # une page d’accueil par langue (racine du site et ses traductions)

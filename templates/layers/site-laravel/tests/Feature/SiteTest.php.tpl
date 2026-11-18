@@ -46,6 +46,36 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+    public static function englishPages(): array
+    {
+        return [
+            'home' => ['/en', 'Fast, accessible websites'],
+            'about' => ['/en/a-propos', 'A small team'],
+            'service' => ['/en/services/accessibilite', 'What’s included'],
+            'article' => ['/en/blog/choisir-son-framework', 'All articles'],
+            'contact' => ['/en/contact', 'Let’s talk about your project'],
+        ];
+    }
+
+    /** @dataProvider englishPages */
+    #[\PHPUnit\Framework\Attributes\DataProvider('englishPages')]
+    public function test_english_pages_are_translated(string $url, string $text): void
+    {
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('<html lang="en">', false)
+            ->assertSee($text)
+            ->assertSee('aria-label="Main navigation"', false)
+            ->assertSee('hreflang="fr"', false);
+    }
+
+    public function test_the_language_switcher_links_to_the_same_page(): void
+    {
+        $this->get('/blog')->assertSee('href="/en/blog"', false);
+        $this->get('/en/blog')->assertSee('href="/blog"', false)->assertSee('href="/en/blog" aria-current="page"', false);
+        $this->get('/en/nope')->assertNotFound()->assertSee('Page not found');
+    }
+
     public function test_the_current_page_is_marked_in_the_menu(): void
     {
         $this->get('/blog')->assertSee('href="/blog" aria-current="page"', false);

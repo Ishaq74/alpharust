@@ -3,7 +3,7 @@
 Données reçues (mêmes clés dans les trois frameworks) :
   site : name, initial, tagline, home_url, cta{label,url}, nav[{label,url,current,children[{label,url,current}]}],
          footer[{title,links[{label,url}]}], social[{label,url,icon}], contact{email,email_url,phone,phone_url,address,hours},
-         year, copyright
+         year, copyright, locale, languages[{code,label,name,url,current}] (sélecteur de langue), ui{clé: libellé} (i18n.UI)
   s    : une section (type + champs, `items` déjà résolus pour services et posts)
   page : page de détail (crumbs[{label,url}], title, summary, …)
 """
@@ -44,7 +44,7 @@ def brand():
 HEADER = [E('header', cls('site-header'), [
     E('div', cls('site-container site-header__bar'), [
         brand(),
-        E('nav', [('class', 'site-nav'), ('aria-label', 'Navigation principale')], [
+        E('nav', [('class', 'site-nav'), ('aria-label', V('site.ui.main_nav'))], [
             E('ul', cls('site-nav__list'), [
                 For('item', V('site.nav'), [
                     E('li', [], [
@@ -56,13 +56,18 @@ HEADER = [E('header', cls('site-header'), [
         E('div', cls('site-header__actions'), [
             C('Button', [('href', V('site.cta.url')), ('variant', 'primary'), ('size', 'sm'), ('class', 'site-header__cta')],
               [O(V('site.cta.label'))]),
-            C('ThemeToggle', [('size', 'sm'), ('ariaLabel', 'Changer de thème')]),
+            E('nav', [('class', 'site-lang'), ('aria-label', V('site.ui.language'))], [E('ul', cls('site-lang__list'), [
+                For('lang', V('site.languages'), [E('li', [], [
+                    E('a', [('class', 'site-lang__link'), ('href', V('lang.url')), ('hreflang', V('lang.code')), ('lang', V('lang.code')),
+                            ('aria-current', Opt(V('lang.current'))), ('title', V('lang.name'))], [O(V('lang.label'))])])]),
+            ])]),
+            C('ThemeToggle', [('size', 'sm'), ('ariaLabel', V('site.ui.theme'))]),
             C('Sheet', [('class', 'site-header__mobile')], [
                 C('SheetTrigger', [('asChild', True)], [
-                    C('Button', [('variant', 'ghost'), ('size', 'icon'), ('aria-label', 'Ouvrir le menu')], [Icon('menu', 22)])]),
+                    C('Button', [('variant', 'ghost'), ('size', 'icon'), ('aria-label', V('site.ui.open_menu'))], [Icon('menu', 22)])]),
                 C('SheetContent', [('side', 'right'), ('class', 'site-mobile')], [
                     C('SheetHeader', [], [C('SheetTitle', [], [O(V('site.name'))])]),
-                    E('nav', [('class', 'site-mobile__nav'), ('aria-label', 'Navigation mobile')], [
+                    E('nav', [('class', 'site-mobile__nav'), ('aria-label', V('site.ui.mobile_nav'))], [
                         E('ul', cls('site-mobile__list'), [
                             For('item', V('site.nav'), [
                                 E('li', [], [
@@ -86,7 +91,7 @@ FOOTER = [E('footer', cls('site-footer'), [
         E('div', cls('site-footer__about'), [
             brand(),
             E('p', cls('site-footer__tagline'), [O(V('site.tagline'))]),
-            E('ul', [('class', 'site-social'), ('aria-label', 'Réseaux sociaux')], [
+            E('ul', [('class', 'site-social'), ('aria-label', V('site.ui.social'))], [
                 For('link', V('site.social'), [
                     E('li', [], [E('a', [('href', V('link.url')), ('aria-label', V('link.label')), ('rel', 'me noopener')],
                                    [Icon(V('link.icon'), 20)])])]),
@@ -100,7 +105,7 @@ FOOTER = [E('footer', cls('site-footer'), [
                 ]),
             ])]),
         E('div', cls('site-footer__col'), [
-            E('h2', cls('site-footer__title'), [T('Contact')]),
+            E('h2', cls('site-footer__title'), [O(V('site.ui.contact'))]),
             E('address', cls('site-footer__contact'), [
                 E('a', [('href', V('site.contact.email_url'))], [O(V('site.contact.email'))]),
                 E('a', [('href', V('site.contact.phone_url'))], [O(V('site.contact.phone'))]),
@@ -138,7 +143,7 @@ def service_card(level='h3'):
         C('CardFooter', [('class', 'site-card__footer')], [
             C('Badge', [('variant', 'outline')], [O(V('item.price'))]),
             C('Button', [('href', V('item.url')), ('variant', 'outline'), ('size', 'sm'), ('aria-label', V('item.more_label'))],
-              [T('En savoir plus')]),
+              [O(V('site.ui.more'))]),
         ]),
     ])
 
@@ -254,7 +259,7 @@ SECTIONS = {
         ]),
         E('aside', cls('site-contact__info'), [
             C('Card', [('class', 'site-card')], [
-                C('CardHeader', [], [E('h2', cls('site-card__title'), [T('Coordonnées')])]),
+                C('CardHeader', [], [E('h2', cls('site-card__title'), [O(V('site.ui.details'))])]),
                 C('CardContent', [], [E('ul', cls('site-contact__list'), [
                     E('li', [], [Icon('mail', 18), E('a', [('href', V('site.contact.email_url'))], [O(V('site.contact.email'))])]),
                     E('li', [], [Icon('phone', 18), E('a', [('href', V('site.contact.phone_url'))], [O(V('site.contact.phone'))])]),
@@ -287,7 +292,7 @@ SERVICE_DETAIL = [
     E('section', cls('site-section'), [E('div', cls('site-container site-detail'), [
         C('Prose', [('class', 'site-prose site-detail__body')], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
         E('aside', cls('site-detail__aside'), [C('Card', [('class', 'site-card')], [
-            C('CardHeader', [], [E('h2', cls('site-card__title'), [T('Ce qui est inclus')])]),
+            C('CardHeader', [], [E('h2', cls('site-card__title'), [O(V('site.ui.included'))])]),
             C('CardContent', [], [E('ul', cls('site-checklist'), [
                 For('feature', V('page.features'), [E('li', [], [Icon('check', 18), E('span', [], [O(V('feature'))])])])])]),
             C('CardFooter', [], [C('Button', [('href', V('site.cta.url')), ('variant', 'primary'), ('class', 'site-block')], [O(V('site.cta.label'))])]),
@@ -309,14 +314,14 @@ POST_DETAIL = [
         E('div', cls('site-section'), [E('div', cls('site-container site-container--narrow'), [
             C('Prose', [('class', 'site-prose')], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
             E('p', cls('site-article__back'), [C('Button', [('href', V('page.back_url')), ('variant', 'outline')], [
-                Icon('arrow-left', 16), T('Tous les articles')])]),
+                Icon('arrow-left', 16), O(V('site.ui.all_posts'))])]),
         ])]),
     ]),
 ]
 
 NOT_FOUND = [E('section', cls('site-section site-404'), [E('div', cls('site-container site-container--narrow'), [
     E('p', cls('site-404__code'), [T('404')]),
-    E('h1', cls('site-page-header__title'), [T('Page introuvable')]),
-    E('p', cls('site-lead'), [T("La page demandée n’existe pas ou a été déplacée.")]),
-    C('Button', [('href', V('site.home_url')), ('variant', 'primary')], [Icon('arrow-left', 16), T("Retour à l’accueil")]),
+    E('h1', cls('site-page-header__title'), [O(V('site.ui.not_found'))]),
+    E('p', cls('site-lead'), [O(V('site.ui.not_found_text'))]),
+    C('Button', [('href', V('site.home_url')), ('variant', 'primary')], [Icon('arrow-left', 16), O(V('site.ui.back_home'))]),
 ])])]

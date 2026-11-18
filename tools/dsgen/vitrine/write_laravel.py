@@ -1,6 +1,6 @@
 """Rendu Laravel : layout (composant anonyme, comme manecms) + partials + routes/contrôleurs + modèles/migrations/seeder."""
 import os
-from . import data as D, templates as TPL
+from . import data as D, templates as TPL, i18n as I18N
 from .ir import Blade
 from .icons import ICONS
 
@@ -23,12 +23,19 @@ def php(v, ind=0):
     raise TypeError(v)
 
 def config():
-    s = {k: D.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')}
-    s['locale'] = 'fr'
-    s['pages'] = D.PAGES
-    s['contact_fields'] = D.FIELDS
-    return ("<?php\n\n" + PHPGEN + "// Contenu du site (navigation, pied de page, pages composées de sections) : lu par App\\Support\\SiteData.\n"
-            "// Les services et les articles sont en base (modèles Service et Post, database/seeders/SiteSeeder.php).\n\n"
+    s = {'locale': D.DEFAULT, 'locales': {c: {'name': n, 'label': l} for c, n, l in I18N.LOCALES}}
+    return ("<?php\n\n" + PHPGEN + "// Langues du site (localisation officielle de Laravel, doc « localization »)\n"
+            "// Le contenu (navigation, pied de page, pages, libellés) est dans lang/<langue>/site.php ; les services et\n"
+            "// les articles sont en base, une ligne par langue (modèles Service et Post, database/seeders/SiteSeeder.php).\n\n"
+            "return " + php(s) + ";\n")
+
+def lang_file(loc):
+    L = D.L[loc]
+    s = {k: L.SITE[k] for k in ('name', 'tagline', 'description', 'cta', 'contact', 'social', 'nav', 'footer', 'copyright')}
+    s['pages'] = L.PAGES
+    s['contact_fields'] = L.FIELDS
+    s['ui'] = L.UI
+    return ("<?php\n\n" + PHPGEN + f"// Textes du site en « {loc} » : lus par App\\Support\\SiteData via trans('site').\n\n"
             "return " + php(s) + ";\n")
 
 ICON = (GEN + "@props(['name', 'size' => 20])\n@php\n    // Tracés Lucide (ISC) : mêmes icônes qu’Astro (SiteIcon.astro) et Django ({% site_icon %}).\n    $paths = [\n"
@@ -44,7 +51,7 @@ LAYOUT = GEN + """{{-- Gabarit commun du site (modèle manecms : composant « sh
     @include('site.partials.head', ['title' => $title, 'description' => $description])
 </head>
 <body class="site-body">
-    <a class="site-skip" href="#contenu">Aller au contenu</a>
+    <a class="site-skip" href="#contenu">{{ $site['ui']['skip'] }}</a>
     @include('site.partials.header')
     <main id="contenu" class="site-main" tabindex="-1">
         {{ $slot }}
@@ -89,7 +96,7 @@ def detail_view(cat, nodes):
     return GEN + "<x-layouts.site :title=\"$page['title']\" :description=\"$page['description']\">\n" + Blade(cat).nodes(nodes, 1) + "</x-layouts.site>\n"
 
 def not_found(cat):
-    return GEN + '<x-layouts.site title="Page introuvable">\n' + Blade(cat).nodes(TPL.NOT_FOUND, 1) + '</x-layouts.site>\n'
+    return GEN + '<x-layouts.site :title="$site[\'ui\'][\'not_found\']">\n' + Blade(cat).nodes(TPL.NOT_FOUND, 1) + '</x-layouts.site>\n'
 
 SITE_DATA = """<?php
 
@@ -97,6 +104,7 @@ namespace App\\Support;
 
 use App\\Models\\Post;
 use App\\Models\\Service;
+use Illuminate\\Support\\Facades\\App;
 
 /**
  * Données normalisées du site : mêmes clés que src/lib/site.ts (Astro) et layout/context_processors.py (Wagtail),
@@ -104,40 +112,66 @@ use App\\Models\\Service;
  */
 final class SiteData
 {
-    /** Adresse interne au format Laravel (sans barre finale). */
-    public static function href(string $url): string
+    /** Langue d'une adresse : `/en/…` -> en, sinon la langue par défaut (config/site.php). */
+    public static function localeOf(string $path): string
     {
-        return $url === '/' || preg_match('/^[a-z]+:/', $url) ? $url : '/'.trim($url, '/');
+        $first = explode('/', trim($path, '/'))[0];
+
+        return $first !== config('site.locale') && array_key_exists($first, config('site.locales')) ? $first : config('site.locale');
+    }
+
+    /** Adresse interne au format Laravel (sans barre finale), préfixée par la langue hors langue par défaut. */
+    public static function href(string $url, ?string $locale = null): string
+    {
+        if (preg_match('/^[a-z]+:/', $url)) {
+            return $url;
+        }
+        $locale ??= App::getLocale();
+        $prefix = $locale === config('site.locale') ? '' : '/'.$locale;
+        $path = $url === '/' ? '' : '/'.trim($url, '/');
+
+        return ($prefix.$path) ?: '/';
+    }
+
+    /** Adresse sans préfixe de langue (`/en/blog` -> `/blog`). */
+    public static function unprefixed(string $path): string
+    {
+        $path = '/'.trim($path, '/');
+        $locale = self::localeOf($path);
+
+        return $locale === config('site.locale') ? $path : (substr($path, strlen($locale) + 1) ?: '/');
     }
 
     /** 'page' (page exacte), 'true' (rubrique) ou null — même règle que les autres frameworks. */
     public static function current(string $url, string $path): ?string
     {
-        $u = self::href($url);
+        $u = $url === '/' ? '/' : '/'.trim($url, '/');
         $p = '/'.trim($path, '/');
         if ($p === $u) {
             return 'page';
         }
 
-        return $u !== '/' && str_starts_with($p.'/', $u.'/') ? 'true' : null;
+        return $u !== self::href('/') && str_starts_with($p.'/', $u.'/') ? 'true' : null;
     }
 
     /** @return list<array<string, mixed>> */
     public function services(): array
     {
-        return Service::query()->orderBy('position')->get()->map(fn (Service $s) => $s->toCard())->all();
+        return Service::query()->where('locale', App::getLocale())->orderBy('position')->get()->map(fn (Service $s) => $s->toCard())->all();
     }
 
     /** @return list<array<string, mixed>> */
     public function posts(): array
     {
-        return Post::query()->orderByDesc('published_at')->get()->map(fn (Post $p) => $p->toCard())->all();
+        return Post::query()->where('locale', App::getLocale())->orderByDesc('published_at')->get()->map(fn (Post $p) => $p->toCard())->all();
     }
 
     /** @return array<string, mixed> */
     public function site(string $path): array
     {
-        $s = config('site');
+        $s = trans('site');
+        $locale = App::getLocale();
+        $rest = self::unprefixed($path);
         $services = array_map(fn (array $x) => [
             'label' => $x['title'], 'url' => $x['url'], 'current' => self::current($x['url'], $path),
         ], $this->services());
@@ -146,16 +180,25 @@ final class SiteData
         );
 
         return [
+            'locale' => $locale,
+            'languages' => array_map(fn (string $code, array $l) => [
+                'code' => $code,
+                'label' => $l['label'],
+                'name' => $l['name'],
+                'url' => self::href($rest, $code),
+                'current' => $code === $locale ? 'page' : null,
+            ], array_keys(config('site.locales')), config('site.locales')),
+            'ui' => $s['ui'],
             'name' => $s['name'],
             'initial' => mb_strtoupper(mb_substr($s['name'], 0, 1)),
             'tagline' => $s['tagline'],
             'description' => $s['description'],
-            'home_url' => '/',
+            'home_url' => self::href('/'),
             'cta' => ['label' => $s['cta']['label'], 'url' => self::href($s['cta']['url'])],
             'nav' => array_map(fn (array $i) => [
                 'label' => $i['label'],
                 'url' => self::href($i['url']),
-                'current' => self::current($i['url'], $path),
+                'current' => self::current(self::href($i['url']), $path),
                 'children' => isset($i['children']) ? $links($i['children']) : null,
             ], $s['nav']),
             'footer' => array_map(fn (array $c) => ['title' => $c['title'], 'links' => $links($c['links'])], $s['footer']),
@@ -178,7 +221,7 @@ final class SiteData
      */
     public function page(string $key, array $state = []): array
     {
-        $page = config("site.pages.$key");
+        $page = trans("site.pages.$key");
         $fix = fn (?array $a) => $a ? ['label' => $a['label'], 'url' => self::href($a['url'])] : null;
         $page['sections'] = array_map(function (array $s) use ($page, $state, $fix) {
             $s['link'] = $fix($s['link'] ?? null);
@@ -203,7 +246,7 @@ final class SiteData
                             'invalid' => $error ? 'true' : null,
                             'error_id' => $error ? $id.'-error' : null,
                         ];
-                    }, config('site.contact_fields')),
+                    }, trans('site.contact_fields')),
                 ],
                 default => $s,
             };
@@ -215,7 +258,7 @@ final class SiteData
     /** @return list<array{label: string, url: string}> */
     public static function crumbs(string $label, string $url): array
     {
-        return [['label' => 'Accueil', 'url' => '/'], ['label' => $label, 'url' => self::href($url)]];
+        return [['label' => trans('site.ui.home'), 'url' => self::href('/')], ['label' => $label, 'url' => self::href($url)]];
     }
 }
 """
@@ -225,6 +268,7 @@ COMPOSER = """<?php
 namespace App\\View\\Composers;
 
 use App\\Support\\SiteData;
+use Illuminate\\Support\\Facades\\App;
 use Illuminate\\View\\View;
 
 /** Partage `$site` (navigation, pied de page, coordonnées) avec le gabarit et les vues du site. */
@@ -234,6 +278,8 @@ class SiteComposer
 
     public function compose(View $view): void
     {
+        // Les pages d'erreur (404) ne passent pas par le middleware de langue : la langue suit l'adresse.
+        App::setLocale(SiteData::localeOf(request()->path()));
         $view->with('site', $this->data->site(request()->path()));
     }
 }
@@ -243,6 +289,7 @@ PROVIDER = """<?php
 
 namespace App\\Providers;
 
+use App\\Http\\Middleware\\SetSiteLocale;
 use App\\View\\Composers\\SiteComposer;
 use Illuminate\\Support\\Facades\\App;
 use Illuminate\\Support\\Facades\\View;
@@ -253,6 +300,8 @@ class SiteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         App::setLocale(config('site.locale', config('app.locale')));
+        // Langue des routes du site (routes/web.php) : /en/… -> en (https://laravel.com/docs/localization). alpharust-ignore: no-hardcoded-urls
+        $this->app['router']->aliasMiddleware('site.locale', SetSiteLocale::class);
         View::composer(['components.layouts.site', 'site.*', 'errors::404', 'errors.404'], SiteComposer::class);
     }
 }
@@ -300,12 +349,15 @@ namespace App\\Http\\Controllers;
 
 use App\\Models\\Service;
 use App\\Support\\SiteData;
+use Illuminate\\Support\\Facades\\App;
 use Illuminate\\View\\View;
 
 class ServiceController extends Controller
 {
-    public function show(Service $service): View
+    public function show(string $slug): View
     {
+        $service = Service::query()->where('locale', App::getLocale())->where('slug', $slug)->firstOrFail();
+
         return view('site.service', ['page' => $service->toCard() + [
             'description' => $service->summary,
             'body' => $service->body,
@@ -320,12 +372,15 @@ namespace App\\Http\\Controllers;
 
 use App\\Models\\Post;
 use App\\Support\\SiteData;
+use Illuminate\\Support\\Facades\\App;
 use Illuminate\\View\\View;
 
 class BlogController extends Controller
 {
-    public function show(Post $post): View
+    public function show(string $slug): View
     {
+        $post = Post::query()->where('locale', App::getLocale())->where('slug', $slug)->firstOrFail();
+
         return view('site.post', ['page' => $post->toCard() + [
             'description' => $post->excerpt,
             'body' => $post->body,
@@ -364,14 +419,14 @@ class ContactController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $rules = [];
-        foreach (config('site.contact_fields') as $f) {
+        foreach (trans('site.contact_fields') as $f) {
             $rules[$f['name']] = array_filter([
                 $f['required'] ? 'required' : 'nullable', 'string', 'max:5000', $f['type'] === 'email' ? 'email' : null,
             ]);
         }
         $data = $request->validate($rules, [
-            'required' => 'Ce champ est obligatoire.',
-            'email' => 'Adresse e-mail invalide.',
+            'required' => trans('site.ui.required'),
+            'email' => trans('site.ui.invalid_email'),
         ]);
         ContactMessage::create(['data' => $data]);
 
@@ -391,7 +446,7 @@ use Illuminate\\Database\\Eloquent\\Model;
 
 class Service extends Model
 {
-    protected $fillable = ['slug', 'title', 'summary', 'icon', 'price', 'features', 'body', 'position'];
+    protected $fillable = ['locale', 'slug', 'title', 'summary', 'icon', 'price', 'features', 'body', 'position'];
 
     protected function casts(): array
     {
@@ -410,7 +465,7 @@ class Service extends Model
             'icon' => $this->icon,
             'price' => $this->price,
             'features' => $this->features ?? [],
-            'more_label' => 'En savoir plus : '.$this->title,
+            'more_label' => trans('site.ui.more_label').$this->title,
         ];
     }
 }
@@ -424,7 +479,7 @@ use Illuminate\\Database\\Eloquent\\Model;
 
 class Post extends Model
 {
-    protected $fillable = ['slug', 'title', 'excerpt', 'category', 'author', 'published_at', 'body'];
+    protected $fillable = ['locale', 'slug', 'title', 'excerpt', 'category', 'author', 'published_at', 'body'];
 
     protected function casts(): array
     {
@@ -441,7 +496,7 @@ class Post extends Model
             'category' => $this->category,
             'author' => $this->author,
             'date_iso' => $this->published_at->toDateString(),
-            'date_label' => $this->published_at->locale('fr')->translatedFormat('j F Y'),
+            'date_label' => $this->published_at->locale($this->locale)->translatedFormat($this->locale === 'en' ? 'F j, Y' : 'j F Y'),
         ];
     }
 }
@@ -478,7 +533,8 @@ return new class extends Migration
     {
         Schema::create('services', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique();
+            $table->string('locale', 8)->default('fr');
+            $table->string('slug');
             $table->string('title');
             $table->text('summary');
             $table->string('icon');
@@ -487,6 +543,7 @@ return new class extends Migration
             $table->longText('body');
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
+            $table->unique(['locale', 'slug']);
         });
     }
 
@@ -508,7 +565,8 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique();
+            $table->string('locale', 8)->default('fr');
+            $table->string('slug');
             $table->string('title');
             $table->text('excerpt');
             $table->string('category');
@@ -516,6 +574,7 @@ return new class extends Migration
             $table->date('published_at');
             $table->longText('body');
             $table->timestamps();
+            $table->unique(['locale', 'slug']);
         });
     }
 
@@ -551,14 +610,14 @@ return new class extends Migration
 }
 
 def seeder():
-    services = [{'slug': s['slug'], 'title': s['title'], 'summary': s['summary'], 'icon': s['icon'], 'price': s['price'],
-                 'features': s['features'], 'body': s['body_html'], 'position': s['order']} for s in D.SERVICES]
-    posts = [{'slug': p['slug'], 'title': p['title'], 'excerpt': p['excerpt'], 'category': p['category'],
-              'author': p['author'], 'published_at': p['date'], 'body': p['body_html']} for p in D.POSTS]
+    services = [{'locale': loc, 'slug': s['slug'], 'title': s['title'], 'summary': s['summary'], 'icon': s['icon'], 'price': s['price'],
+                 'features': s['features'], 'body': s['body_html'], 'position': s['order']} for loc, L in D.L.items() for s in L.SERVICES]
+    posts = [{'locale': loc, 'slug': p['slug'], 'title': p['title'], 'excerpt': p['excerpt'], 'category': p['category'],
+              'author': p['author'], 'published_at': p['date'], 'body': p['body_html']} for loc, L in D.L.items() for p in L.POSTS]
     return ("<?php\n\nnamespace Database\\Seeders;\n\nuse App\\Models\\Post;\nuse App\\Models\\Service;\nuse Illuminate\\Database\\Seeder;\n\n"
             + PHPGEN + "class SiteSeeder extends Seeder\n{\n    public function run(): void\n    {\n"
-            "        foreach (" + php(services, 2) + " as $s) {\n            Service::updateOrCreate(['slug' => $s['slug']], $s);\n        }\n"
-            "        foreach (" + php(posts, 2) + " as $p) {\n            Post::updateOrCreate(['slug' => $p['slug']], $p);\n        }\n    }\n}\n")
+            "        foreach (" + php(services, 2) + " as $s) {\n            Service::updateOrCreate(['locale' => $s['locale'], 'slug' => $s['slug']], $s);\n        }\n"
+            "        foreach (" + php(posts, 2) + " as $p) {\n            Post::updateOrCreate(['locale' => $p['locale'], 'slug' => $p['slug']], $p);\n        }\n    }\n}\n")
 
 ROUTES = """@@meta mode=replace@@
 <?php
@@ -569,17 +628,26 @@ use App\\Http\\Controllers\\ServiceController;
 use App\\Http\\Controllers\\SiteController;
 use Illuminate\\Support\\Facades\\Route;
 
-// Site (même arborescence qu'Astro et Wagtail) — contenu : config/site.php, modèles Service et Post.
-Route::get('/', [SiteController::class, 'home'])->name('home');
-Route::get('/a-propos', [SiteController::class, 'page'])->defaults('key', 'about')->name('about');
-Route::get('/services', [SiteController::class, 'page'])->defaults('key', 'services')->name('services.index');
-Route::get('/services/{service:slug}', [ServiceController::class, 'show'])->name('services.show');
-Route::get('/blog', [SiteController::class, 'page'])->defaults('key', 'blog')->name('blog.index');
-Route::get('/blog/{post:slug}', [BlogController::class, 'show'])->name('blog.show');
-Route::get('/contact', [ContactController::class, 'create'])->name('contact');
-Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
-Route::get('/mentions-legales', [SiteController::class, 'page'])->defaults('key', 'legal')->name('legal');
-Route::get('/confidentialite', [SiteController::class, 'page'])->defaults('key', 'privacy')->name('privacy');
+// Site (même arborescence qu'Astro et Wagtail), une fois par langue : /… (fr, langue par défaut) et /en/…
+// Contenu : lang/<langue>/site.php, modèles Service et Post (colonne locale).
+foreach (array_keys(config('site.locales')) as $locale) {
+    $default = $locale === config('site.locale');
+    Route::prefix($default ? '' : $locale)
+        ->name($default ? '' : $locale.'.')
+        ->middleware('site.locale:'.$locale)
+        ->group(function () {
+            Route::get('/', [SiteController::class, 'home'])->name('home');
+            Route::get('/a-propos', [SiteController::class, 'page'])->defaults('key', 'about')->name('about');
+            Route::get('/services', [SiteController::class, 'page'])->defaults('key', 'services')->name('services.index');
+            Route::get('/services/{slug}', [ServiceController::class, 'show'])->name('services.show');
+            Route::get('/blog', [SiteController::class, 'page'])->defaults('key', 'blog')->name('blog.index');
+            Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+            Route::get('/contact', [ContactController::class, 'create'])->name('contact');
+            Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+            Route::get('/mentions-legales', [SiteController::class, 'page'])->defaults('key', 'legal')->name('legal');
+            Route::get('/confidentialite', [SiteController::class, 'page'])->defaults('key', 'privacy')->name('privacy');
+        });
+}
 
 require __DIR__.'/pages.php';
 """
@@ -632,6 +700,36 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+    public static function englishPages(): array
+    {
+        return [
+            'home' => ['/en', 'Fast, accessible websites'],
+            'about' => ['/en/a-propos', 'A small team'],
+            'service' => ['/en/services/accessibilite', 'What’s included'],
+            'article' => ['/en/blog/choisir-son-framework', 'All articles'],
+            'contact' => ['/en/contact', 'Let’s talk about your project'],
+        ];
+    }
+
+    /** @dataProvider englishPages */
+    #[\\PHPUnit\\Framework\\Attributes\\DataProvider('englishPages')]
+    public function test_english_pages_are_translated(string $url, string $text): void
+    {
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('<html lang="en">', false)
+            ->assertSee($text)
+            ->assertSee('aria-label="Main navigation"', false)
+            ->assertSee('hreflang="fr"', false);
+    }
+
+    public function test_the_language_switcher_links_to_the_same_page(): void
+    {
+        $this->get('/blog')->assertSee('href="/en/blog"', false);
+        $this->get('/en/blog')->assertSee('href="/blog"', false)->assertSee('href="/en/blog" aria-current="page"', false);
+        $this->get('/en/nope')->assertNotFound()->assertSee('Page not found');
+    }
+
     public function test_the_current_page_is_marked_in_the_menu(): void
     {
         $this->get('/blog')->assertSee('href="/blog" aria-current="page"', false);
@@ -651,6 +749,27 @@ class SiteTest extends TestCase
             ->assertRedirect('/contact');
         $this->assertSame(1, ContactMessage::count());
         $this->withSession(['status' => 'sent'])->get('/contact')->assertSee('Votre message a bien été envoyé');
+    }
+}
+"""
+
+MIDDLEWARE = """<?php
+
+namespace App\\Http\\Middleware;
+
+use Closure;
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\\Facades\\App;
+use Symfony\\Component\\HttpFoundation\\Response;
+
+/** Langue d'un groupe de routes du site (`site.locale:en`) : App::setLocale, comme le recommande la doc Laravel. */
+class SetSiteLocale
+{
+    public function handle(Request $request, Closure $next, string $locale): Response
+    {
+        App::setLocale($locale);
+
+        return $next($request);
     }
 }
 """
@@ -684,6 +803,7 @@ def files(cat, css):
     out = {
         'config/site.php.tpl': config(),
         'app/Support/SiteData.php.tpl': SITE_DATA,
+        'app/Http/Middleware/SetSiteLocale.php.tpl': MIDDLEWARE,
         'app/View/Composers/SiteComposer.php.tpl': COMPOSER,
         'app/Providers/SiteServiceProvider.php.tpl': PROVIDER,
         'bootstrap/providers.php.tpl': PROVIDERS,
@@ -704,6 +824,8 @@ def files(cat, css):
         # même icône que Wagtail (ds/static/ds/favicon.svg) ; Laravel ne fournit qu'un favicon.ico vide
         'public/favicon.svg.tpl': open(os.path.join(ROOT_LAYERS, 'wagtail-ds/ds/static/ds/favicon.svg')).read(),
     }
+    for loc in D.LOCALES:
+        out[f'lang/{loc}/site.php.tpl'] = lang_file(loc)
     for t, nodes in TPL.SECTIONS.items():
         out[f'resources/views/site/sections/{t}.blade.php.tpl'] = GEN + Blade(cat).nodes(nodes)
     for n, body in CONTROLLERS.items(): out[f'app/Http/Controllers/{n}.php.tpl'] = body

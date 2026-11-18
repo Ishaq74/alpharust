@@ -51,7 +51,7 @@
                 <x-ds.card class="site-card">
                     <x-ds.card.header>
                         <h2 class="site-card__title">
-                            Coordonnées
+                            {{ $site['ui']['details'] ?? '' }}
                         </h2>
                     </x-ds.card.header>
                     <x-ds.card.content>

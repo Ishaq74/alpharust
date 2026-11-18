@@ -10,7 +10,8 @@ return new class extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique();
+            $table->string('locale', 8)->default('fr');
+            $table->string('slug');
             $table->string('title');
             $table->text('excerpt');
             $table->string('category');
@@ -18,6 +19,7 @@ return new class extends Migration
             $table->date('published_at');
             $table->longText('body');
             $table->timestamps();
+            $table->unique(['locale', 'slug']);
         });
     }
 

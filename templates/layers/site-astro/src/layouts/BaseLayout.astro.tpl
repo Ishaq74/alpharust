@@ -9,9 +9,6 @@ import SEO from '../components/SEO.astro';
 import SiteFooter from '../components/site/SiteFooter.astro';
 import SiteHeader from '../components/site/SiteHeader.astro';
 import { getSite } from '@lib/site';
-@@if messages@@
-import { DEFAULT_LOCALE, dirOf } from '@i18n/config';
-@@end@@
 
 interface Props {
   title: string;
@@ -22,17 +19,10 @@ interface Props {
 
 const { title, description, bleed = false } = Astro.props;
 const site = await getSite(Astro.url.pathname);
-@@if messages@@
-const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
-@@end@@
 ---
 
 <!doctype html>
-@@if messages@@
-<html lang={locale} dir={dirOf(locale)}>
-@@else@@
-<html lang="fr">
-@@end@@
+<html lang={site.locale}>
   <head>
     <SEO title={title} description={description ?? site.description} />
     <script is:inline>
@@ -51,7 +41,7 @@ const locale = Astro.currentLocale ?? DEFAULT_LOCALE;
     </script>
   </head>
   <body class="site-body">
-    <a class="site-skip" href="#contenu">Aller au contenu</a>
+    <a class="site-skip" href="#contenu">{site.ui.skip}</a>
     <SiteHeader site={site} />
     <main id="contenu" class:list={['site-main', { 'site-main--page': !bleed }]} tabindex="-1">
       <slot />

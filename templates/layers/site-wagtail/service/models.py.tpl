@@ -1,5 +1,6 @@
 # Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.
 from django.db import models
+from django.utils.translation import gettext
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import CharBlock
 from wagtail.fields import RichTextField, StreamField
@@ -13,7 +14,7 @@ class ServiceIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["service.ServicePage"]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (arborescences fr et en)
 
     class Meta:
         verbose_name = "index des services"
@@ -42,7 +43,8 @@ class ServicePage(Page):
     @property
     def crumbs(self):
         parent = self.get_parent()
-        return [{"label": "Accueil", "url": "/"}, {"label": parent.title, "url": parent.url}]
+        home = self.get_parent().get_parent()
+        return [{"label": gettext("Accueil"), "url": home.url}, {"label": parent.title, "url": parent.url}]
 
     def card(self):
         return {
@@ -51,5 +53,5 @@ class ServicePage(Page):
             "summary": self.summary,
             "icon": self.icon,
             "price": self.price,
-            "more_label": f"En savoir plus : {self.title}",
+            "more_label": gettext("En savoir plus : ") + self.title,
         }

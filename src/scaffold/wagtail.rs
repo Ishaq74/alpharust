@@ -204,6 +204,12 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
             Internal::WagtailDesign(o.starwind),
         ));
+        steps.push(Step::internal(
+            "compilemessages",
+            Phase::Configure,
+            "Compiler les traductions du site (layout/locale/en/LC_MESSAGES/django.po -> django.mo)",
+            Internal::CompileMessages,
+        ));
         if o.starwind {
             steps.push(Step::internal(
                 "tailwind",

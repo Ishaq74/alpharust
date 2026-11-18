@@ -68,7 +68,7 @@ void site;
                 {item.price}
               </Badge>
               <Button href={item.url} variant="outline" size="sm" aria-label={item.more_label}>
-                En savoir plus
+                {site.ui.more}
               </Button>
             </CardFooter>
           </Card>

@@ -14,7 +14,7 @@
             <p class="site-footer__tagline">
                 {{ site.tagline }}
             </p>
-            <ul class="site-social" aria-label="Réseaux sociaux">
+            <ul class="site-social" aria-label="{{ site.ui.social }}">
                 {% for link in site.social %}
                     <li>
                         <a href="{{ link.url }}" aria-label="{{ link.label }}" rel="me noopener">
@@ -42,7 +42,7 @@
         {% endfor %}
         <div class="site-footer__col">
             <h2 class="site-footer__title">
-                Contact
+                {{ site.ui.contact }}
             </h2>
             <address class="site-footer__contact">
                 <a href="{{ site.contact.email_url }}">

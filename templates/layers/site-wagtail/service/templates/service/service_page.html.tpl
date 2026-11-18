@@ -44,7 +44,7 @@
             {% ds_card class_="site-card" %}
                 {% ds_card_header %}
                     <h2 class="site-card__title">
-                        Ce qui est inclus
+                        {{ site.ui.included }}
                     </h2>
                 {% endds_card_header %}
                 {% ds_card_content %}

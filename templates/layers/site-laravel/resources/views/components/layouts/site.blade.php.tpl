@@ -7,7 +7,7 @@
     @include('site.partials.head', ['title' => $title, 'description' => $description])
 </head>
 <body class="site-body">
-    <a class="site-skip" href="#contenu">Aller au contenu</a>
+    <a class="site-skip" href="#contenu">{{ $site['ui']['skip'] }}</a>
     @include('site.partials.header')
     <main id="contenu" class="site-main" tabindex="-1">
         {{ $slot }}

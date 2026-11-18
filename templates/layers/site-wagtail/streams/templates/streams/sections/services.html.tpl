@@ -45,7 +45,7 @@
                             {{ item.price }}
                         {% endds_badge %}
                         {% ds_button href=item.url variant="outline" size="sm" aria_label=item.more_label %}
-                            En savoir plus
+                            {{ site.ui.more }}
                         {% endds_button %}
                     {% endds_card_footer %}
                 {% endds_card %}

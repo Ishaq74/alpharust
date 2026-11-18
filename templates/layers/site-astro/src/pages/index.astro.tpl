@@ -5,7 +5,7 @@ import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
 import { getPage, getSite } from '@lib/site';
 
-const page = await getPage('home');
+const page = await getPage('home', {}, 'fr');
 const site = await getSite(Astro.url.pathname);
 ---
 

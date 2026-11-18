@@ -85,6 +85,14 @@
 .site-nav__menu { min-width: 15rem; }
 .site-nav__menu a { text-decoration: none; color: inherit; }
 .site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+/* Sélecteur de langue (FR / EN) : liens vers la même page dans l'autre langue. */
+.site-lang__list { display: flex; align-items: center; gap: 0.125rem; margin: 0; padding: 0; list-style: none; }
+.site-lang__link {
+  display: inline-flex; align-items: center; height: 2.25rem; padding: 0 0.5rem; border-radius: 0.5rem;
+  font-size: 0.875rem; font-weight: 500; line-height: 1; color: var(--site-muted); text-decoration: none;
+}
+.site-lang__link:hover { color: var(--text); background: var(--site-soft); }
+.site-lang__link[aria-current] { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 0.3em; }
 .site-header__mobile { display: none; }
 .site-mobile__nav { padding: 0.5rem 0; }
 .site-mobile__list { display: grid; gap: 0.15rem; }

@@ -56,7 +56,32 @@ class SiteTests(TestCase):
         self.assertContains(response, "Adresse e-mail invalide.")
         response = self.client.post("/contact/", {"nom": "Ada", "email": "ada@example.com", "message": "Bonjour"})
         self.assertContains(response, "Votre message a bien été envoyé")
-        self.assertEqual(ContactPage.objects.get().get_submission_class().objects.count(), 1)
+        self.assertEqual(ContactPage.objects.get(locale__language_code="fr").get_submission_class().objects.count(), 1)
+
+    EN_PAGES = {
+        "/en/": "Fast, accessible websites",
+        "/en/a-propos/": "A small team",
+        "/en/services/accessibilite/": "What’s included",
+        "/en/blog/choisir-son-framework/": "All articles",
+        "/en/contact/": "Let’s talk about your project",
+    }
+
+    def test_english_pages_are_translated(self):
+        for url, text in self.EN_PAGES.items():
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                html = response.content.decode()
+                self.assertIn('<html lang="en">', html)
+                self.assertIn(text, html)
+                self.assertIn('aria-label="Main navigation"', html)
+                self.assertIn('hreflang="fr"', html)
+
+    def test_the_language_switcher_links_to_the_same_page(self):
+        self.assertContains(self.client.get("/blog/"), 'href="/en/blog/"')
+        self.assertContains(self.client.get("/en/blog/"), 'href="/blog/"')
+        response = self.client.get("/en/nope/")
+        self.assertContains(response, "Page not found", status_code=404)
 
     def test_seeding_twice_changes_nothing(self):
         from wagtail.models import Page

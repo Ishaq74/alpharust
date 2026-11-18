@@ -251,6 +251,8 @@ pub enum Internal {
     WagtailDesign(bool),
     /// Wagtail + Starwind : télécharge la CLI autonome de Tailwind (`.tailwind/`) et compile `tailwind/input.css`.
     TailwindStandalone,
+    /// Compile les catalogues gettext (`locale/*/LC_MESSAGES/*.po` -> `.mo`) sans GNU gettext.
+    CompileMessages,
     PackageScripts(Vec<(&'static str, &'static str)>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,

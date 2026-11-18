@@ -9,7 +9,7 @@ from datetime import date
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from wagtail.models import Site
+from wagtail.models import Locale, Site
 
 from blog.models import BlogIndexPage, BlogPage
 from contact.models import ContactPage, FormField
@@ -605,6 +605,574 @@ FIELDS = json.loads(r"""[
  }
 ]""")
 FIELD_TYPES = {"text": "singleline", "email": "email", "textarea": "multiline"}
+# Traduction anglaise (vitrine/i18n.py) : mêmes slugs, pages liées aux pages françaises par translation_key.
+EN = json.loads(r"""{
+ "pages": {
+  "home": {
+   "title": "Home",
+   "description": "Independent web agency: website creation, redesign, accessibility and maintenance.",
+   "slug": "",
+   "body": [
+    {
+     "type": "hero",
+     "value": {
+      "badge": "Independent web agency",
+      "title": "Fast, accessible websites that are easy to grow",
+      "lead": "We design and maintain websites that load in under a second, meet the RGAA and stay easy to edit.",
+      "primary": {
+       "label": "Request a quote",
+       "page": null,
+       "url": "/contact"
+      },
+      "secondary": {
+       "label": "See our services",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "stats",
+     "value": {
+      "items": [
+       {
+        "value": "98/100",
+        "label": "Average Lighthouse score"
+       },
+       {
+        "value": "AA",
+        "label": "Target RGAA level"
+       },
+       {
+        "value": "< 1 s",
+        "label": "Content display"
+       },
+       {
+        "value": "12 years",
+        "label": "Of experience"
+       }
+      ]
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "Why choose us",
+      "lead": "Four commitments, on every project.",
+      "items": [
+       {
+        "icon": "zap",
+        "title": "Performance",
+        "text": "Light pages, optimized images, scores measured at every delivery."
+       },
+       {
+        "icon": "accessibility",
+        "title": "Accessibility",
+        "text": "Keyboard navigation, checked contrast, careful semantics."
+       },
+       {
+        "icon": "pencil",
+        "title": "Autonomy",
+        "text": "You edit your content without calling us."
+       },
+       {
+        "icon": "shield",
+        "title": "Peace of mind",
+        "text": "Updates, backups and monitoring included."
+       }
+      ]
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "Our services",
+      "lead": "From creation to maintenance.",
+      "limit": 3,
+      "link": {
+       "label": "All services",
+       "page": null,
+       "url": "/services"
+      }
+     }
+    },
+    {
+     "type": "testimonials",
+     "value": {
+      "title": "They trust us",
+      "items": [
+       {
+        "quote": "Our new website is twice as fast and our quote requests have grown by 40%.",
+        "name": "Sophie Laurent",
+        "role": "Director, Atelier Laurent",
+        "initials": "SL"
+       },
+       {
+        "quote": "A clear accessibility audit, fixes delivered in three weeks.",
+        "name": "Marc Petit",
+        "role": "Digital manager, City of Montreuil",
+        "initials": "MP"
+       },
+       {
+        "quote": "We publish our news in five minutes, without help.",
+        "name": "Léa Moreau",
+        "role": "Communications officer, Asso Horizon",
+        "initials": "LM"
+       }
+      ]
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "Latest articles",
+      "lead": "Advice and lessons learned.",
+      "limit": 3,
+      "link": {
+       "label": "The whole blog",
+       "page": null,
+       "url": "/blog"
+      }
+     }
+    },
+    {
+     "type": "faq",
+     "value": {
+      "title": "Frequently asked questions",
+      "items": [
+       {
+        "question": "How long does it take to build a website?",
+        "answer": "Between four and eight weeks depending on the number of pages and features."
+       },
+       {
+        "question": "Will I be able to edit my website myself?",
+        "answer": "Yes: every website comes with an admin area and training."
+       },
+       {
+        "question": "Will my website be accessible?",
+        "answer": "We target RGAA level AA and deliver an accessibility statement."
+       },
+       {
+        "question": "Do you offer maintenance?",
+        "answer": "Yes, with a monthly plan that includes updates, backups and small improvements."
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "Have a project in mind?",
+      "text": "Let’s talk: reply within 24 business hours.",
+      "action": {
+       "label": "Request a quote",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "about": {
+   "title": "About",
+   "description": "Who we are, our mission and our values.",
+   "slug": "a-propos",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "About",
+      "title": "A small team with high standards",
+      "lead": "Developers, designers and accessibility experts united around a sustainable web."
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "Our mission",
+      "body": "<p>We believe a good website is <strong>fast, accessible and frugal</strong>. Fast, because every second counts. Accessible, because the web is for everyone. Frugal, because the best code is the code you don’t write.</p>\n<p>Since 2014, we have been supporting craftspeople, non-profits, local authorities and SMEs, from the first workshop to maintenance.</p>"
+     }
+    },
+    {
+     "type": "features",
+     "value": {
+      "title": "Our values",
+      "lead": "",
+      "items": [
+       {
+        "icon": "heart",
+        "title": "Transparency",
+        "text": "Detailed quotes, open code, no lock-in."
+       },
+       {
+        "icon": "leaf",
+        "title": "Frugality",
+        "text": "Fewer dependencies, less data, less energy."
+       },
+       {
+        "icon": "users",
+        "title": "Closeness",
+        "text": "A single point of contact, reachable directly."
+       }
+      ]
+     }
+    },
+    {
+     "type": "team",
+     "value": {
+      "title": "The team",
+      "lead": "Four people, all based in Paris.",
+      "items": [
+       {
+        "name": "Camille Martin",
+        "role": "Founder, developer",
+        "initials": "CM"
+       },
+       {
+        "name": "Inès Benali",
+        "role": "Accessibility expert",
+        "initials": "IB"
+       },
+       {
+        "name": "Thomas Roux",
+        "role": "UI designer",
+        "initials": "TR"
+       },
+       {
+        "name": "Hugo Lefèvre",
+        "role": "Back-end developer",
+        "initials": "HL"
+       }
+      ]
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "Let’s work together",
+      "text": "Tell us about your project, we will get back to you quickly.",
+      "action": {
+       "label": "Contact us",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "services": {
+   "title": "Services",
+   "description": "Website creation, redesign, accessibility and maintenance.",
+   "slug": "services",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Services",
+      "title": "What we do",
+      "lead": "Four clear offers, to combine as your project requires."
+     }
+    },
+    {
+     "type": "services",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    },
+    {
+     "type": "cta",
+     "value": {
+      "title": "Need advice?",
+      "text": "We help you choose the right plan.",
+      "action": {
+       "label": "Request a quote",
+       "page": null,
+       "url": "/contact"
+      }
+     }
+    }
+   ]
+  },
+  "blog": {
+   "title": "Blog",
+   "description": "Advice and lessons learned on fast, accessible websites.",
+   "slug": "blog",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Blog",
+      "title": "Articles and advice",
+      "lead": "Performance, accessibility, technical choices: what we learn in the field."
+     }
+    },
+    {
+     "type": "posts",
+     "value": {
+      "title": "",
+      "lead": "",
+      "limit": 0,
+      "link": {
+       "label": "",
+       "page": null,
+       "url": ""
+      }
+     }
+    }
+   ]
+  },
+  "contact": {
+   "title": "Contact",
+   "description": "Write to us: reply within 24 business hours.",
+   "slug": "contact",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "Contact",
+      "title": "Let’s talk about your project",
+      "lead": "Fill in the form or write to us directly, we reply within 24 business hours."
+     }
+    },
+    {
+     "type": "contact",
+     "value": {
+      "title": "Write to us",
+      "success": "Thank you! Your message has been sent.",
+      "submit": "Send message"
+     }
+    }
+   ]
+  },
+  "legal": {
+   "title": "Legal notice",
+   "description": "Site legal notice.",
+   "slug": "mentions-legales",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "Legal notice",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"publisher\">Publisher</h2>\n<p>This website is published by <strong>@@title@@</strong>, 12 rue de la Paix, 75002 Paris. Contact: contact@exemple.fr.</p>\n<h2 id=\"hosting\">Hosting</h2>\n<p>The website is hosted by your hosting provider; their details are in the service contract.</p>\n<h2 id=\"intellectual-property\">Intellectual property</h2>\n<p>The texts, images and graphic elements of this website are protected. Any reproduction without permission is prohibited.</p>"
+     }
+    }
+   ]
+  },
+  "privacy": {
+   "title": "Privacy policy",
+   "description": "How we process your personal data.",
+   "slug": "confidentialite",
+   "body": [
+    {
+     "type": "page_header",
+     "value": {
+      "eyebrow": "",
+      "title": "Privacy policy",
+      "lead": ""
+     }
+    },
+    {
+     "type": "text",
+     "value": {
+      "title": "",
+      "body": "<h2 id=\"data-collected\">Data collected</h2>\n<p>The contact form collects your name, e-mail address and message, solely to reply to you.</p>\n<h2 id=\"retention-period\">Retention period</h2>\n<p>Messages are kept for twelve months, then deleted.</p>\n<h2 id=\"your-rights\">Your rights</h2>\n<p>You can request access to, correction or deletion of your data by writing to contact@exemple.fr.</p>"
+     }
+    }
+   ]
+  }
+ },
+ "services": [
+  {
+   "slug": "creation-site-web",
+   "title": "Website creation",
+   "summary": "A custom website, fast and well ranked, delivered with its admin area.",
+   "icon": "code",
+   "price": "From €2,400",
+   "features": [
+    "Mockups and design system",
+    "Editable content",
+    "Technical SEO and structured data",
+    "Launch and training"
+   ],
+   "body": "<p>We design your website around your goals: who needs to find it, what they should do there, how to measure it.</p>\n<h2 id=\"our-method\">Our method</h2>\n<p>Scoping workshops, mockups, then development in short iterations. Each version is <strong>deployed to a staging environment</strong> so you can test it.</p>\n<h2 id=\"what-is-delivered\">What is delivered</h2>\n<ul>\n<li>a responsive, accessible and fast website;</li>\n<li>an admin area to edit your content;</li>\n<li>documentation and a half-day training session.</li>\n</ul>"
+  },
+  {
+   "slug": "refonte-performance",
+   "title": "Redesign and performance",
+   "summary": "An existing website made faster, clearer and better ranked, without losing your SEO.",
+   "icon": "zap",
+   "price": "From €1,900",
+   "features": [
+    "Lighthouse and Core Web Vitals audit",
+    "Redirect plan",
+    "Image optimization",
+    "Post-launch monitoring"
+   ],
+   "body": "<p>A successful redesign starts with an audit: load times, user journeys, content that converts.</p>\n<h2 id=\"keeping-your-rankings\">Keeping your rankings</h2>\n<p>Every old address is <strong>redirected</strong> and monitored for three months after launch.</p>\n<h2 id=\"measuring-the-gain\">Measuring the gain</h2>\n<ul>\n<li>Lighthouse scores before / after;</li>\n<li>Core Web Vitals on key pages;</li>\n<li>form conversion rates.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite",
+   "title": "Accessibility (RGAA)",
+   "summary": "RGAA / WCAG 2.2 AA audit and remediation, accessibility statement included.",
+   "icon": "accessibility",
+   "price": "From €1,200",
+   "features": [
+    "Audit on a sample of pages",
+    "Prioritized fixes",
+    "Accessibility statement",
+    "Editor training"
+   ],
+   "body": "<p>Accessibility benefits everyone: keyboard navigation, contrast, screen readers, understandable forms.</p>\n<h2 id=\"audit\">Audit</h2>\n<p>We assess a representative sample of pages against <strong>RGAA 4.1</strong> and deliver a prioritized report.</p>\n<h2 id=\"remediation\">Remediation</h2>\n<ul>\n<li>fixes in the code and templates;</li>\n<li>theme contrast checks;</li>\n<li>writing the accessibility statement.</li>\n</ul>"
+  },
+  {
+   "slug": "maintenance",
+   "title": "Maintenance and hosting",
+   "summary": "Updates, backups, monitoring and small improvements, with no surprises.",
+   "icon": "shield",
+   "price": "From €90 / month",
+   "features": [
+    "Security updates",
+    "Daily backups",
+    "24/7 monitoring",
+    "One hour of improvements per month"
+   ],
+   "body": "<p>A website is software: it must be updated, backed up and monitored.</p>\n<h2 id=\"what-is-included\">What is included</h2>\n<ul>\n<li>framework and dependency updates;</li>\n<li>daily backups kept for 30 days;</li>\n<li>uptime and certificate monitoring.</li>\n</ul>\n<h2 id=\"improvements\">Improvements</h2>\n<p>Every month, one hour of improvements is included: a new section, form or page.</p>"
+  }
+ ],
+ "posts": [
+  {
+   "slug": "performance-images",
+   "title": "Lightweight images without quality loss",
+   "excerpt": "Modern formats, explicit dimensions, lazy loading: the winning trio.",
+   "category": "Performance",
+   "author": "Camille Martin",
+   "date": "2026-08-28",
+   "body": "<p>Images often account for more than half of a page’s weight.</p>\n<h2 id=\"the-right-formats\">The right formats</h2>\n<p>AVIF and WebP cut the weight by two to five compared with JPEG, at equal quality.</p>\n<h2 id=\"the-right-attributes\">The right attributes</h2>\n<ul>\n<li><code>width</code> and <code>height</code> to avoid layout shifts;</li>\n<li><code>loading=\"lazy\"</code> below the fold;</li>\n<li><code>srcset</code> to serve the right size.</li>\n</ul>"
+  },
+  {
+   "slug": "accessibilite-checklist",
+   "title": "Accessibility in 10 points",
+   "excerpt": "A short, concrete list to avoid the most common mistakes.",
+   "category": "Accessibility",
+   "author": "Inès Benali",
+   "date": "2026-09-15",
+   "body": "<p>These ten points cover most of the issues found in audits.</p>\n<h2 id=\"structure\">Structure</h2>\n<ul>\n<li>a single <code>h1</code> per page and hierarchical headings;</li>\n<li>landmarks: <code>header</code>, <code>nav</code>, <code>main</code>, <code>footer</code>;</li>\n<li>a skip link to the content.</li>\n</ul>\n<h2 id=\"interaction\">Interaction</h2>\n<ul>\n<li>everything is usable <strong>with the keyboard</strong>;</li>\n<li>focus is always visible;</li>\n<li>form fields have a label.</li>\n</ul>"
+  },
+  {
+   "slug": "choisir-son-framework",
+   "title": "Astro, Laravel or Wagtail: choosing your framework",
+   "excerpt": "Three excellent tools, three ways of working. Our criteria for choosing without regret.",
+   "category": "Technical",
+   "author": "Camille Martin",
+   "date": "2026-10-02",
+   "body": "<p>The right framework is the one your team can keep alive. Here are our criteria.</p>\n<h2 id=\"astro-for-content-sites\">Astro for content sites</h2>\n<p>Static pages by default, interactive islands on demand: ideal for a very fast showcase site or blog.</p>\n<h2 id=\"laravel-for-applications\">Laravel for applications</h2>\n<p>Authentication, queues, e-mails, payments: <strong>everything is built in</strong> for a business application.</p>\n<h2 id=\"wagtail-for-editorial-teams\">Wagtail for editorial teams</h2>\n<p>A real editorial CMS: page tree, StreamField, revisions and previews.</p>"
+  }
+ ],
+ "nav": [
+  {
+   "label": "Home",
+   "url": "/"
+  },
+  {
+   "label": "Services",
+   "url": "/services",
+   "children": "services"
+  },
+  {
+   "label": "Blog",
+   "url": "/blog"
+  },
+  {
+   "label": "About",
+   "url": "/a-propos"
+  },
+  {
+   "label": "Contact",
+   "url": "/contact"
+  }
+ ],
+ "footer": [
+  {
+   "title": "Navigation",
+   "links": [
+    {
+     "label": "Home",
+     "url": "/"
+    },
+    {
+     "label": "Blog",
+     "url": "/blog"
+    },
+    {
+     "label": "About",
+     "url": "/a-propos"
+    },
+    {
+     "label": "Contact",
+     "url": "/contact"
+    }
+   ]
+  },
+  {
+   "title": "Information",
+   "links": [
+    {
+     "label": "Legal notice",
+     "url": "/mentions-legales"
+    },
+    {
+     "label": "Privacy policy",
+     "url": "/confidentialite"
+    }
+   ]
+  }
+ ],
+ "fields": [
+  {
+   "name": "nom",
+   "label": "Name",
+   "type": "text",
+   "autocomplete": "name",
+   "required": true
+  },
+  {
+   "name": "email",
+   "label": "E-mail address",
+   "type": "email",
+   "autocomplete": "email",
+   "required": true
+  },
+  {
+   "name": "sujet",
+   "label": "Subject",
+   "type": "text",
+   "autocomplete": "off",
+   "required": false
+  },
+  {
+   "name": "message",
+   "label": "Message",
+   "type": "textarea",
+   "autocomplete": "off",
+   "required": true
+  }
+ ]
+}""")
 
 
 def publish(page):
@@ -621,10 +1189,82 @@ def child(parent, model, slug, **fields):
     return publish(page)
 
 
-def section_page(parent, model, key, **extra):
-    p = PAGES[key]
+def section_page(parent, model, key, data=None, **extra):
+    p = (data or PAGES)[key]
     return child(parent, model, p["slug"], title=p["title"], search_description=p["description"],
                  body=json.dumps(p["body"]), **extra)
+
+
+def translated(page, locale):
+    """Champs d'une traduction : même translation_key que la page française (internationalisation de Wagtail)."""
+    return {"locale": locale, "translation_key": page.translation_key}
+
+
+def seed_english(home, pages):
+    """Arborescence anglaise (/en/…) : traduction de chaque page et de chaque menu."""
+    en, _ = Locale.objects.get_or_create(language_code="en")
+    en_home = home.get_translation_or_none(en)
+    if en_home is None:
+        en_home = home.copy_for_translation(en)
+    en_home = en_home.specific
+    if en_home.title != EN["pages"]["home"]["title"] or not en_home.live:
+        en_home.title = EN["pages"]["home"]["title"]
+        en_home.search_description = EN["pages"]["home"]["description"]
+        en_home.body = json.dumps(EN["pages"]["home"]["body"])
+        publish(en_home)
+    out = {"home": en_home}
+
+    def tr(key, parent, model, **extra):
+        return section_page(parent, model, key, EN["pages"], **translated(pages[key], en), **extra)
+
+    out["services"] = tr("services", en_home, ServiceIndexPage)
+    for s in EN["services"]:
+        out[s["slug"]] = child(
+            out["services"], ServicePage, s["slug"], title=s["title"], search_description=s["summary"],
+            summary=s["summary"], icon=s["icon"], price=s["price"], body=s["body"],
+            features=json.dumps([{"type": "feature", "value": f} for f in s["features"]]), **translated(pages[s["slug"]], en),
+        )
+    out["blog"] = tr("blog", en_home, BlogIndexPage)
+    fr_posts = {p.slug: p for p in BlogPage.objects.filter(locale__language_code=home.locale.language_code)}
+    for p in EN["posts"]:
+        child(
+            out["blog"], BlogPage, p["slug"], title=p["title"], search_description=p["excerpt"],
+            date=date.fromisoformat(p["date"]), category=p["category"], author=p["author"], excerpt=p["excerpt"],
+            body=p["body"], **translated(fr_posts[p["slug"]], en),
+        )
+    out["about"] = tr("about", en_home, FlexPage)
+    if not en_home.get_children().filter(slug=EN["pages"]["contact"]["slug"]).exists():
+        page = tr("contact", en_home, ContactPage, subject="New message from the website")
+        for i, f in enumerate(EN["fields"]):
+            FormField.objects.create(
+                page=page, sort_order=i, label=f["label"], clean_name=f["name"], field_type=FIELD_TYPES[f["type"]],
+                required=f["required"], autocomplete=f["autocomplete"],
+            )
+    out["contact"] = en_home.get_children().get(slug=EN["pages"]["contact"]["slug"]).specific
+    out["legal"] = tr("legal", en_home, FlexPage, show_in_menus=False)
+    out["privacy"] = tr("privacy", en_home, FlexPage, show_in_menus=False)
+    return en, out
+
+
+def translate_menus(en, en_pages):
+    """Copie anglaise des menus (même translation_key) avec les libellés et les pages anglaises."""
+    by_url = {("/" + EN["pages"][k]["slug"]) if EN["pages"][k]["slug"] else "/": p for k, p in en_pages.items() if k in EN["pages"]}
+    services = [en_pages[s["slug"]] for s in EN["services"]]
+    fr_menus = list(NavigationMenu.objects.exclude(locale=en).order_by("pk"))
+    specs = [EN["nav"]] + [c["links"] for c in EN["footer"]]
+    titles = ["Main"] + [c["title"] for c in EN["footer"]]
+    for fr_menu, entries, title in zip(fr_menus, specs, titles):
+        if NavigationMenu.objects.filter(locale=en, translation_key=fr_menu.translation_key).exists():
+            continue
+        menu = NavigationMenu.objects.create(title=title, **translated(fr_menu, en))
+        for i, entry in enumerate(entries):
+            page = by_url.get(entry["url"])
+            parent = NavigationItem.objects.create(
+                menu=menu, label=entry["label"], page=page, custom_url="" if page else entry["url"], sort_order=i,
+            )
+            if entry.get("children") == "services":
+                for j, s in enumerate(services):
+                    NavigationItem.objects.create(menu=menu, label=s.title, page=s, parent=parent, sort_order=100 + j)
 
 
 class Command(BaseCommand):
@@ -720,4 +1360,6 @@ class Command(BaseCommand):
             for s in SOCIAL:
                 setattr(social, s["icon"], s["url"])
             social.save()
+        en, en_pages = seed_english(home, pages)
+        translate_menus(en, en_pages)
         self.stdout.write(self.style.SUCCESS("Site prêt : %d pages." % home.get_descendants(inclusive=True).count()))

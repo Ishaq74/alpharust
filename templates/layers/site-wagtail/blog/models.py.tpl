@@ -1,6 +1,7 @@
 # Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Laravel.
 from django.db import models
 from django.template.defaultfilters import date as date_filter
+from django.utils.translation import get_language, gettext
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Page
@@ -13,7 +14,7 @@ class BlogIndexPage(Page):
 
     content_panels = Page.content_panels + [FieldPanel("body")]
     subpage_types = ["blog.BlogPage"]
-    max_count = 1
+    max_count_per_parent = 1  # une par langue (arborescences fr et en)
 
     class Meta:
         verbose_name = "index du blog"
@@ -45,12 +46,13 @@ class BlogPage(Page):
 
     @property
     def date_label(self):
-        return date_filter(self.date, "j F Y")
+        return date_filter(self.date, "F j, Y" if (get_language() or "").startswith("en") else "j F Y")
 
     @property
     def crumbs(self):
         parent = self.get_parent()
-        return [{"label": "Accueil", "url": "/"}, {"label": parent.title, "url": parent.url}]
+        home = parent.get_parent()
+        return [{"label": gettext("Accueil"), "url": home.url}, {"label": parent.title, "url": parent.url}]
 
     @property
     def back_url(self):

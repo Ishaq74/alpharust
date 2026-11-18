@@ -44,7 +44,7 @@
                             {{ $item['price'] ?? '' }}
                         </x-ds.badge>
                         <x-ds.button :href="$item['url'] ?? ''" variant="outline" size="sm" :aria-label="$item['more_label'] ?? ''">
-                            En savoir plus
+                            {{ $site['ui']['more'] ?? '' }}
                         </x-ds.button>
                     </x-ds.card.footer>
                 </x-ds.card>

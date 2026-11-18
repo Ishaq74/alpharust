@@ -25,7 +25,7 @@ const { site } = Astro.props;
         {site.name}
       </span>
     </a>
-    <nav class="site-nav" aria-label="Navigation principale">
+    <nav class="site-nav" aria-label={site.ui.main_nav}>
       <ul class="site-nav__list">
         {(site.nav ?? []).map((item: any) => (
           <Fragment>
@@ -67,10 +67,23 @@ const { site } = Astro.props;
       <Button href={site.cta.url} variant="primary" size="sm" class="site-header__cta">
         {site.cta.label}
       </Button>
-      <ThemeToggle size="sm" ariaLabel="Changer de thème" />
+      <nav class="site-lang" aria-label={site.ui.language}>
+        <ul class="site-lang__list">
+          {(site.languages ?? []).map((lang: any) => (
+            <Fragment>
+              <li>
+                <a class="site-lang__link" href={lang.url} hreflang={lang.code} lang={lang.code} aria-current={lang.current || undefined} title={lang.name}>
+                  {lang.label}
+                </a>
+              </li>
+            </Fragment>
+          ))}
+        </ul>
+      </nav>
+      <ThemeToggle size="sm" ariaLabel={site.ui.theme} />
       <Sheet class="site-header__mobile">
         <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Ouvrir le menu">
+          <Button variant="ghost" size="icon" aria-label={site.ui.open_menu}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </Button>
         </SheetTrigger>
@@ -80,7 +93,7 @@ const { site } = Astro.props;
               {site.name}
             </SheetTitle>
           </SheetHeader>
-          <nav class="site-mobile__nav" aria-label="Navigation mobile">
+          <nav class="site-mobile__nav" aria-label={site.ui.mobile_nav}>
             <ul class="site-mobile__list">
               {(site.nav ?? []).map((item: any) => (
                 <Fragment>
