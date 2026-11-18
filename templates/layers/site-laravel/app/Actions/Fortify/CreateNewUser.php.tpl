@@ -15,7 +15,8 @@ class CreateNewUser implements CreatesNewUsers
     public function create(array $input): User
     {
         $value = fn (string $k) => trim((string) ($input[$k] ?? ''));
-        $fail = fn (string $key) => throw ValidationException::withMessages(['form' => trans('site.ui.'.$key)]);
+        // Clé du libellé, traduite à l'affichage (AccountController) dans la langue de la page du formulaire.
+        $fail = fn (string $key) => throw ValidationException::withMessages(['form' => 'site.ui.'.$key]);
         foreach (config('site.auth.fields.sign_up') as $f) {
             if ($value($f['name']) === '') {
                 $fail('err_required');

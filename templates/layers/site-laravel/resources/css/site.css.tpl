@@ -275,6 +275,7 @@ body.site-body [data-slot='breadcrumb-link'] { color: inherit; font-size: inheri
 body.site-body [data-slot='breadcrumb-link']:hover { color: var(--text); text-decoration: underline; }
 body.site-body [data-slot='breadcrumb-page'] { color: var(--text); font-weight: 500; font-size: inherit; }
 body.site-body [data-slot='breadcrumb-separator'] svg { width: 0.875rem; height: 0.875rem; }
+[dir='rtl'] [data-slot='breadcrumb-separator'] svg { transform: scaleX(-1); }
 body.site-body [data-slot='theme-toggle'] { width: 2.25rem; height: 2.25rem; min-width: 0; padding: 0; border-radius: 0.5rem; }
 body.site-body .site-required { margin: 0; color: var(--site-error); }
 body.site-body blockquote.site-quote__text { padding: 0; border: 0; color: var(--text); font-style: normal; }

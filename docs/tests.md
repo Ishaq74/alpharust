@@ -83,15 +83,15 @@ Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authent
 * **Tests des projets générés** (lancés par la génération) : Laravel `tests/Feature/SiteTest.php` (chaque page dans le gabarit,
   page courante marquée, 404 du site, validation et enregistrement du contact) ; Wagtail `home/test_site.py` (mêmes cas, plus
   `seed_site` deux fois sans effet) ; Astro `astro check` + build.
-* **Tests des projets générés** (langues et comptes, ADR 0016) : Laravel `SiteTest` (pages anglaises, sélecteur de langue)
+* **Tests des projets générés** (langues et comptes, ADR 0016) : Laravel `SiteTest` (pages traduites dans chaque langue choisie, sélecteur de langue)
   et `AuthTest` (lien d'en-tête, pages, inscription → compte → déconnexion → connexion EN, messages d'erreur) ; Wagtail
   `test_site` et `test_auth` (mêmes cas) ; Astro `astro check` + build.
 * **Unitaires** : `po_catalogs_compile_to_gettext_mo` (gettext → .mo), branchement i18n de Wagtail (`catalog.rs`),
   `bundled_icon_sets_map_every_logical_name` et `site_icons_rewrites_icons_json_and_keeps_flags` (`--icons`), étapes
   Fortify / icônes (`laravel.rs`, `wagtail.rs`).
-* **Runtime** (preuves) : `site_parity.py SORTIE [SEUIL]` (19 pages, dont 6 en anglais et 3 de comptes, × 6 combinaisons,
+* **Runtime** (preuves) : `site_parity.py SORTIE [SEUIL]` (35 pages en 4 langues, dont 6 en anglais, 7 en espagnol, 7 en arabe et 5 de comptes, × 6 combinaisons,
   bureau et mobile : signature de structure — liens compris —, erreurs de console, écart en pixels avec la référence ;
   code de sortie 1 au-delà du seuil ; planches `site-<page>.png`), `site_auth.py SORTIE` (parcours de compte dans un vrai
-  navigateur : 13 contrôles par combinaison), `site_interact.py SORTIE` (sous-menu au survol et au clavier, thème, menu
+  navigateur : 20 contrôles par combinaison, dont l'arabe RTL et l'espagnol), `site_interact.py SORTIE` (sous-menu au survol et au clavier, thème, menu
   mobile, envoi du contact) et `montage.py` (planche 3 × 2 d'une page). Serveurs attendus : 4401 Astro Starwind,
   4402 Astro CSS, 4403 Laravel CSS, 4404 Wagtail CSS, 4405 Laravel Starwind, 4406 Wagtail Starwind.

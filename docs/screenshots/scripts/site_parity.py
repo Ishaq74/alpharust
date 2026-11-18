@@ -45,7 +45,7 @@ SIGNATURE = r"""() => {
     title: document.title,
     lang: document.documentElement.lang,
     dir: document.documentElement.dir,
-    languages: q('.site-lang a').map((e) => `${e.getAttribute('hreflang')}:${e.getAttribute('href')}:${e.getAttribute('aria-current') || ''}`),
+    languages: q('.site-lang a').map((e) => `${e.getAttribute('hreflang')}:${(e.getAttribute('href') || '').replace(/(.)\/$/, '$1')}:${e.getAttribute('aria-current') || ''}`),
     landmarks: q('header, nav, main, footer, aside, section, article').map((e) => e.tagName.toLowerCase() + (e.getAttribute('aria-label') ? `[${e.getAttribute('aria-label')}]` : '')),
     headings: q('main h1, main h2, main h3').map((e) => e.tagName.toLowerCase() + ':' + txt(e)),
     nav: q('.site-nav > ul > li').map((li) => txt(li.querySelector('a, button'))),

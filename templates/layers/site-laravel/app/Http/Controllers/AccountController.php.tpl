@@ -39,7 +39,9 @@ class AccountController extends Controller
         }
         $bag = $request->session()->get('errors')?->getBag('default');
 
-        return view('site.auth', ['page' => SiteData::authPage('sign_up', $bag?->first() ?: null, $request->old())]);
+        $key = $bag?->first();
+
+        return view('site.auth', ['page' => SiteData::authPage('sign_up', $key ? trans($key) : null, $request->old())]);
     }
 
     public function show(Request $request): View|RedirectResponse

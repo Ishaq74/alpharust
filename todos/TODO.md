@@ -54,6 +54,12 @@
 - [x] Preuves : `site_parity.py` (19 pages × 6), `site_auth.py` (78/78), planches `docs/screenshots/phase10-*`
 - [x] README complet (tous profils), docs et ADR à jour
 
+## Langues au choix (ADR 0017)
+- [x] Espagnol et arabe (RTL : `dir`, propriétés logiques, flèches et menu mobile retournés) sur les 6 combinaisons
+- [x] `--langs` (CLI, assistant, GUI), défaut `fr,en` ; une langue = un fichier `vitrine/locales/<code>.py`
+- [x] Dates selon la langue, drapeau Circle Flags par langue
+- [x] Preuves : `site_parity.py` (35 pages × 6), `site_auth.py` (120/120), planches `docs/screenshots/phase11-*`
+
 ## Pistes hors périmètre (idées non engagées, aucune tâche ouverte)
 - Générateur WordPress (wp-cli) — reporté, voir ADR 0012
 - Envoi d'e-mails (vérification, invitations) dans la plateforme Astro

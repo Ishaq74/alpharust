@@ -9,8 +9,8 @@ sur le même moteur :
    `cargo new`), installer réellement les dépendances, poser une couche de modèles et **vérifier** le résultat
    (types, build, tests, lint).
 3. **Produire le même site vitrine** en **Astro, Laravel ou Wagtail**, avec **deux kits de design** (Tailwind + Starwind
-   ou CSS pur) : **6 combinaisons** au rendu identique (écart mesuré ≤ 0,84 % des pixels), en **français et en anglais**,
-   avec **comptes utilisateurs** (Better Auth, Laravel Fortify, authentification Django).
+   ou CSS pur) : **6 combinaisons** au rendu identique (écart mesuré ≤ 0,84 % des pixels), en **français, anglais, espagnol et
+   arabe** (RTL), au choix avec `--langs`, avec **comptes utilisateurs** (Better Auth, Laravel Fortify, authentification Django).
 
 ![Le même site sur les 6 combinaisons (accueil)](docs/screenshots/phase10-6combos-accueil.png)
 
@@ -102,10 +102,11 @@ courant et ses parents, puis les parents de l'exécutable ([`docs/cli.md`](docs/
 # 1. Vérifier la qualité du dossier courant
 alpharust lint
 
-# 2. Générer un site vitrine complet (FR + EN) — choisissez votre framework et votre kit
+# 2. Générer un site vitrine complet (FR + EN par défaut) — choisissez votre framework et votre kit
 alpharust generate astro   mon-site --ui starwind                        # Astro + Tailwind/Starwind
 alpharust generate laravel mon-site --ui css                             # Laravel + CSS pur
 alpharust generate wagtail mon-site --ui starwind --auth                 # Wagtail + Starwind + comptes
+alpharust generate laravel mon-site --ui css --langs fr,en,es,ar         # 4 langues, dont l'arabe (RTL)
 
 # 3. Le lancer
 alpharust projects                     # projets de sites/ et leurs tâches
@@ -160,6 +161,7 @@ dossier étranger), `--no-install`, `--no-verify`, `--no-git`, `--dry-run` (plan
 | `--db` | `none`, `sqlite`, `postgres` (+ `--db-url`) | `sqlite`, `mysql`, `pgsql` | | |
 | `--auth` | Better Auth (exige `--db`) ; `--auth-plugin admin,username,organization` | Fortify (exige `--ui`) | auth Django (exige `--ui`) | |
 | `--icons <jeu>` (site vitrine) | avec `--ui` | avec `--ui` | avec `--ui` | |
+| `--langs fr,en,es,ar` (langues du site vitrine, défaut `fr,en`, le français est obligatoire) | avec `--ui` (à défaut : langues de `--i18n`) | avec `--ui` | avec `--ui` | |
 | `--i18n fr,en,es,ar`, `--docker`, `--ci` | ✔ | | | |
 | `--starter none\|breeze-blade\|breeze-livewire\|breeze-react\|breeze-vue\|breeze-api`, `--dark`, `--pest`, `--frontend` | | ✔ (Breeze exclut `--ui`) | | |
 | `--package <pip>`, `--no-migrate` | | | ✔ | |
@@ -218,14 +220,15 @@ Ajoutez `--auth` (comptes ; Astro : `--db sqlite --auth`), `--theme-primary '#0e
 
 Ce que chaque framework fait de la spec :
 
-* **Astro** — `src/data/site.json` (textes FR/EN), `src/lib/site.ts`, composants `src/components/site/`, pages par langue
-  (`src/pages/` et `src/pages/en/`), collections `services` et `blog` (`src/content/<collection>/{fr,en}/`).
-* **Laravel** (modèle *manecms*) — `config/site.php`, `lang/{fr,en}/site.php`, `App\Support\SiteData`, vues
+* **Astro** — `src/data/locales/<langue>.json` (textes et libellés), `src/lib/site.ts`, composants `src/components/site/`,
+  pages par langue (`src/pages/`, `src/pages/en/`, `src/pages/ar/`…), collections `services` et `blog`
+  (`src/content/<collection>/<langue>/`).
+* **Laravel** (modèle *manecms*) — `config/site.php` (langues, sens d'écriture, format de date), `lang/<langue>/site.php`, `App\Support\SiteData`, vues
   `resources/views/site/`, modèles `Service`, `Post`, `ContactMessage` (colonne `locale`), seeder `SiteSeeder`, tests
   `tests/Feature/SiteTest.php` (et `AuthTest.php` avec `--auth`).
 * **Wagtail** (modèle *wagtail-cms*) — pages `HomePage`, `FlexPage`, `ServicePage`, `BlogPage`, `ContactPage`
   (StreamField de sections), menus en snippets, réglages du site, commande `manage.py seed_site` (crée les pages FR et
-  leurs traductions EN), tests `home/test_site.py` (et `home/test_auth.py`).
+  leurs traductions dans chaque langue choisie), tests `home/test_site.py` (et `home/test_auth.py`).
 
 Preuves (captures réelles des 6 serveurs, référence `astro-css`) :
 
@@ -233,29 +236,54 @@ Preuves (captures réelles des 6 serveurs, référence `astro-css`) :
 
 ## Langues (i18n)
 
-Le site vitrine est **bilingue** dans les trois frameworks, chacun avec **son i18n officielle** :
+Le site vitrine est disponible en **français, anglais, espagnol et arabe** dans les trois frameworks, chacun avec
+**son i18n officielle**. Les langues se choisissent à la génération : `--langs fr,en,es,ar` (CLI), cases à cocher de
+l'assistant `alpharust new` et de la GUI ; **par défaut `fr,en`**. Le français, langue source du contenu, est toujours
+inclus ; avec une seule langue, le sélecteur disparaît.
+
+```bash
+alpharust generate astro   site --ui starwind --langs fr,en,es,ar
+alpharust generate laravel site --ui css      --langs fr,ar          # français + arabe
+alpharust generate wagtail site --ui starwind --langs fr,en,es --auth
+```
 
 | | Mécanisme | Où sont les textes |
 |---|---|---|
-| Astro | dossiers par langue (`src/pages/en/…`), `localeOf()` et `href()` de `src/lib/site.ts` | `src/data/site.json`, collections `fr/` et `en/` |
-| Laravel | localisation officielle (`trans('site')`, `App::setLocale`) ; middleware `SetSiteLocale` ; routes groupées par langue | `lang/fr/site.php`, `lang/en/site.php` ; colonne `locale` en base |
-| Wagtail | `WAGTAIL_I18N_ENABLED`, `wagtail.locales`, `LocaleMiddleware`, `i18n_patterns(prefix_default_language=False)` ; arbre EN lié par `translation_key` | pages traduites ; gettext `layout/locale/en/LC_MESSAGES/django.po`, compilé en `.mo` par AlphaRust (pas besoin de GNU gettext) |
+| Astro | dossiers par langue (`src/pages/es/…`), i18n d'`astro.config` ; `localeOf()` et `href()` de `src/lib/site.ts` | `src/data/locales/<langue>.json`, collections `<langue>/` |
+| Laravel | localisation officielle (`trans('site')`, `App::setLocale`) ; middleware `SetSiteLocale` ; routes groupées par langue | `lang/<langue>/site.php`, `database/data/site/<langue>.php` ; colonne `locale` en base |
+| Wagtail | `WAGTAIL_I18N_ENABLED`, `wagtail.locales`, `LocaleMiddleware`, `i18n_patterns(prefix_default_language=False)` ; arbres traduits liés par `translation_key` | pages traduites ; gettext `layout/locale/<langue>/LC_MESSAGES/django.po`, compilé en `.mo` par AlphaRust (pas besoin de GNU gettext) |
 
-Règles communes : le **français** est la langue par défaut **sans préfixe** (`/blog`), l'**anglais** est préfixé (`/en/blog`),
-les **slugs sont identiques** d'une langue à l'autre, et le **sélecteur de langue** de l'en-tête (drapeau + code,
-`hreflang`, `aria-current`) renvoie vers la même page dans l'autre langue. Les traductions vivent dans
-[`tools/dsgen/vitrine/i18n.py`](tools/dsgen/vitrine/i18n.py) : un texte de la spec sans traduction fait **échouer** la
-génération des couches (aucune chaîne oubliée).
+Règles communes : le **français** est la langue par défaut **sans préfixe** (`/blog`), les autres sont préfixées
+(`/en/blog`, `/es/blog`, `/ar/blog`), les **slugs sont identiques** d'une langue à l'autre, et le **sélecteur de langue**
+de l'en-tête (drapeau Circle Flags + code, `hreflang`, `aria-current`) renvoie vers la même page dans l'autre langue.
+Les **dates** suivent la langue (« 12 mars 2026 », « March 12, 2026 », « 12 de marzo de 2026 », « 12 مارس 2026 » :
+`Intl.DateTimeFormat` pour Astro, `translatedFormat` de Carbon pour Laravel, `date` de Django pour Wagtail).
 
-> Astro dispose en plus de la brique `--i18n fr,en,es,ar` (routage i18n natif et messages pour la plateforme : RTL pour
-> l'arabe) ; le site vitrine, lui, est toujours FR + EN.
+**Arabe (droite à gauche)** : `<html lang="ar" dir="rtl">`, styles écrits en **propriétés logiques**
+(`margin-inline-start`, `inset-inline-start`, `text-align: start`…) pour que la mise en page se retourne d'elle-même ;
+le menu mobile s'ouvre à gauche, les flèches et les séparateurs du fil d'Ariane sont inversés. Chiffres latins
+(`ar-u-nu-latn`), comme sur la plupart des sites arabophones.
 
-![Accueil en anglais sur les 6 combinaisons](docs/screenshots/phase10-6combos-en.png)
+**Ajouter une langue** (par exemple l'italien) :
+
+1. copier `tools/dsgen/vitrine/locales/es.py` en `locales/it.py` ;
+2. remplir `META` (`code`, `name` du sélecteur, `label`, `dir` `ltr`/`rtl`, `flag` Circle Flags, `order`, formats de date
+   `date_intl` / `date_php` / `date_django`), traduire `UI` (libellés d'interface) et `TEXT` (chaque texte français de la
+   spec → sa traduction) ;
+3. si le drapeau est nouveau : `python3 tools/dsgen/vitrine/fetch_icons.py` (ajoute le tracé Circle Flags) ;
+4. `python3 tools/dsgen/gen_ds.py` puis `cargo build --release` : `--langs fr,it` est accepté partout (CLI, assistant, GUI).
+
+Un texte de la spec sans traduction, ou un libellé d'interface manquant, fait **échouer** `gen_ds.py` (aucune chaîne
+oubliée). La liste des langues connues (`tools/dsgen/vitrine/locales.json`) est générée et lue par AlphaRust.
+
+![Accueil en arabe (RTL) sur les 6 combinaisons](docs/screenshots/phase11-6combos-ar.png)
+![Accueil en espagnol sur les 6 combinaisons](docs/screenshots/phase11-6combos-es.png)
+![Arabe sur mobile : menu et sélecteur à quatre drapeaux](docs/screenshots/phase11-6combos-ar-mobile.png)
 
 ## Comptes utilisateurs (`--auth`)
 
 Avec `--auth`, l'en-tête affiche **« Connexion »** (ou **« Mon compte »** une fois connecté) et le site gagne trois pages,
-**au même aspect** sur les 6 combinaisons, en FR et en EN :
+**au même aspect** sur les 6 combinaisons, dans chaque langue choisie :
 
 | Page | Adresse | Contenu |
 |------|---------|---------|
@@ -275,6 +303,7 @@ obligatoires. », e-mail invalide, mot de passe trop court, compte existant, ide
 ![Connexion sur les 6 combinaisons](docs/screenshots/phase10-6combos-auth-sign-in.png)
 ![« Mon compte » après inscription](docs/screenshots/phase10-6combos-auth-dashboard.png)
 ![Erreur de connexion en anglais](docs/screenshots/phase10-6combos-auth-sign-in-error-en.png)
+![Erreur de connexion en arabe (RTL)](docs/screenshots/phase11-6combos-auth-sign-in-error-ar.png)
 
 ## Icônes et drapeaux (`--icons`)
 
@@ -317,7 +346,7 @@ le contraste **en direct** pendant le choix des couleurs.
 | Pour changer… | Fichier |
 |---------------|---------|
 | textes, menu, pages, sections, services, articles, formulaire | `tools/dsgen/vitrine/spec.py` |
-| traductions anglaises et libellés d'interface | `tools/dsgen/vitrine/i18n.py` |
+| traductions et libellés d'interface, une langue par fichier | `tools/dsgen/vitrine/locales/<langue>.py` |
 | balisage (en-tête, pied de page, sections, comptes) | `tools/dsgen/vitrine/templates.py` |
 | styles du site | `tools/dsgen/vitrine/site.css` |
 | correspondance des icônes, jeux embarqués | `tools/dsgen/vitrine/iconsets.py` (+ `fetch_icons.py`) |
@@ -442,7 +471,8 @@ python3 tools/dsgen/vitrine/fetch_icons.py    # rafraîchit iconsets.json depuis
 
 | Fichier | Rôle |
 |---------|------|
-| `vitrine/spec.py`, `i18n.py`, `data.py` | contenu du site, traductions, données prêtes à écrire (FR/EN, comptes) |
+| `vitrine/spec.py`, `data.py` | contenu du site (en français) et données prêtes à écrire (langues, comptes) |
+| `vitrine/locales/<langue>.py`, `i18n.py` | une langue par fichier (`META`, `UI`, `TEXT`) ; `i18n.py` les charge et vérifie qu'il ne manque rien |
 | `vitrine/templates.py`, `ir.py` | gabarits décrits une fois (nœuds `E`, `C`, `For`, `If`, `Icon`…) et leurs rendus Astro / Blade / Django |
 | `vitrine/write_astro.py`, `write_laravel.py`, `write_wagtail.py` | écriture des couches `site-astro`, `site-laravel`, `site-wagtail` |
 | `vitrine/site.css` | styles du site (communs aux 6 combinaisons) |
@@ -485,8 +515,8 @@ python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers
 (`SITE_STACKS=astro-css,laravel-css` pour en garder certains) :
 
 ```bash
-python docs/screenshots/scripts/site_parity.py /tmp/parite 1   # 19 pages × bureau/mobile : structure, console, pixels (seuil 1 %)
-python docs/screenshots/scripts/site_auth.py /tmp/comptes      # inscription, compte, déconnexion, erreurs, connexion EN
+python docs/screenshots/scripts/site_parity.py /tmp/parite 1   # 35 pages (4 langues) × bureau/mobile : structure, console, pixels
+python docs/screenshots/scripts/site_auth.py /tmp/comptes      # inscription, compte, déconnexion, erreurs, EN, AR (RTL), ES
 python docs/screenshots/scripts/site_interact.py /tmp/interac  # sous-menu, thème, menu mobile, contact
 python docs/screenshots/scripts/montage.py /tmp/parite en planche.png   # planche 3 × 2 d'une page
 ```

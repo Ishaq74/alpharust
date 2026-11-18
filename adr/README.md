@@ -18,3 +18,4 @@
 | 0014 | Design kit partagé : Starwind, CSS pur, Laravel (Blade) et Wagtail (Django) | Accepté |
 | 0015 | Une spec de site partagée : même site vitrine en Astro, Laravel et Wagtail | Accepté |
 | 0016 | Site vitrine : anglais, comptes, kit Starwind serveur et icônes MDI | Accepté |
+| 0017 | Site vitrine : langues au choix (`--langs`), espagnol et arabe (RTL) | Accepté |

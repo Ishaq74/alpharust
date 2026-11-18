@@ -51,6 +51,7 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` (site vitrine : pages de compte du site) |
 | `--icons` | site vitrine : jeu d'icônes Iconify (MDI par défaut ; drapeaux Circle Flags) |
 | `--i18n` | `fr,en,es,ar` (au moins deux, la première est la langue par défaut) |
+| `--langs` | langues du site vitrine (`--ui`) : `fr,en,es,ar`, défaut `fr,en` (ou celles de `--i18n`), français obligatoire ; ADR 0017 |
 | `--docker`, `--ci` | Dockerfile + compose ; workflow GitHub Actions |
 
 Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
@@ -64,8 +65,9 @@ Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
 | `--ui` | `none`, `css` (design kit CSS pur) ou `starwind` (Tailwind v4 + règles des atomes Starwind) : composants Blade `<x-ds.*>`, page `/components` et **site vitrine** FR/EN (squelette sans Breeze) |
 | `--auth` | comptes du site avec **Laravel Fortify** (`/auth/sign-in`, `/auth/sign-up`, `/auth/dashboard`) ; exige `--ui` |
 | `--icons` | jeu d'icônes Iconify du site (MDI par défaut, `lucide`, tout jeu Iconify) ; exige `--ui` |
+| `--langs` | langues du site vitrine : `fr,en,es,ar` (défaut `fr,en`, français obligatoire) ; exige `--ui` |
 
-Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind` (application `ds` : balises `{% ds_* %}`, page `/components/`, site vitrine FR/EN ; Starwind compilé par la CLI autonome Tailwind), `--auth` (authentification Django), `--icons <jeu>`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
+Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind` (application `ds` : balises `{% ds_* %}`, page `/components/`, site vitrine dans les langues de `--langs` ; Starwind compilé par la CLI autonome Tailwind), `--auth` (authentification Django), `--icons <jeu>`, `--langs fr,en,es,ar`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
 
 ## Contrôles et garde-fous
 
