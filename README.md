@@ -87,6 +87,11 @@ Design kit partagé (ADR 0014) : mêmes composants en Starwind (gauche) et en CS
 ![Laravel : composants Blade](docs/screenshots/phase6-laravel-components.png)
 ![Wagtail : balises Django](docs/screenshots/phase6-wagtail-components.png)
 
+Site vitrine complet (ADR 0015) : la même spec rendue en Astro Starwind, Astro CSS pur, Laravel et Wagtail :
+
+![Accueil : Astro Starwind, Astro CSS, Laravel, Wagtail](docs/screenshots/phase8-site-accueil.png)
+![Fiche service sur les 4 combinaisons](docs/screenshots/phase8-site-services-accessibilite.png)
+
 ## Fonctionnalités
 
 - **Règles** Markdown + frontmatter YAML (`rules/`), validées et auto-testées par leurs exemples — [`docs/rule-format.md`](docs/rule-format.md), [`docs/writing-rules.md`](docs/writing-rules.md).
@@ -112,7 +117,7 @@ cargo test --all-targets
 La CI (`.github/workflows/ci.yml`) exécute ces étapes, puis génère **pour de vrai** des projets Astro, Laravel, Wagtail et Rust
 (`ALPHARUST_E2E=1 cargo test --test generators e2e`).
 Voir [`docs/tests.md`](docs/tests.md), [`docs/arborescence.md`](docs/arborescence.md), les décisions dans [`adr/`](adr/README.md)
-(dernier en date : ADR 0014) et la feuille de route dans [`todos/`](todos/).
+(dernier en date : ADR 0015) et la feuille de route dans [`todos/`](todos/).
 
 ## License
 

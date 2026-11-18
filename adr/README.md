@@ -16,3 +16,4 @@
 | 0012 | Plateforme Astro composable et orchestration des projets | Accepté |
 | 0013 | Design system unifié et composants Starwind d'atomic | Accepté |
 | 0014 | Design kit partagé : Starwind, CSS pur, Laravel (Blade) et Wagtail (Django) | Accepté |
+| 0015 | Une spec de site partagée : même site vitrine en Astro, Laravel et Wagtail | Accepté |

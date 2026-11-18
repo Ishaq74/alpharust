@@ -110,6 +110,27 @@ puis `cargo test catalog`. Blade et Django couvrent les **46** composants : les 
 `:default-value="[20, 80]"` —, en snake_case côté Django — `as_child=True`, `default_value="20,80"`). Les calculs du curseur et
 de l'intégration YouTube vivent dans `app/View/DesignKit.php` (Laravel) et dans `ds.py` (Django). Limites : `--ui css` Laravel exclut Breeze ; le thème WCAG généré reste propre à Astro.
 
+## Site vitrine complet et identique : Astro, Laravel, Wagtail (ADR 0015)
+
+Avec un kit d'interface (`--ui starwind|concordia` pour Astro, `--ui css` pour Laravel et Wagtail), le projet généré est un
+**site complet** : gabarit (lien d'évitement, en-tête collant, menu avec sous-menu des services, bouton d'appel, bascule de
+thème, menu mobile en panneau, pied de page avec colonnes, réseaux et coordonnées, balises SEO), pages accueil, à propos,
+services (liste + fiches), blog (liste + articles), contact (formulaire validé côté serveur), mentions légales,
+confidentialité et 404. Le site est décrit **une fois** dans `tools/dsgen/vitrine/spec.py` et rendu dans chaque framework
+selon ses usages :
+
+| | Astro | Laravel (`--ui css`) | Wagtail (`--ui css`) |
+|---|---|---|---|
+| Gabarit | `src/layouts/BaseLayout.astro`, `components/site/` | `components/layouts/site.blade.php` + `site/partials/` | `templates/base.html` + `includes/` |
+| Menu, pied, coordonnées | `src/data/site.json` | `config/site.php` (composer de vue) | snippets `NavigationMenu`, réglages `HeaderSettings`/`FooterSettings`/`site_settings` (admin Wagtail) |
+| Sections | `components/site/sections/*` | `site/sections/*` | blocs StreamField `streams/` |
+| Services, articles | collections de contenu | modèles + migrations + `SiteSeeder` | pages `ServicePage`, `BlogPage` + `manage.py seed_site` |
+| Contact | `ssr` | `ContactController`, table `contact_messages` | `ContactPage` (formulaire Wagtail, soumissions dans l'admin) |
+
+Même palette partout : `--theme-primary`, `--theme-secondary`, `--theme-accent` valent aussi pour `generate laravel|wagtail --ui css`.
+Modifier une page, une section ou le menu : `tools/dsgen/vitrine/`, puis `python3 tools/dsgen/gen_ds.py`. Contrôle de parité :
+`docs/screenshots/scripts/site_parity.py` (structure + planches) et `site_interact.py` (sous-menu, clavier, thème, menu mobile, envoi du contact).
+
 ## Starwind : ce qui vient d'atomic
 
 * `src/components/atoms/**` — les composants Starwind d'atomic, **copiés sans modification de code** (46 dossiers : accordion,

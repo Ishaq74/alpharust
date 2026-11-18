@@ -74,3 +74,15 @@ Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authent
   CSS pur, de Blade et de Django ; `interact.py` ouvre et pilote les composants de `/components/advanced` dans les quatre
   cibles (dialogue, panneau, menu, select, OTP, curseur, radio, carrousel, barre latérale,
   toast, thème) et relève les erreurs de console. Scripts : `docs/screenshots/scripts/`.
+
+### Site vitrine identique (ADR 0015)
+
+* **Unitaires** : couches et étapes (`site-astro`, `site-laravel`, `site-wagtail`, `seed-site`, `theme`, `makemigrations`) ;
+  branchement Wagtail idempotent (apps du site, processeurs de contexte, `LANGUAGE_CODE = "fr"`) dans `catalog.rs`.
+* **Générateur à jour** (CI) : la même commande `gen_ds.py && git diff --exit-code templates/layers` couvre les trois couches.
+* **Tests des projets générés** (lancés par la génération) : Laravel `tests/Feature/SiteTest.php` (chaque page dans le gabarit,
+  page courante marquée, 404 du site, validation et enregistrement du contact) ; Wagtail `home/test_site.py` (mêmes cas, plus
+  `seed_site` deux fois sans effet) ; Astro `astro check` + build.
+* **Runtime** (preuves) : `site_parity.py SORTIE` (10 pages × 4 combinaisons, bureau et mobile : signature de structure, erreurs
+  de console, planches `site-<page>.png`) et `site_interact.py SORTIE` (sous-menu au survol et au clavier, thème, menu mobile,
+  envoi du contact). Serveurs attendus : 4401 Astro Starwind, 4402 Astro CSS, 4403 Laravel, 4404 Wagtail.

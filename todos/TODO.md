@@ -41,6 +41,14 @@
 - [x] Gabarits Blade et Django des 23 composants étendus, générés par `tools/dsgen/ext_server.py`, pages `/components/advanced`
 - [x] Générateur versionné `tools/dsgen`, contrôle CI régénération + diff, parité statique et runtime
 
+## Site vitrine identique (ADR 0015)
+- [x] Spec partagée `tools/dsgen/vitrine` : pages, menu, sections, contenus, formulaire ; rendu Astro, Blade, Django
+- [x] Astro (Starwind et CSS), Wagtail (modèle wagtail-cms : snippets, réglages, StreamField, `seed_site`), Laravel (modèle manecms)
+- [x] `--theme-*` pour Laravel et Wagtail, contrôle de parité (`site_parity.py`, `site_interact.py`) et planches
+- [ ] Langue anglaise et sélecteur de langue dans le gabarit commun (Astro a déjà l'i18n, pas Laravel ni Wagtail)
+- [ ] Liens compte / connexion dans l'en-tête quand `--auth` (Astro) ou Breeze / admin Wagtail
+- [ ] Kit Tailwind + Starwind côté Laravel et Wagtail (aujourd'hui CSS pur seulement)
+
 ## Idées pour la suite
 - [ ] Générateur WordPress (wp-cli) — reporté, voir ADR 0012
 - [ ] Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
