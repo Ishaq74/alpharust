@@ -34,7 +34,7 @@ def config():
 ICON = (GEN + "@props(['name', 'size' => 20])\n@php\n    // Tracés Lucide (ISC) : mêmes icônes qu’Astro (SiteIcon.astro) et Django ({% site_icon %}).\n    $paths = [\n"
         + ''.join(f"        '{k}' => '{v}',\n" for k, v in ICONS.items())
         + "    ];\n@endphp\n<svg width=\"{{ $size }}\" height=\"{{ $size }}\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" "
-          "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">{!! $paths[$name] ?? '' !!}</svg>\n")
+          "stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" class=\"site-icon\">{!! $paths[$name] ?? '' !!}</svg>\n")
 
 LAYOUT = GEN + """{{-- Gabarit commun du site (modèle manecms : composant « shell » + partials head/header/footer). --}}
 @props(['title' => null, 'description' => null])

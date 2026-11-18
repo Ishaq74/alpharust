@@ -17,7 +17,7 @@
                             <x-ds.dropdown :open-on-hover="true" class="site-nav__dropdown">
                                 <x-ds.dropdown.trigger class="site-nav__link" :aria-current="$item['current'] ?? null">
                                     {{ $item['label'] ?? '' }}
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                                 </x-ds.dropdown.trigger>
                                 <x-ds.dropdown.content class="site-nav__menu">
                                     <x-ds.dropdown.item as="a" :href="$item['url'] ?? ''">
@@ -47,7 +47,7 @@
             <x-ds.sheet class="site-header__mobile">
                 <x-ds.sheet.trigger :as-child="true">
                     <x-ds.button variant="ghost" size="icon" aria-label="Ouvrir le menu">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                     </x-ds.button>
                 </x-ds.sheet.trigger>
                 <x-ds.sheet.content side="right" class="site-mobile">
@@ -64,7 +64,7 @@
                                         <x-ds.collapsible class="site-mobile__group">
                                             <x-ds.collapsible.trigger class="site-mobile__link">
                                                 {{ $item['label'] ?? '' }}
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                                             </x-ds.collapsible.trigger>
                                             <x-ds.collapsible.content>
                                                 <ul class="site-mobile__sub">

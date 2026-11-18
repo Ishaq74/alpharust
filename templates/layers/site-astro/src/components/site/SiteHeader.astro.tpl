@@ -35,7 +35,7 @@ const { site } = Astro.props;
                   <Dropdown openOnHover class="site-nav__dropdown">
                     <DropdownTrigger class="site-nav__link" aria-current={item.current || undefined}>
                       {item.label}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                     </DropdownTrigger>
                     <DropdownContent class="site-nav__menu">
                       <DropdownItem as="a" href={item.url}>
@@ -71,7 +71,7 @@ const { site } = Astro.props;
       <Sheet class="site-header__mobile">
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Ouvrir le menu">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
           </Button>
         </SheetTrigger>
         <SheetContent side="right" class="site-mobile">
@@ -90,7 +90,7 @@ const { site } = Astro.props;
                         <Collapsible class="site-mobile__group">
                           <CollapsibleTrigger class="site-mobile__link">
                             {item.label}
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <ul class="site-mobile__sub">

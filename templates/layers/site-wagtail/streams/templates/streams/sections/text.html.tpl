@@ -7,7 +7,7 @@
                 {{ s.title }}
             </h2>
         {% endif %}
-        {% ds_prose %}
+        {% ds_prose class_="site-prose" %}
             {{ s.body }}
         {% endds_prose %}
     </div>

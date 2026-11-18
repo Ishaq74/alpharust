@@ -50,7 +50,7 @@ def camel_to_kebab(k): return re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', k).lower()
 from .icons import ICONS
 def svg(name, size=None, cls=None):
     s = size or 20
-    c = f' class="{cls}"' if cls else ''
+    c = f' class="site-icon {cls}"' if cls else ' class="site-icon"'
     return (f'<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
             f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"{c}>{ICONS[name]}</svg>')
 

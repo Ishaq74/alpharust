@@ -28,13 +28,16 @@
 .site-body h1, .site-body h2, .site-body h3 { margin: 0; font-family: inherit; text-wrap: balance; line-height: 1.2; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
 .site-body p, .site-body li { margin: 0; max-width: none; }
 .site-body a { text-underline-offset: 0.2em; }
+/* Liens : taille héritée (Concordia fixe une taille propre aux liens) ; les règles .site-* plus bas priment. */
+.site-body :where(a:not([data-slot])) { font-size: inherit; line-height: inherit; }
 .site-body ul.site-nav__list, .site-body ul.site-mobile__list, .site-body ul.site-mobile__sub, .site-body ul.site-footer__links,
 .site-body ul.site-social, .site-body ul.site-checklist, .site-body ul.site-contact__list, .site-body ul.site-team {
   list-style: none; margin: 0; padding: 0;
 }
 .site-body address { font-style: normal; }
 /* Icônes en bloc partout (comme le preflight de Tailwind) : même hauteur de ligne dans tous les kits. */
-.site-body :where(.site-header, .site-main > section, .site-main > article, .site-footer) svg { display: block; flex-shrink: 0; }
+/* Icônes du site en bloc (comme le preflight de Tailwind) : même hauteur de ligne dans tous les kits. */
+.site-icon { display: block; flex-shrink: 0; }
 .site-body .site-main { flex: 1; width: auto; margin: 0; padding: 0; outline: none; }
 /* Pages hors gabarit (catalogue, compte…) : contenu centré dans la même largeur. */
 .site-body .site-main--page { width: min(100% - 2 * var(--site-gutter), var(--site-width)); margin-inline: auto; padding-block: 2.5rem 4rem; }
@@ -60,12 +63,12 @@
 }
 .site-nav { margin-inline: auto; }
 .site-nav__list { display: flex; align-items: center; gap: 0.25rem; }
-.site-nav__link {
+.site-body .site-nav__link {
   display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.45rem 0.75rem; border: 0; border-radius: 0.5rem;
   background: transparent; color: var(--site-muted); font: inherit; font-size: 0.95rem; font-weight: 500;
   text-decoration: none; cursor: pointer;
 }
-.site-nav__link:hover, .site-nav__link[aria-current] { color: var(--text); background: var(--site-soft); }
+.site-body .site-nav__link:hover, .site-body .site-nav__link[aria-current] { color: var(--text); background: var(--site-soft); }
 .site-nav__menu { min-width: 15rem; }
 .site-nav__menu a { text-decoration: none; color: inherit; }
 .site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
@@ -195,3 +198,23 @@
 .site-footer__bottom { padding-block: 1.25rem; border-top: 1px solid var(--site-line); color: var(--site-muted); font-size: 0.875rem; }
 @media (max-width: 60rem) { .site-footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .site-footer__about { grid-column: 1 / -1; } }
 @media (max-width: 30rem) { .site-footer__grid { grid-template-columns: 1fr; } }
+
+/* Pied de carte : même retrait dans tous les kits (Starwind ajoute fond, filet et marge propres). */
+.site-body .site-card > [data-slot='card-footer'] { padding: 0 1.5rem; background: transparent; border-top: 0; border-radius: 0; }
+.site-body .site-card:has(> [data-slot='card-footer']) { padding-bottom: 1.5rem; }
+
+/* Contenu riche (Markdown, RichText) : même typographie quel que soit le kit (Prose CSS ou sw-prose de Starwind). */
+.site-body .site-prose { max-width: 65ch; font-size: 1rem; line-height: 1.75; color: var(--text); }
+.site-body .site-prose :is(p, ul, ol, blockquote, pre, table, figure) { margin: 1.25em 0; }
+.site-body .site-prose h2 { margin: 2em 0 0.8em; font-size: 1.5em; line-height: 1.3; }
+.site-body .site-prose h3 { margin: 1.6em 0 0.6em; font-size: 1.25em; line-height: 1.4; }
+.site-body .site-prose :is(ul, ol) { padding-inline-start: 1.5em; }
+.site-body .site-prose ul { list-style: disc; }
+.site-body .site-prose ol { list-style: decimal; }
+.site-body .site-prose li { margin: 0.4em 0; }
+.site-body .site-prose a { color: var(--brand-text, var(--brand)); text-decoration: underline; }
+.site-body .site-prose strong { font-weight: 600; }
+.site-body .site-prose blockquote { padding-inline-start: 1em; border-inline-start: 3px solid var(--site-line); color: var(--site-muted); }
+.site-body .site-prose code { padding: 0.1em 0.35em; border-radius: 0.35rem; background: var(--site-soft); font-size: 0.9em; }
+.site-body .site-prose > :first-child { margin-top: 0; }
+.site-body .site-prose > :last-child { margin-bottom: 0; }

@@ -201,7 +201,7 @@ def icon_component():
             f"const icons: Record<string, string> = {{\n{entries},\n}};\n\n"
             "interface Props {\n  name: string;\n  size?: number;\n}\n\nconst { name, size = 20 } = Astro.props;\n---\n\n"
             '<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={icons[name] ?? \'\'} />\n')
+            'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon" set:html={icons[name] ?? \'\'} />\n')
 
 def pascal(t): return ''.join(w.capitalize() for w in t.split('_'))
 

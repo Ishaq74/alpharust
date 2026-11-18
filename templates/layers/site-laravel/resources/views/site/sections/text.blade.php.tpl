@@ -6,7 +6,7 @@
                 {{ $s['title'] ?? '' }}
             </h2>
         @endif
-        <x-ds.prose>
+        <x-ds.prose class="site-prose">
             {!! $s['body'] ?? '' !!}
         </x-ds.prose>
     </div>

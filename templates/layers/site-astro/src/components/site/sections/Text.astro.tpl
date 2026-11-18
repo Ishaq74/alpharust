@@ -22,7 +22,7 @@ void site;
         </h2>
       </Fragment>
     )}
-    <Prose>
+    <Prose class="site-prose">
       <Fragment set:html={s.body} />
     </Prose>
   </div>

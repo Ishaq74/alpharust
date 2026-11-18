@@ -28,4 +28,4 @@
         'mastodon' => '<path d="M21.3 13.6c-.3 1.6-2.7 3.3-5.5 3.6-1.5.2-2.9.3-4.4.3-2.5-.1-4.4-.6-4.4-.6v.7c.3 2.5 2.4 2.6 4.4 2.7 2 0 3.8-.5 3.8-.5l.1 1.8s-1.4.7-3.9.9c-1.4.1-3.1-.04-5.1-.6C2.1 20.8 1.4 16.5 1.3 12.1V8.6c0-4.4 2.9-5.7 2.9-5.7C5.6 2.2 8.2 2 10.9 2h.1c2.7 0 5.3.3 6.8.9 0 0 2.9 1.3 2.9 5.7 0 0 0 3.3-.4 5z"/><path d="M8 13V8.6c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v2.4M14.4 13V8.6c0-.9-.7-1.6-1.6-1.6s-1.6.7-1.6 1.6"/>',
     ];
 @endphp
-<svg width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $paths[$name] ?? '' !!}</svg>
+<svg width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon">{!! $paths[$name] ?? '' !!}</svg>

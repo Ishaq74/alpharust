@@ -18,7 +18,7 @@
                             {% ds_dropdown open_on_hover=True class_="site-nav__dropdown" %}
                                 {% ds_dropdown_trigger class_="site-nav__link" aria_current=item.current %}
                                     {{ item.label }}
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                                 {% endds_dropdown_trigger %}
                                 {% ds_dropdown_content class_="site-nav__menu" %}
                                     {% ds_dropdown_item as_="a" href=item.url %}
@@ -48,7 +48,7 @@
             {% ds_sheet class_="site-header__mobile" %}
                 {% ds_sheet_trigger as_child=True %}
                     {% ds_button variant="ghost" size="icon" aria_label="Ouvrir le menu" %}
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                     {% endds_button %}
                 {% endds_sheet_trigger %}
                 {% ds_sheet_content side="right" class_="site-mobile" %}
@@ -65,7 +65,7 @@
                                         {% ds_collapsible class_="site-mobile__group" %}
                                             {% ds_collapsible_trigger class_="site-mobile__link" %}
                                                 {{ item.label }}
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="m6 9 6 6 6-6"/></svg>
                                             {% endds_collapsible_trigger %}
                                             {% ds_collapsible_content %}
                                                 <ul class="site-mobile__sub">

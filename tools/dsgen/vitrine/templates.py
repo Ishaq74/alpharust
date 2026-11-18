@@ -215,7 +215,7 @@ SECTIONS = {
     ])]),
     'text': section('text', [
         If(V('s.title'), [E('h2', cls('site-section__title'), [O(V('s.title'))])]),
-        C('Prose', [], [Html(V('s.body'))]),
+        C('Prose', [('class', 'site-prose')], [Html(V('s.body'))]),
     ], narrow=True),
     'team': section('team', [head(), E('ul', cls('site-grid site-grid--4 site-team'), [
         For('item', V('s.items'), [E('li', cls('site-team__member'), [
@@ -283,7 +283,7 @@ SERVICE_DETAIL = [
         C('Badge', [('variant', 'primary'), ('size', 'lg')], [O(V('page.price'))]),
     ])]),
     E('section', cls('site-section'), [E('div', cls('site-container site-detail'), [
-        C('Prose', [('class', 'site-detail__body')], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
+        C('Prose', [('class', 'site-prose site-detail__body')], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
         E('aside', cls('site-detail__aside'), [C('Card', [('class', 'site-card')], [
             C('CardHeader', [], [E('h2', cls('site-card__title'), [T('Ce qui est inclus')])]),
             C('CardContent', [], [E('ul', cls('site-checklist'), [
@@ -305,7 +305,7 @@ POST_DETAIL = [
             ]),
         ])]),
         E('div', cls('site-section'), [E('div', cls('site-container site-container--narrow'), [
-            C('Prose', [], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
+            C('Prose', [('class', 'site-prose')], [Html(V('page.body'), astro='<Content />', django='{{ page.body|richtext }}')]),
             E('p', cls('site-article__back'), [C('Button', [('href', V('page.back_url')), ('variant', 'outline')], [
                 Icon('arrow-left', 16), T('Tous les articles')])]),
         ])]),
