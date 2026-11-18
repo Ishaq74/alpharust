@@ -208,6 +208,7 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 database,
                 frontend,
                 ui,
+                theme: None,
             })
         }
         Framework::Wagtail => {
@@ -233,6 +234,7 @@ pub fn ask(preset_name: Option<String>, preset_framework: Option<Framework>) -> 
                 packages: extra.split_whitespace().map(String::from).collect(),
                 migrate,
                 ui,
+                theme: None,
             })
         }
         Framework::Rust => {

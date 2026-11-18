@@ -422,6 +422,7 @@ fn invalid_requests_are_rejected_before_any_work() {
         packages: vec!["bad;rm -rf /".into()],
         migrate: true,
         ui: false,
+        theme: None,
     });
     assert!(w.validate().is_err(), "spécification pip invalide");
 }

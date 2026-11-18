@@ -5,7 +5,7 @@
 {% block title_suffix %}{% endblock %}
 
 {% block content %}
-<main class="ds-page">
+<div class="ds-page site-main--page">
     <h1>Composants</h1>
     <p class="meta">
         Catalogue du kit <strong>Django</strong> (<code>{% templatetag openblock %} load ds {% templatetag closeblock %}</code>). L'allure se règle dans
@@ -188,7 +188,7 @@
         </div>
         {% ds_separator %}
     </section>
-</main>
+</div>
 
 <style>
     .ds-page { max-width: var(--page-width); margin: 0 auto; padding: var(--space-6) var(--space-4); }

@@ -5,7 +5,7 @@
 {% block title_suffix %}{% endblock %}
 
 {% block content %}
-<main class="ds-page">
+<div class="ds-page site-main--page">
     <h1>Composants avancés</h1>
     <p class="meta">
         Suite du <a href="{% url 'ds-components' %}">catalogue</a> — kit <strong>Django</strong>. Mêmes composants, mêmes props et mêmes attributs
@@ -264,7 +264,7 @@
         {% ds_toaster position="bottom-right" %}{% endds_toaster %}
     </section>
 
-</main>
+</div>
 
     <script>
         document.getElementById('x-toast')?.addEventListener('click', () => {

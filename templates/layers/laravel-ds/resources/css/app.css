@@ -11,6 +11,7 @@
 @import 'tailwindcss';
 @import './design/index.css' layer(ds);
 @import './design/tokens/tailwind.css';
+@import './site.css'; /* gabarit du site (en-tête, pied de page, sections) : identique à Astro et Wagtail */
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';

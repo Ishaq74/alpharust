@@ -103,6 +103,8 @@ pub struct LaravelOptions {
     pub frontend: bool,
     /// Catalogue de composants du design kit partagé (Blade, CSS pur, Vite + Tailwind v4) et page `/components`.
     pub ui: bool,
+    /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
+    pub theme: Option<super::theme::ThemeColors>,
 }
 
 impl Default for LaravelOptions {
@@ -114,6 +116,7 @@ impl Default for LaravelOptions {
             database: Database::Sqlite,
             frontend: false,
             ui: false,
+            theme: None,
         }
     }
 }
@@ -125,6 +128,12 @@ impl LaravelOptions {
         }
         if self.dark && !self.starter.has_frontend() {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
+        }
+        if self.theme.is_some() && !self.ui {
+            anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+        }
+        if let Some(t) = &self.theme {
+            t.validate()?;
         }
         if self.ui && self.starter != Starter::None {
             anyhow::bail!(
@@ -276,7 +285,13 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (pages, modèle, migration, tests, docs)",
         Internal::Layer(if o.ui {
-            vec!["common", "laravel", "ui-blade", "laravel-ds"]
+            vec![
+                "common",
+                "laravel",
+                "ui-blade",
+                "laravel-ds",
+                "site-laravel",
+            ]
         } else {
             vec!["common", "laravel"]
         }),
@@ -288,6 +303,14 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             "Copier le design kit (resources/css/design, resources/js/design)",
             Internal::DesignKit(DesignTarget::Laravel),
         ));
+        if let Some(t) = &o.theme {
+            steps.push(Step::internal(
+                "theme",
+                Phase::Layer,
+                "Écrire la palette de marque (resources/css/design/themes/theme.css, contrôle WCAG)",
+                Internal::DesignTheme(t.clone(), DesignTarget::Laravel),
+            ));
+        }
         steps.push(Step::run(
             "npm-build",
             Phase::Install,
@@ -323,6 +346,14 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             "Insérer les pages d'exemple",
             &["db:seed", "--class=PageSeeder", "--force"],
         ));
+        if o.ui {
+            steps.push(artisan(
+                "seed-site",
+                Phase::Configure,
+                "Insérer les services et articles du site (SiteSeeder)",
+                &["db:seed", "--class=SiteSeeder", "--force"],
+            ));
+        }
     }
     steps.push(Step::internal(
         "manifest",

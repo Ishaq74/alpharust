@@ -552,7 +552,7 @@ mod tests {
         fs::create_dir_all(p.join("demo/templates")).unwrap();
         fs::write(
             p.join("demo/settings/base.py"),
-            "INSTALLED_APPS = [\n    \"home\",\n]\n",
+            "INSTALLED_APPS = [\n    \"home\",\n]\nTEMPLATES = [{\"OPTIONS\": {\"context_processors\": [\n                \"django.contrib.messages.context_processors.messages\",\n]}}]\nLANGUAGE_CODE = \"en-us\"\n",
         )
         .unwrap();
         fs::write(
@@ -570,6 +570,12 @@ mod tests {
         }
         let settings = fs::read_to_string(p.join("demo/settings/base.py")).unwrap();
         assert_eq!(settings.matches("\"ds\",").count(), 1);
+        assert_eq!(
+            settings.matches("layout.context_processors.site").count(),
+            1
+        );
+        assert_eq!(settings.matches("\"blog\",").count(), 1);
+        assert!(settings.contains("LANGUAGE_CODE = \"fr\""));
         let urls = fs::read_to_string(p.join("demo/urls.py")).unwrap();
         assert_eq!(urls.matches("ds.urls").count(), 1);
         let base = fs::read_to_string(p.join("demo/templates/base.html")).unwrap();

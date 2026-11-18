@@ -3,7 +3,8 @@
     $logo = 'data:image/svg+xml,'.rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="10" fill="#3b4cca"/><path d="M15 36 24 12l9 24m-15-8h12" stroke="#fff" stroke-width="4" fill="none"/></svg>'); // alpharust-ignore: no-hardcoded-urls
 @endphp
 {{-- Catalogue étendu : mêmes composants, props et data-slot que la page Astro /components/advanced et la page Django. --}}
-<x-site-layout title="Composants avancés">
+<x-layouts.site title="Composants avancés">
+<div class="ds-page site-main--page">
     <h1>Composants avancés</h1>
     <p class="meta">
         Suite du <a href="{{ url('/components') }}">catalogue</a> — kit <strong>Blade</strong>. Mêmes composants, mêmes props et mêmes attributs
@@ -285,4 +286,5 @@
         .toast-sample { position: relative; max-width: 24rem; }
         section { margin-bottom: var(--space-8); }
     </style>
-</x-site-layout>
+</div>
+</x-layouts.site>

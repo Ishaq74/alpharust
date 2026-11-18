@@ -347,6 +347,7 @@ fn run_internal(
             icons,
         } => patch_astro_config(target, *ssr, locales, *icons).map(Some),
         Internal::CssTheme(t, prefix) => write_css_theme(target, t, prefix).map(Some),
+        Internal::DesignTheme(t, dt) => write_design_theme(target, t, *dt).map(Some),
         Internal::StarwindConfig => patch_starwind_config(target).map(Some),
         Internal::DesignKit(dt) => write_design_kit(target, *dt).map(Some),
         Internal::WagtailDesign => patch_wagtail_design(target, &req.name).map(Some),
@@ -580,6 +581,22 @@ pub fn write_css_theme(
     t.summary()
 }
 
+/// Palette de marque dans le design kit copié (même CSS qu'Astro : `--brand-*` et `--on-brand-*`).
+pub fn write_design_theme(
+    target: &Path,
+    t: &super::theme::ThemeColors,
+    dt: DesignTarget,
+) -> Result<String> {
+    let rel = design_dest(dt, "css/themes/theme.css")
+        .ok_or_else(|| anyhow!("pas de thème pour cette cible"))?;
+    let path = target.join(rel);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&path, t.css("brand")?)?;
+    t.summary()
+}
+
 /// Chemin de destination d'un fichier du design kit (`None` : pas copié pour cette cible).
 pub fn design_dest(dt: DesignTarget, rel: &str) -> Option<String> {
     let tokens = [
@@ -696,7 +713,24 @@ pub fn patch_wagtail_design(target: &Path, name: &str) -> Result<String> {
         "{# Global stylesheets #}",
         "        <link rel=\"icon\" type=\"image/svg+xml\" href=\"{% static 'ds/favicon.svg' %}\">\n",
     )?;
-    Ok("ds branchée : INSTALLED_APPS, /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
+    // Site complet (couche site-wagtail) : applications, réglages du site, langue.
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "INSTALLED_APPS = [",
+        "    \"layout\",\n    \"site_settings\",\n    \"streams\",\n    \"flex\",\n    \"service\",\n    \"blog\",\n    \"contact\",\n    \"wagtail.contrib.settings\",\n",
+    )?;
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "\"django.contrib.messages.context_processors.messages\",",
+        "                \"wagtail.contrib.settings.context_processors.settings\",\n                \"layout.context_processors.site\",\n",
+    )?;
+    let settings = target.join(format!("{pkg}/settings/base.py"));
+    let text = fs::read_to_string(&settings)?;
+    fs::write(
+        &settings,
+        text.replace("LANGUAGE_CODE = \"en-us\"", "LANGUAGE_CODE = \"fr\""),
+    )?;
+    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings), processeurs de contexte, LANGUAGE_CODE = fr, /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.

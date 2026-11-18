@@ -241,6 +241,8 @@ pub enum Internal {
     },
     /// Palette de marque `src/styles/themes/theme.css` avec contrôle WCAG (préfixe `color` ou `brand`).
     CssTheme(theme::ThemeColors, &'static str),
+    /// Palette de marque du design kit partagé (Laravel, Wagtail) : `themes/theme.css` à l'emplacement du kit.
+    DesignTheme(theme::ThemeColors, DesignTarget),
     /// `starwind.config.json` aligné sur atomic (dossiers `atoms` et `lib/starwind`).
     StarwindConfig,
     /// Copie le design kit partagé (`templates/layers/design-kit`) vers l'arborescence du framework.

@@ -3,7 +3,8 @@
     $pixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 @endphp
 {{-- Catalogue de composants : même contenu que la page Astro (/components) et la page Django, mêmes data-slot. --}}
-<x-site-layout title="Composants">
+<x-layouts.site title="Composants">
+<div class="ds-page site-main--page">
     <h1>Composants</h1>
     <p class="meta">
         Catalogue du kit <strong>Blade</strong> (<code>resources/views/components/ds</code>). L'allure se règle dans
@@ -199,4 +200,5 @@
         .sk { width: 6rem; height: 1rem; }
         section { margin-bottom: var(--space-8); }
     </style>
-</x-site-layout>
+</div>
+</x-layouts.site>

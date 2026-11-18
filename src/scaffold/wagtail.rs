@@ -16,6 +16,8 @@ pub struct WagtailOptions {
     pub migrate: bool,
     /// Catalogue de composants du design kit partagé (application Django `ds`, balises `{% ds_… %}`, `/components/`).
     pub ui: bool,
+    /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
+    pub theme: Option<super::theme::ThemeColors>,
 }
 
 impl Default for WagtailOptions {
@@ -24,6 +26,7 @@ impl Default for WagtailOptions {
             packages: vec![],
             migrate: true,
             ui: false,
+            theme: None,
         }
     }
 }
@@ -43,6 +46,12 @@ impl WagtailOptions {
             if !valid_pip_spec(p) {
                 bail!("paquet pip invalide : `{p}`");
             }
+        }
+        if self.theme.is_some() && !self.ui {
+            bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+        }
+        if let Some(t) = &self.theme {
+            t.validate()?;
         }
         Ok(())
     }
@@ -156,7 +165,13 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (config qualité, docs, tests, .gitignore)",
         Internal::Layer(if o.ui {
-            vec!["common", "wagtail", "ui-django", "wagtail-ds"]
+            vec![
+                "common",
+                "wagtail",
+                "ui-django",
+                "wagtail-ds",
+                "site-wagtail",
+            ]
         } else {
             vec!["common", "wagtail"]
         }),
@@ -168,11 +183,33 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Copier le design kit (ds/static/ds)",
             Internal::DesignKit(DesignTarget::Wagtail),
         ));
+        if let Some(t) = &o.theme {
+            steps.push(Step::internal(
+                "theme",
+                Phase::Layer,
+                "Écrire la palette de marque (ds/static/ds/css/themes/theme.css, contrôle WCAG)",
+                Internal::DesignTheme(t.clone(), DesignTarget::Wagtail),
+            ));
+        }
         steps.push(Step::internal(
             "design-wire",
             Phase::Configure,
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
             Internal::WagtailDesign,
+        ));
+    }
+    if o.ui {
+        // Migrations des applications du site (layout, site_settings, flex, service, blog, contact, home) :
+        // générées par Django pour la version de Wagtail installée.
+        steps.push(Step::run(
+            "makemigrations",
+            Phase::Configure,
+            "Créer les migrations du site (manage.py makemigrations)",
+            Cmd::new(
+                &py,
+                &["manage.py", "makemigrations", "--no-input"],
+                Cwd::Project,
+            ),
         ));
     }
     if o.migrate {
@@ -182,6 +219,14 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Migrer la base (manage.py migrate)",
             Cmd::new(&py, &["manage.py", "migrate", "--no-input"], Cwd::Project),
         ));
+        if o.ui {
+            steps.push(Step::run(
+                "seed-site",
+                Phase::Configure,
+                "Créer les pages, menus et réglages du site (manage.py seed_site)",
+                Cmd::new(&py, &["manage.py", "seed_site"], Cwd::Project),
+            ));
+        }
     }
     steps.push(Step::internal(
         "freeze",
@@ -294,6 +339,7 @@ mod tests {
             packages: vec!["psycopg[binary]".into()],
             migrate: false,
             ui: false,
+            theme: None,
         };
         let mut r = Request::new(Framework::Wagtail, "x");
         r.options = Options::Wagtail(o.clone());

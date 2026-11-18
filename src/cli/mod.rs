@@ -252,19 +252,19 @@ struct GenOpts {
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro] couleur primaire de marque (WCAG)"
+        help = "[astro ; laravel, wagtail avec --ui css] couleur primaire de marque (WCAG)"
     )]
     theme_primary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro] couleur secondaire de marque"
+        help = "[astro ; laravel, wagtail avec --ui css] couleur secondaire de marque"
     )]
     theme_secondary: Option<String>,
     #[arg(
         long,
         value_name = "#rrggbb",
-        help = "[astro] couleur d'accent de marque"
+        help = "[astro ; laravel, wagtail avec --ui css] couleur d'accent de marque"
     )]
     theme_accent: Option<String>,
     #[arg(
@@ -363,6 +363,24 @@ fn parse_catalog_ui(v: &Option<String>) -> Result<bool> {
     }
 }
 
+/// Palette de marque depuis `--theme-primary/secondary/accent` (Astro, et design kit Laravel/Wagtail).
+fn theme_from(o: &GenOpts) -> Option<ThemeColors> {
+    if o.theme_primary.is_none() && o.theme_secondary.is_none() && o.theme_accent.is_none() {
+        return None;
+    }
+    let mut t = ThemeColors::default();
+    if let Some(c) = &o.theme_primary {
+        t.primary = c.clone();
+    }
+    if let Some(c) = &o.theme_secondary {
+        t.secondary = c.clone();
+    }
+    if let Some(c) = &o.theme_accent {
+        t.accent = c.clone();
+    }
+    Some(t)
+}
+
 /// Construit la demande depuis les flags ; refuse les options d'un autre framework.
 fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request> {
     let mut foreign: Vec<&str> = Vec::new();
@@ -374,9 +392,8 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || o.site.is_some()
         || o.no_typecheck
         || (o.ui.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
-        || o.theme_primary.is_some()
-        || o.theme_secondary.is_some()
-        || o.theme_accent.is_some()
+        || ((o.theme_primary.is_some() || o.theme_secondary.is_some() || o.theme_accent.is_some())
+            && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || !o.css_variants.is_empty()
         || o.db_url.is_some()
         || o.auth
@@ -453,20 +470,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             a.auth_plugins = o.auth_plugins.clone();
             a.i18n = o.i18n.clone();
             a.css_variants = o.css_variants.clone();
-            if o.theme_primary.is_some() || o.theme_secondary.is_some() || o.theme_accent.is_some()
-            {
-                let mut t = ThemeColors::default();
-                if let Some(c) = &o.theme_primary {
-                    t.primary = c.clone();
-                }
-                if let Some(c) = &o.theme_secondary {
-                    t.secondary = c.clone();
-                }
-                if let Some(c) = &o.theme_accent {
-                    t.accent = c.clone();
-                }
-                a.theme = Some(t);
-            }
+            a.theme = theme_from(o);
             a.docker = o.docker;
             a.ci = o.ci;
             if let Some(id) = &o.preset {
@@ -501,14 +505,20 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             l.pest = o.pest;
             l.frontend = o.frontend;
             l.ui = parse_catalog_ui(&o.ui)?;
+            l.theme = theme_from(o);
             l.validate()?;
             Options::Laravel(l)
         }
-        Framework::Wagtail => Options::Wagtail(WagtailOptions {
-            packages: o.packages.clone(),
-            migrate: !o.no_migrate,
-            ui: parse_catalog_ui(&o.ui)?,
-        }),
+        Framework::Wagtail => {
+            let w = WagtailOptions {
+                packages: o.packages.clone(),
+                migrate: !o.no_migrate,
+                ui: parse_catalog_ui(&o.ui)?,
+                theme: theme_from(o),
+            };
+            w.validate()?;
+            Options::Wagtail(w)
+        }
         Framework::Rust => {
             let kind = match o.kind.as_deref() {
                 None | Some("bin") => CrateKind::Bin,

@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ComponentsTest extends TestCase
 {
+    // Le gabarit du site lit les services (menu, pied de page) : base de test migrée.
+    use RefreshDatabase;
+
     public function test_the_component_catalog_renders_every_slot_of_the_contract(): void
     {
         $this->withoutVite();
