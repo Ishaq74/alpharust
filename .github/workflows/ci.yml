@@ -24,7 +24,7 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Build
         run: cargo build --release
-      - name: Paquet crates.io (cargo package : le crate publié se compile seul)
+      - name: "Paquet crates.io (cargo package : le crate publié se compile seul)"
         run: cargo package --locked
       - name: Tests (unitaires, intégration, CLI, GUI, générateurs)
         run: cargo test --all-targets

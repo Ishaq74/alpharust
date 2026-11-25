@@ -273,6 +273,7 @@ pub fn run(
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     fn sh(script: &str) -> (Outcome, Vec<String>) {
         let mut lines = Vec::new();
         let cancel = AtomicBool::new(false);

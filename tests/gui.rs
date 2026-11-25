@@ -21,10 +21,29 @@ fn setup() {
             std::os::unix::fs::symlink(repo.join("profiles"), home.path().join("profiles"))
                 .unwrap();
         }
+        // Windows : un lien symbolique demande des droits particuliers, on copie.
+        #[cfg(not(unix))]
+        for dir in ["rules", "profiles"] {
+            copy_dir(&repo.join(dir), &home.path().join(dir));
+        }
         std::env::set_var("ALPHARUST_HOME", home.path());
         std::env::set_var("ALPHARUST_NO_CACHE", "1");
         HOME.set(home).unwrap();
     });
+}
+
+#[cfg(not(unix))]
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
 }
 
 struct Resp {
