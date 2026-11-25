@@ -19,3 +19,4 @@
 | 0015 | Une spec de site partagée : même site vitrine en Astro, Laravel et Wagtail | Accepté |
 | 0016 | Site vitrine : anglais, comptes, kit Starwind serveur et icônes MDI | Accepté |
 | 0017 | Site vitrine : langues au choix (`--langs`), espagnol et arabe (RTL) | Accepté |
+| 0018 | v0.3.0 : corrections de l'audit, parité prouvée en CI, sécurité de production et releases | Accepté |

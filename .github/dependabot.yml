@@ -1,0 +1,20 @@
+# Mises à jour proposées automatiquement (constat I3 de l'audit) :
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+# Les versions épinglées des outils officiels (create-astro, starwind, Better Auth CLI, wagtail, Tailwind)
+# vivent dans src/scaffold/pins.rs : à relever à la main après une génération réelle verte (commandes de vérification en tête de pins.rs).
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      rust:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

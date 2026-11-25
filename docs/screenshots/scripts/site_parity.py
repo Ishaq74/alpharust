@@ -59,6 +59,20 @@ SIGNATURE = r"""() => {
     hrefs: q('header a, main a, footer a').map((e) => (e.getAttribute('href') || '').replace(/(.)\/$/, '$1')),
     skip: !!document.querySelector('a[href="#contenu"]'),
     current: q('.site-nav [aria-current]').map(txt),
+    // référencement (I5) : canonical, alternates hreflang, robots, Open Graph et types JSON-LD, chemins seuls
+    seo: (() => {
+      const path = (h) => { try { return new URL(h, location.href).pathname.replace(/(.)\/$/, '$1'); } catch { return h; } };
+      const types = q('script[type="application/ld+json"]').flatMap((e) => {
+        try { const d = JSON.parse(e.textContent); return (Array.isArray(d) ? d : [d]).map((x) => x['@type']); } catch { return ['invalide']; }
+      });
+      return {
+        canonical: path(document.querySelector('link[rel=canonical]')?.getAttribute('href') || ''),
+        alternates: q('link[rel=alternate][hreflang]').map((e) => `${e.getAttribute('hreflang')}:${path(e.getAttribute('href'))}`).sort(),
+        robots: document.querySelector('meta[name=robots]')?.content || '',
+        og: ['og:title', 'og:type', 'og:url', 'og:locale'].map((k) => (document.querySelector(`meta[property="${k}"]`) ? k : '')).filter(Boolean),
+        jsonld: types.sort(),
+      };
+    })(),
   };
 }"""
 
@@ -90,6 +104,17 @@ async def capture(out):
         await b.close()
     return report
 
+async def seo_files(base):
+    """sitemap.xml (avec alternates hreflang xhtml:link) et robots.txt (qui pointe vers le sitemap) servis par chaque combinaison."""
+    import urllib.request
+    def get(path):
+        try:
+            with urllib.request.urlopen(base + path, timeout=15) as r: return r.status, r.read().decode('utf-8', 'replace')
+        except Exception as e: return getattr(e, 'code', 0), ''
+    sm_status, sm = get('/sitemap.xml'); rb_status, rb = get('/robots.txt')
+    return {'sitemap': sm_status, 'sitemap_hreflang': 'hreflang=' in sm, 'sitemap_urls': sm.count('<loc>') > 0,
+            'robots': rb_status, 'robots_sitemap': 'sitemap:' in rb.lower()}
+
 def norm(v):
     """Le nom du projet diffère (demo-sw, demo-lv…) et Astro retire les blancs entre éléments : on les neutralise."""
     if isinstance(v, list): return [norm(x) for x in v]
@@ -99,7 +124,7 @@ def norm(v):
 def compare(report):
     """Différences de signature par page (référence : astro-css). Titre de l'onglet et casse des URL ignorés."""
     diffs = {}
-    keys = ['lang', 'dir', 'languages', 'landmarks', 'headings', 'nav', 'menu', 'mobile', 'footer', 'fields', 'buttons', 'cards', 'skip', 'current']
+    keys = ['lang', 'dir', 'languages', 'landmarks', 'headings', 'nav', 'menu', 'mobile', 'footer', 'fields', 'buttons', 'cards', 'skip', 'current', 'seo']
     for page, by in report.items():
         ref = by[REF]
         for stack, sig in by.items():
@@ -147,7 +172,12 @@ if __name__ == '__main__':
     for page in report:
         board(out, page); board(out, page, '-mobile', 0.7)
     px = pixels(out, report)
-    json.dump({'reference': REF, 'pages': report, 'diffs': diffs, 'pixels': px}, open(f'{out}/site-parity.json', 'w'), ensure_ascii=False, indent=1)
+    seo = {key: asyncio.run(seo_files(base)) for key, _l, base, _s in STACKS}
+    expected = {'sitemap': 200, 'sitemap_hreflang': True, 'sitemap_urls': True, 'robots': 200, 'robots_sitemap': True}
+    for key, got in seo.items():
+        for k, v in expected.items():
+            if got[k] != v: diffs.setdefault('seo-fichiers', []).append({'stack': key, 'key': k, 'ref': v, 'got': got[k]})
+    json.dump({'reference': REF, 'pages': report, 'diffs': diffs, 'pixels': px, 'seo_files': seo}, open(f'{out}/site-parity.json', 'w'), ensure_ascii=False, indent=1)
     errors = {p: {s: v['errors'] for s, v in by.items() if v['errors']} for p, by in report.items()}
     errors = {p: e for p, e in errors.items() if e}
     print('pages', len(report), '· combinaisons', len(STACKS), '· différences de structure', sum(map(len, diffs.values())),
