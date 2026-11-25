@@ -21,10 +21,29 @@ fn setup() {
             std::os::unix::fs::symlink(repo.join("profiles"), home.path().join("profiles"))
                 .unwrap();
         }
+        // Windows : un lien symbolique demande des droits particuliers, on copie.
+        #[cfg(not(unix))]
+        for dir in ["rules", "profiles"] {
+            copy_dir(&repo.join(dir), &home.path().join(dir));
+        }
         std::env::set_var("ALPHARUST_HOME", home.path());
         std::env::set_var("ALPHARUST_NO_CACHE", "1");
         HOME.set(home).unwrap();
     });
+}
+
+#[cfg(not(unix))]
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_dir(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
 }
 
 struct Resp {
@@ -138,7 +157,7 @@ async fn assets_are_embedded_and_never_use_innerhtml() {
 #[tokio::test]
 async fn meta_describes_frameworks_and_options() {
     let m = get("/api/meta").await.json();
-    assert_eq!(m["rules"], 97);
+    assert_eq!(m["rules"], 98);
     assert_eq!(m["checkers"], 15);
     assert!(m["profiles"].as_array().unwrap().len() >= 8);
     let fws = m["frameworks"].as_array().unwrap();
@@ -198,7 +217,7 @@ async fn plan_previews_official_commands_and_validates() {
         .collect();
     assert!(
         cmds.iter()
-            .any(|c| c.starts_with("pnpm create astro@latest vitrine")),
+            .any(|c| c.starts_with("pnpm create astro@5.3.2 vitrine")),
         "{cmds:?}"
     );
     assert!(
@@ -211,7 +230,7 @@ async fn plan_previews_official_commands_and_validates() {
             || p["preview"].as_str().unwrap().contains("create astro")
     );
     assert!(p["tools"].as_array().unwrap().len() >= 3);
-    assert!(p["target"].as_str().unwrap().ends_with("sites/vitrine"));
+    assert!(std::path::Path::new(p["target"].as_str().unwrap()).ends_with("sites/vitrine"));
 
     // règles de compatibilité
     let bad = post(
@@ -246,7 +265,10 @@ async fn client_cannot_choose_the_destination() {
     .await;
     assert_eq!(r.status, StatusCode::OK);
     let target = r.json()["target"].as_str().unwrap().to_string();
-    assert!(target.ends_with("sites/jail"), "{target}");
+    assert!(
+        std::path::Path::new(&target).ends_with("sites/jail"),
+        "{target}"
+    );
 }
 
 #[tokio::test]
@@ -283,7 +305,7 @@ async fn post_requires_a_local_origin() {
 #[tokio::test]
 async fn rules_api_supports_listing_and_detail() {
     let rules = get("/api/rules").await.json();
-    assert_eq!(rules.as_array().unwrap().len(), 97);
+    assert_eq!(rules.as_array().unwrap().len(), 98);
     let first = &rules[0];
     for k in [
         "id", "name", "category", "severity", "apply", "kind", "message",
@@ -538,4 +560,29 @@ async fn meta_exposes_platform_options_and_presets() {
     assert!(presets
         .iter()
         .any(|p| p["id"] == "saas-pg" && p["options"]["database"] == "postgres"));
+}
+
+#[tokio::test]
+async fn every_route_rejects_a_foreign_host_header() {
+    for uri in [
+        "/",
+        "/api/meta",
+        "/api/lint?path=.",
+        "/api/rules",
+        "/api/jobs",
+    ] {
+        let req = Request::builder()
+            .uri(uri)
+            .header(header::HOST, "evil.example:3000")
+            .body(Body::empty())
+            .unwrap();
+        let r = call(app(), req).await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{uri} : {}", r.body);
+        let ok = Request::builder()
+            .uri(uri)
+            .header(header::HOST, "127.0.0.1:3000")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(call(app(), ok).await.status, StatusCode::OK, "{uri}");
+    }
 }

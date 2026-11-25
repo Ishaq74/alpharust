@@ -228,6 +228,23 @@ fn same_origin(headers: &HeaderMap, port: u16) -> bool {
     origin_ok && host_ok
 }
 
+/// Toutes les routes (pages, API en lecture, SSE) : `Host` local obligatoire, contre le rebinding DNS
+/// (un site tiers qui ferait résoudre son nom vers 127.0.0.1 ne peut rien lire). Les `POST` vérifient en plus l'`Origin`.
+async fn local_host_only(
+    State(st): State<AppState>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let mut host_only = HeaderMap::new();
+    if let Some(h) = req.headers().get(header::HOST) {
+        host_only.insert(header::HOST, h.clone());
+    }
+    if !same_origin(&host_only, st.port) {
+        return error(StatusCode::FORBIDDEN, "hôte refusé");
+    }
+    next.run(req).await
+}
+
 /// Chemin analysable : sous le dossier courant ou sous `sites/` (après résolution des liens).
 fn safe_path(raw: &str) -> Result<PathBuf, String> {
     let raw = if raw.trim().is_empty() {
@@ -890,11 +907,11 @@ pub fn router(port: u16) -> Router {
         .route("/api/doctor", get(api_doctor))
         .route("/api/plan", post(api_plan))
         .route("/api/jobs", get(api_jobs).post(api_job_create))
-        .route("/api/jobs/:id", get(api_job))
-        .route("/api/jobs/:id/cancel", post(api_job_cancel))
-        .route("/api/jobs/:id/events", get(api_job_events))
+        .route("/api/jobs/{id}", get(api_job))
+        .route("/api/jobs/{id}/cancel", post(api_job_cancel))
+        .route("/api/jobs/{id}/events", get(api_job_events))
         .route("/api/projects", get(api_projects))
-        .route("/api/projects/:name/tasks/:task", post(api_project_task))
+        .route("/api/projects/{name}/tasks/{task}", post(api_project_task))
         .route("/api/theme/check", post(api_theme_check))
         .route("/api/lint", get(api_lint))
         .route("/api/sarif", get(api_sarif))
@@ -902,6 +919,10 @@ pub fn router(port: u16) -> Router {
         .route("/api/rule", get(api_rule))
         .route("/api/checkers", get(api_checkers))
         .route("/healthz", get(|| async { "ok" }))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            local_host_only,
+        ))
         .with_state(state)
 }
 
@@ -909,8 +930,8 @@ pub async fn run(port: u16) -> anyhow::Result<()> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .map_err(|e| anyhow::anyhow!("impossible d'écouter sur {} : {}", addr, e))?;
-    println!("AlphaRust GUI running at http://{}", addr);
+        .map_err(|e| anyhow::anyhow!("impossible d'écouter sur {addr} : {e}"))?;
+    println!("AlphaRust GUI running at http://{addr}");
     axum::serve(listener, router(port)).await?;
     Ok(())
 }

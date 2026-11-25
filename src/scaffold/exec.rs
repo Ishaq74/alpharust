@@ -30,7 +30,7 @@ impl Cmd {
     pub fn new(program: &str, args: &[&str], cwd: Cwd) -> Self {
         Self {
             program: program.into(),
-            args: args.iter().map(|s| s.to_string()).collect(),
+            args: args.iter().map(std::string::ToString::to_string).collect(),
             cwd,
         }
     }
@@ -273,6 +273,7 @@ pub fn run(
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     fn sh(script: &str) -> (Outcome, Vec<String>) {
         let mut lines = Vec::new();
         let cancel = AtomicBool::new(false);

@@ -121,11 +121,18 @@ impl Preset {
         if let (false, Some(plugins)) = (o.auth, self.auth_plugins) {
             o.auth = true;
             if o.auth_plugins.is_empty() {
-                o.auth_plugins = plugins.iter().map(|s| s.to_string()).collect();
+                o.auth_plugins = plugins
+                    .iter()
+                    .map(std::string::ToString::to_string)
+                    .collect();
             }
         }
         if o.i18n.is_empty() {
-            o.i18n = self.i18n.iter().map(|s| s.to_string()).collect();
+            o.i18n = self
+                .i18n
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect();
         }
         if self.ui == UiKit::Concordia && o.ui == UiKit::Concordia && o.theme.is_none() {
             o.theme = Some(super::theme::ThemeColors::default());
@@ -241,7 +248,7 @@ impl Db {
     }
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "pg" | "postgresql" => Some(Db::Postgres),
+            "pg" | "pgsql" | "postgresql" => Some(Db::Postgres),
             other => Self::ALL.into_iter().find(|d| d.id() == other),
         }
     }

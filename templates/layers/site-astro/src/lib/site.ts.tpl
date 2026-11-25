@@ -41,6 +41,7 @@ type Data = {
   dir: string;
   flag: string;
   dateLocale: string;
+  ogLocale: string;
   order: number;
   site: Record<string, any>;
   pages: Record<string, { url: string; title: string; description: string; sections: Section[] }>;
@@ -125,6 +126,72 @@ export async function getPosts(locale = DEFAULT_LOCALE) {
     date_iso: isoDate(e.data.pubDate),
     date_label: formatDate(e.data.pubDate, locale),
   }));
+}
+
+/** Article affiché (JSON-LD BlogPosting), mêmes champs qu'en Laravel et Wagtail. */
+export type Article = { title: string; excerpt: string; author: string; date_iso: string };
+
+/**
+ * Référencement commun aux trois frameworks (Laravel : partials/head ; Wagtail : base.html) : URL canonique absolue,
+ * alternatives hreflang (+ x-default), og:locale et JSON-LD schema.org (Organization, BlogPosting sur un article).
+ * `base` : Astro.site (astro.config `site`, ou SITE_URL au build).
+ */
+export function seo(site: Site, pathname: string, base: URL | string, article?: Article) {
+  const abs = (p: string) => new URL(p, base).href;
+  const d = data(site.locale);
+  const s = d.site;
+  const canonical = abs(href(pathname, DEFAULT_LOCALE));
+  const organization = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: s.name,
+    url: abs('/'),
+    description: s.description,
+    email: s.contact.email,
+    telephone: s.contact.phone,
+    address: s.contact.address,
+    sameAs: s.social.map((x: { url: string }) => x.url),
+  };
+  const graph: Record<string, unknown>[] = [organization];
+  if (article) {
+    graph.push({
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: article.title,
+      description: article.excerpt,
+      datePublished: article.date_iso,
+      author: { '@type': 'Person', name: article.author },
+      inLanguage: site.locale,
+      mainEntityOfPage: canonical,
+      publisher: { '@type': 'Organization', name: s.name },
+    });
+  }
+  return {
+    canonical,
+    alternates: site.multilingual
+      ? [
+          ...site.languages.map((l) => ({ hreflang: l.code, href: abs(l.url) })),
+          { hreflang: 'x-default', href: abs(href(unprefixed(pathname), DEFAULT_LOCALE)) },
+        ]
+      : [],
+    siteName: s.name,
+    ogLocale: d.ogLocale,
+    jsonLd: graph.map((g) => JSON.stringify(g).replace(/</g, '\\u003c')),
+  };
+}
+
+/** Adresses du plan du site (/sitemap.xml) : pages, services et articles de chaque langue, avec leurs alternatives. */
+export async function sitemapEntries() {
+  const keys = Object.keys(data(DEFAULT_LOCALE).pages).filter((k) => !['not_found'].includes(k));
+  const paths = new Set<string>(keys.map((k) => data(DEFAULT_LOCALE).pages[k].url));
+  for (const x of await getServices(DEFAULT_LOCALE)) paths.add(`/services/${x.slug}`);
+  for (const x of await getPosts(DEFAULT_LOCALE)) paths.add(`/blog/${x.slug}`);
+  return [...paths].flatMap((p) =>
+    locales.map((l) => ({
+      loc: href(p, l.code),
+      alternates: locales.length > 1 ? locales.map((a) => ({ hreflang: a.code, href: href(p, a.code) })) : [],
+    })),
+  );
 }
 
 /** Utilisateur connecté (Astro.locals.user avec --auth) : seuls le nom et l'e-mail servent au site. */
@@ -286,6 +353,13 @@ export function validateContact(values: Record<string, string>, locale = DEFAULT
     else if (f.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) errors[f.name] = d.ui.invalid_email;
   }
   return errors;
+}
+
+/** Champs déclarés du formulaire seulement (comme `$request->validate()` de Laravel), 5 000 caractères au plus. */
+export function contactData(values: Record<string, string>, locale = DEFAULT_LOCALE) {
+  return Object.fromEntries(
+    data(locale).contactFields.map((f) => [f.name, (values[f.name] ?? '').trim().slice(0, 5000)]),
+  ) as Record<string, string>;
 }
 
 export const crumbs = (locale: string, ...items: [string, string][]) => [

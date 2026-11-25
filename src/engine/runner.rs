@@ -161,7 +161,7 @@ impl<'a> FileInfo<'a> {
             Selector::Glob(g) => {
                 glob_match(g, &self.lower_rel)
                     || (!g.contains('/') && glob_match(g, &self.basename))
-                    || glob_match(&format!("**/{}", g), &self.lower_rel)
+                    || glob_match(&format!("**/{g}"), &self.lower_rel)
             }
             Selector::Root(g) => glob_match(g, &self.lower_rel),
             Selector::Language(exts) => exts.contains(&self.ext.as_str()),
@@ -283,7 +283,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
                         .to_str()
                         .is_some_and(|n| SKIP_DIRS.contains(&n)))
         });
-    for entry in walker.filter_map(|e| e.ok()) {
+    for entry in walker.filter_map(std::result::Result::ok) {
         if !entry.file_type().is_file() {
             continue;
         }
@@ -321,7 +321,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
         report.files_scanned += 1;
         let info = FileInfo::new(&rel, &content);
         let lines: Vec<&str> = content.lines().collect();
-        let display = path.display().to_string();
+        let display = display_path(path);
         let mut seen: HashSet<(usize, String)> = HashSet::new();
 
         for cr in &file_rules {
@@ -357,7 +357,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
     }
 
     if is_dir && !project_rules.is_empty() {
-        let display = target.display().to_string();
+        let display = display_path(target);
         for cr in &project_rules {
             if let Some(Checker::Project(check)) = cr.checker {
                 let ctx = ProjectCtx {
@@ -381,13 +381,24 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
     Ok(report)
 }
 
+/// Chemin affiché dans les rapports : séparateur `/` sur tous les systèmes (SARIF, JSON et texte identiques
+/// sous Windows ; sous Unix, `\\` est un caractère de nom de fichier valide et reste tel quel).
+fn display_path(path: &Path) -> String {
+    let s = path.display().to_string();
+    if cfg!(windows) {
+        s.replace('\\', "/")
+    } else {
+        s
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
 
     fn rule(front: &str) -> Rule {
-        let md = format!("---\n{}\n---\n\n# Message de test\n", front);
+        let md = format!("---\n{front}\n---\n\n# Message de test\n");
         let mut r = Rule::from_markdown(Path::new("t.md"), &md).unwrap();
         r.id = format!("core/{}", r.name);
         r

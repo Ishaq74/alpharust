@@ -1,6 +1,6 @@
 """Rendu Astro : layout + composants + pages + collections de contenu (couche site-astro)."""
 import json
-from . import data as D, templates as TPL, i18n as I18N
+from . import data as D, templates as TPL
 from .ir import Astro
 from .icons import icons_json
 
@@ -21,7 +21,7 @@ SECTION_PROPS = ("import type { Section, Site } from '@lib/site';\n\ninterface P
 def locale_meta(loc):
     m = D.META[loc]
     return {'code': loc, 'name': m['name'], 'label': m['label'], 'dir': m['dir'], 'flag': f'flag-{loc}',
-            'dateLocale': m['date_intl'], 'order': m['order']}
+            'dateLocale': m['date_intl'], 'ogLocale': m['og_locale'], 'order': m['order']}
 
 def site_json():
     # Données communes ; les textes de chaque langue sont dans src/data/locales/<langue>.json (une langue = un fichier).
@@ -86,6 +86,7 @@ type Data = {
   dir: string;
   flag: string;
   dateLocale: string;
+  ogLocale: string;
   order: number;
   site: Record<string, any>;
   pages: Record<string, { url: string; title: string; description: string; sections: Section[] }>;
@@ -170,6 +171,72 @@ export async function getPosts(locale = DEFAULT_LOCALE) {
     date_iso: isoDate(e.data.pubDate),
     date_label: formatDate(e.data.pubDate, locale),
   }));
+}
+
+/** Article affiché (JSON-LD BlogPosting), mêmes champs qu'en Laravel et Wagtail. */
+export type Article = { title: string; excerpt: string; author: string; date_iso: string };
+
+/**
+ * Référencement commun aux trois frameworks (Laravel : partials/head ; Wagtail : base.html) : URL canonique absolue,
+ * alternatives hreflang (+ x-default), og:locale et JSON-LD schema.org (Organization, BlogPosting sur un article).
+ * `base` : Astro.site (astro.config `site`, ou SITE_URL au build).
+ */
+export function seo(site: Site, pathname: string, base: URL | string, article?: Article) {
+  const abs = (p: string) => new URL(p, base).href;
+  const d = data(site.locale);
+  const s = d.site;
+  const canonical = abs(href(pathname, DEFAULT_LOCALE));
+  const organization = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: s.name,
+    url: abs('/'),
+    description: s.description,
+    email: s.contact.email,
+    telephone: s.contact.phone,
+    address: s.contact.address,
+    sameAs: s.social.map((x: { url: string }) => x.url),
+  };
+  const graph: Record<string, unknown>[] = [organization];
+  if (article) {
+    graph.push({
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: article.title,
+      description: article.excerpt,
+      datePublished: article.date_iso,
+      author: { '@type': 'Person', name: article.author },
+      inLanguage: site.locale,
+      mainEntityOfPage: canonical,
+      publisher: { '@type': 'Organization', name: s.name },
+    });
+  }
+  return {
+    canonical,
+    alternates: site.multilingual
+      ? [
+          ...site.languages.map((l) => ({ hreflang: l.code, href: abs(l.url) })),
+          { hreflang: 'x-default', href: abs(href(unprefixed(pathname), DEFAULT_LOCALE)) },
+        ]
+      : [],
+    siteName: s.name,
+    ogLocale: d.ogLocale,
+    jsonLd: graph.map((g) => JSON.stringify(g).replace(/</g, '\\u003c')),
+  };
+}
+
+/** Adresses du plan du site (/sitemap.xml) : pages, services et articles de chaque langue, avec leurs alternatives. */
+export async function sitemapEntries() {
+  const keys = Object.keys(data(DEFAULT_LOCALE).pages).filter((k) => !['not_found'].includes(k));
+  const paths = new Set<string>(keys.map((k) => data(DEFAULT_LOCALE).pages[k].url));
+  for (const x of await getServices(DEFAULT_LOCALE)) paths.add(`/services/${x.slug}`);
+  for (const x of await getPosts(DEFAULT_LOCALE)) paths.add(`/blog/${x.slug}`);
+  return [...paths].flatMap((p) =>
+    locales.map((l) => ({
+      loc: href(p, l.code),
+      alternates: locales.length > 1 ? locales.map((a) => ({ hreflang: a.code, href: href(p, a.code) })) : [],
+    })),
+  );
 }
 
 /** Utilisateur connecté (Astro.locals.user avec --auth) : seuls le nom et l'e-mail servent au site. */
@@ -333,10 +400,74 @@ export function validateContact(values: Record<string, string>, locale = DEFAULT
   return errors;
 }
 
+/** Champs déclarés du formulaire seulement (comme `$request->validate()` de Laravel), 5 000 caractères au plus. */
+export function contactData(values: Record<string, string>, locale = DEFAULT_LOCALE) {
+  return Object.fromEntries(
+    data(locale).contactFields.map((f) => [f.name, (values[f.name] ?? '').trim().slice(0, 5000)]),
+  ) as Record<string, string>;
+}
+
 export const crumbs = (locale: string, ...items: [string, string][]) => [
   { label: data(locale).ui.home, url: href('/', locale) },
   ...items.map(([label, url]) => ({ label, url: href(url, locale) })),
 ];
+"""
+
+CONTACT_STORE = META + HEAD + """// Messages du formulaire de contact : enregistrés comme Laravel (table contact_messages) et Wagtail
+// (soumissions du formulaire). Avec --db : table Drizzle `contact_message` ; sinon : data/contact-messages.jsonl
+// (une ligne JSON par message, fichier local ignoré par Git).
+@@if db@@
+import { getDrizzle } from '@database/drizzle';
+import { contactMessage } from '@database/schemas';
+@@else@@
+import { appendFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+@@end@@
+
+export async function saveContactMessage(data: Record<string, string>): Promise<void> {
+@@if db@@
+  await getDrizzle().insert(contactMessage).values({ data: JSON.stringify(data) });
+@@else@@
+  const dir = join(process.cwd(), 'data');
+  await mkdir(dir, { recursive: true });
+  const line = JSON.stringify({ data, created_at: new Date().toISOString() });
+  await appendFile(join(dir, 'contact-messages.jsonl'), `${line}\\n`, 'utf8');
+@@end@@
+}
+"""
+
+ROBOTS = META + HEAD + """// robots.txt servi par le site (comme Laravel et Wagtail) : tout est indexable, plan du site en adresse absolue.
+import type { APIRoute } from 'astro';
+
+export const GET: APIRoute = ({ site, url }) => {
+  const sitemap = new URL('/sitemap.xml', site ?? url).href;
+  return new Response(`User-agent: *\\nAllow: /\\n\\nSitemap: ${sitemap}\\n`, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+};
+"""
+
+SITEMAP = META + HEAD + """// Plan du site XML (protocole sitemaps.org, alternatives hreflang xhtml:link) : mêmes adresses qu'en Laravel et Wagtail.
+import type { APIRoute } from 'astro';
+import { sitemapEntries } from '@lib/site';
+
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+export const GET: APIRoute = async ({ site, url }) => {
+  const abs = (p: string) => esc(new URL(p, site ?? url).href);
+  const body = (await sitemapEntries())
+    .map(
+      (e) =>
+        `  <url>\\n    <loc>${abs(e.loc)}</loc>\\n` +
+        e.alternates.map((a) => `    <xhtml:link rel="alternate" hreflang="${a.hreflang}" href="${abs(a.href)}"/>\\n`).join('') +
+        '  </url>\\n',
+    )
+    .join('');
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\\n${body}</urlset>\\n`,
+    { headers: { 'Content-Type': 'application/xml; charset=utf-8' } },
+  );
+};
 """
 
 def icon_component():
@@ -368,28 +499,41 @@ import '../styles/site.css';
 import SEO from '../components/SEO.astro';
 import SiteFooter from '../components/site/SiteFooter.astro';
 import SiteHeader from '../components/site/SiteHeader.astro';
-import { getSite } from '@lib/site';
+import { type Article, getSite, seo } from '@lib/site';
 
 interface Props {
   title: string;
   description?: string;
   /** Pages du site (sections pleine largeur) ; sinon le contenu est centré (catalogue, compte…). */
   bleed?: boolean;
+  /** Article (JSON-LD BlogPosting). */
+  article?: Article;
 }
 
-const { title, description, bleed = false } = Astro.props;
+const { title, description, bleed = false, article } = Astro.props;
 @@if auth@@
 // Lien « Connexion » ou « Mon compte » de l'en-tête (session lue par src/middleware.ts).
 const site = await getSite(Astro.url.pathname, Astro.locals.user);
 @@else@@
 const site = await getSite(Astro.url.pathname);
 @@end@@
+const meta = seo(site, Astro.url.pathname, Astro.site ?? Astro.url, article);
+// CSP de base, la même que Laravel et Wagtail (production seulement : le serveur de développement injecte ses scripts).
+// Balise <meta> : valable aussi pour les pages prérendues ; frame-ancestors n'y est pas permis (en-tête HTTP seulement).
+const csp = "__CSP_META__";
 ---
 
 <!doctype html>
 <html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
+    {/* SEO.astro : title, description, canonical et og:url (astro.config `site`) ; le reste est commun aux 3 frameworks. */}
+    {meta.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    <meta property="og:site_name" content={meta.siteName} />
+    <meta property="og:locale" content={meta.ogLocale} />
+    <meta name="twitter:card" content="summary" />
+    {meta.jsonLd.map((j) => <script type="application/ld+json" set:html={j} />)}
     <script is:inline>
       // Applique le thème choisi avant le premier rendu (évite le flash).
       try {
@@ -456,10 +600,11 @@ def contact_page(locale='fr'):
     return lang_meta(locale) + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
-import {{ type ContactState, getPage, getSite, validateContact }} from '@lib/site';
+import {{ type ContactState, contactData, getPage, getSite, validateContact }} from '@lib/site';
+import {{ saveContactMessage }} from '@lib/contact-store';
 
-// Rendu à la demande, même dans un site statique (adaptateur Node) : le formulaire est validé ici
-// (Astro vérifie l'origine des POST : security.checkOrigin).
+// Rendu à la demande, même dans un site statique (adaptateur Node) : le formulaire est validé puis le message
+// est enregistré (comme Laravel et Wagtail) ; Astro vérifie l'origine des POST (security.checkOrigin).
 export const prerender = false;
 
 const locale = '{locale}';
@@ -468,8 +613,13 @@ if (Astro.request.method === 'POST') {{
   const form = await Astro.request.formData();
   const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
   const errors = validateContact(values, locale);
-  state = Object.keys(errors).length ? {{ values, errors }} : {{ sent: true }};
-  if (Object.keys(errors).length) Astro.response.status = 422;
+  if (Object.keys(errors).length) {{
+    state = {{ values, errors }};
+    Astro.response.status = 422;
+  }} else {{
+    await saveContactMessage(contactData(values, locale));
+    state = {{ sent: true }};
+  }}
 }}
 const page = await getPage('contact', state, locale);
 const site = await getSite(Astro.url.pathname);
@@ -482,7 +632,6 @@ const site = await getSite(Astro.url.pathname);
 
 def detail_page(cat, kind, locale='fr'):
     """services/[slug].astro et blog/[...slug].astro : rendu serveur (ssr) ou pages statiques."""
-    coll = 'services' if kind == 'service' else 'blog'
     nodes = TPL.SERVICE_DETAIL if kind == 'service' else TPL.POST_DETAIL
     r = Astro(cat)
     body = r.nodes(nodes)
@@ -493,6 +642,7 @@ def detail_page(cat, kind, locale='fr'):
   crumbs: crumbs(locale, [site.ui.services, '/services']),
 }"""
         desc = 'item.summary'
+        article = ''
     else:
         page_expr = """{
   ...item,
@@ -500,6 +650,7 @@ def detail_page(cat, kind, locale='fr'):
   back_url: href('/blog', locale),
 }"""
         desc = 'item.excerpt'
+        article = ' article={item}'
     return lang_meta(locale) + f"""---
 {HEAD}{r.imports()}
 import {{ render }} from 'astro:content';
@@ -524,7 +675,7 @@ const site = await getSite(Astro.url.pathname);
 const page = {page_expr};
 ---
 
-<BaseLayout title={{page.title}} description={{{desc}}} bleed>
+<BaseLayout title={{page.title}} description={{{desc}}}{article} bleed>
 {body}</BaseLayout>
 """
 
@@ -727,8 +878,13 @@ def files(cat, css):
         'src/data/site.json.tpl': site_json(),
         'src/lib/site.ts.tpl': LIB,
         'src/lib/site-auth.ts.tpl': SITE_AUTH,
+        'src/lib/contact-store.ts.tpl': CONTACT_STORE,
+        'src/pages/robots.txt.ts.tpl': ROBOTS,
+        'src/pages/sitemap.xml.ts.tpl': SITEMAP,
+        # robots.txt statique de la couche astro : remplacé par la route ci-dessus (adresse absolue du plan du site).
+        'public/robots.txt.tpl': '@@meta mode=delete when=vitrine@@\n',
         'src/content.config.ts.tpl': CONTENT_CONFIG,
-        'src/layouts/BaseLayout.astro.tpl': layout(),
+        'src/layouts/BaseLayout.astro.tpl': layout().replace('__CSP_META__', D.CSP.replace("; frame-ancestors 'self'", '')),
         'src/components/site/SiteHeader.astro.tpl': comp(cat, TPL.HEADER, SITE_PROPS),
         'src/components/site/SiteFooter.astro.tpl': comp(cat, TPL.FOOTER, SITE_PROPS),
         'src/components/site/SiteIcon.astro.tpl': icon_component(),

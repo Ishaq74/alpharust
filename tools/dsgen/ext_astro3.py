@@ -1,3 +1,4 @@
+from ext_astro1 import F, HA, ICON, simple
 N = 'sheet/'
 F[N+'Sheet.astro'] = '''---
 import type { ComponentProps } from "astro/types";

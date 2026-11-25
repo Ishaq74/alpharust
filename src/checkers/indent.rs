@@ -29,8 +29,7 @@ pub fn consistency(ctx: &FileCtx) -> Vec<Finding> {
     vec![Finding::new(
         line,
         format!(
-            "indentation mixte ({} lignes à tabulations, {} à espaces) : première ligne en {}",
-            tabs, spaces, minority
+            "indentation mixte ({tabs} lignes à tabulations, {spaces} à espaces) : première ligne en {minority}"
         ),
     )]
 }

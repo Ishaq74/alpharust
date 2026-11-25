@@ -60,6 +60,20 @@
 - [x] Dates selon la langue, drapeau Circle Flags par langue
 - [x] Preuves : `site_parity.py` (35 pages × 6), `site_auth.py` (120/120), planches `docs/screenshots/phase11-*`
 
+## v0.3.0 « qualité prouvée et publiée » (ADR 0018, audit de novembre 2026)
+- [x] 19 constats de l'audit corrigés (C1–C3, I1–I8, M1–M9), détail dans `CHANGELOG.md`
+- [x] Palette par défaut unique et contraste WCAG du texte de marque ; contact Astro enregistré ; base SQLite hors Git
+- [x] SEO commun (canonical, hreflang, Open Graph, JSON-LD, robots, sitemap multilingue) vérifié par `site_parity.py`
+- [x] CSP de base identique en production ; `settings/production.py` Wagtail durci ; `ds.bundle.css`
+- [x] CI Windows, macOS, MSRV, cargo-deny ; nightly 6 combinaisons × 4 langues (parité, comptes, axe-core)
+- [x] Releases cargo-dist (binaires 3 OS, installateurs shell et PowerShell), `cargo install --git … --tag v0.3.0`
+- [x] Preuves : planches et relevés `docs/screenshots/phase12-*`
+
+## À faire
+- [ ] Publication sur crates.io (`cargo publish`) : demande le jeton du propriétaire du crate
+- [ ] Sous-commandes `generate astro|laravel|wagtail` avec leurs options propres ; retrait de `--i18n` (version majeure)
+- [ ] CSP sans `'unsafe-inline'` (nonces) quand l'admin Wagtail le permettra
+
 ## Pistes hors périmètre (idées non engagées, aucune tâche ouverte)
 - Générateur WordPress (wp-cli) — reporté, voir ADR 0012
 - Envoi d'e-mails (vérification, invitations) dans la plateforme Astro
@@ -68,4 +82,3 @@
 - Générateur Next.js (les règles `frameworks/nextjs` existent déjà)
 - Checkers JS/TS basés sur un vrai parseur (tree-sitter)
 - Mode `--fix` pour les règles à correction triviale
-- Publication du binaire (releases GitHub) et `cargo install alpharust`

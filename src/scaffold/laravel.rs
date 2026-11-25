@@ -85,8 +85,15 @@ impl Database {
             Database::Pgsql => "pgsql",
         }
     }
+    /// `postgres` (nom commun aux frameworks, comme Astro) est accepté pour `pgsql` (nom du pilote Laravel).
     pub fn parse(s: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|t| t.id() == s.to_lowercase())
+        let s = s.to_lowercase();
+        let s = if s == "postgres" {
+            "pgsql".to_string()
+        } else {
+            s
+        };
+        Self::ALL.into_iter().find(|t| t.id() == s)
     }
 }
 
@@ -455,7 +462,7 @@ mod tests {
         let layer = s.iter().find(|s| s.id == "layer").unwrap();
         match &layer.action {
             super::super::Action::Do(Internal::Layer(v)) => {
-                assert_eq!(v.last(), Some(&"laravel-starwind"))
+                assert_eq!(v.last(), Some(&"laravel-starwind"));
             }
             _ => panic!(),
         }

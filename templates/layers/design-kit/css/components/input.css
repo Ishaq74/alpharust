@@ -21,4 +21,4 @@
 [data-slot='input']:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
 [data-slot='input']:disabled { opacity: 0.5; cursor: not-allowed; }
 [data-slot='input'][aria-invalid='true'] { border-color: var(--tone-error); }
-[data-slot='input']::file-selector-button { margin-right: 1rem; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 500; }
+[data-slot='input']::file-selector-button { margin-inline-end: 1rem; padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 500; }

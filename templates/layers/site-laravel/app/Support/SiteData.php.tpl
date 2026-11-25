@@ -69,6 +69,90 @@ final class SiteData
         return self::$icons[$name] ?? null;
     }
 
+    /**
+     * Référencement commun (Astro : seo() de src/lib/site.ts ; Wagtail : layout/context_processors.py) :
+     * alternatives hreflang (+ x-default), og:locale et JSON-LD schema.org (Organization, BlogPosting sur un article).
+     *
+     * @param  array<string, mixed>|null  $article
+     * @return array{alternates: list<array{hreflang: string, href: string}>, og_locale: string, json_ld: list<string>}
+     */
+    public function seo(string $path, ?array $article = null): array
+    {
+        $s = trans('site');
+        $locale = App::getLocale();
+        $rest = self::unprefixed('/'.ltrim($path, '/'));
+        $locales = array_keys(config('site.locales'));
+        $alternates = [];
+        if (count($locales) > 1) {
+            foreach ($locales as $code) {
+                $alternates[] = ['hreflang' => $code, 'href' => url(self::href($rest, $code))];
+            }
+            $alternates[] = ['hreflang' => 'x-default', 'href' => url(self::href($rest, config('site.locale')))];
+        }
+        $graph = [[
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => $s['name'],
+            'url' => url('/'),
+            'description' => $s['description'],
+            'email' => $s['contact']['email'],
+            'telephone' => $s['contact']['phone'],
+            'address' => $s['contact']['address'],
+            'sameAs' => array_column($s['social'], 'url'),
+        ]];
+        if ($article) {
+            $graph[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'BlogPosting',
+                'headline' => $article['title'],
+                'description' => $article['excerpt'],
+                'datePublished' => $article['date_iso'],
+                'author' => ['@type' => 'Person', 'name' => $article['author']],
+                'inLanguage' => $locale,
+                'mainEntityOfPage' => url()->current(),
+                'publisher' => ['@type' => 'Organization', 'name' => $s['name']],
+            ];
+        }
+
+        return [
+            'alternates' => $alternates,
+            'og_locale' => config("site.locales.{$locale}.og", $locale),
+            'json_ld' => array_map(
+                fn (array $g) => json_encode($g, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+                $graph
+            ),
+        ];
+    }
+
+    /**
+     * Plan du site (/sitemap.xml) : pages, services et articles de chaque langue, avec leurs alternatives.
+     *
+     * @return list<array{loc: string, alternates: list<array{hreflang: string, href: string}>}>
+     */
+    public function sitemap(): array
+    {
+        $default = config('site.locale');
+        $locales = array_keys(config('site.locales'));
+        $paths = array_values(array_map(fn (array $p) => $p['url'], trans('site.pages', [], $default)));
+        foreach (Service::query()->where('locale', $default)->orderBy('position')->pluck('slug') as $slug) {
+            $paths[] = '/services/'.$slug;
+        }
+        foreach (Post::query()->where('locale', $default)->orderByDesc('published_at')->pluck('slug') as $slug) {
+            $paths[] = '/blog/'.$slug;
+        }
+        $entries = [];
+        foreach (array_unique($paths) as $p) {
+            $alternates = count($locales) > 1
+                ? array_map(fn (string $c) => ['hreflang' => $c, 'href' => url(self::href($p, $c))], $locales)
+                : [];
+            foreach ($locales as $code) {
+                $entries[] = ['loc' => url(self::href($p, $code)), 'alternates' => $alternates];
+            }
+        }
+
+        return $entries;
+    }
+
     /** @return list<array<string, mixed>> */
     public function services(): array
     {

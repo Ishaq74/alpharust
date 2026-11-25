@@ -53,12 +53,12 @@ impl Config {
     pub fn validate(&self) -> Result<()> {
         if let Some(f) = &self.fail_on {
             if !crate::parser::SEVERITIES.contains(&f.as_str()) {
-                bail!("fail_on `{}` invalide (error | warning | info)", f);
+                bail!("fail_on `{f}` invalide (error | warning | info)");
             }
         }
         for (rule, sev) in &self.severity {
             if !crate::parser::SEVERITIES.contains(&sev.as_str()) {
-                bail!("severity `{}` invalide pour la règle `{}`", sev, rule);
+                bail!("severity `{sev}` invalide pour la règle `{rule}`");
             }
         }
         Ok(())
@@ -118,8 +118,8 @@ mod tests {
     fn apply_disables_and_overrides() {
         let mk = |id: &str, name: &str| {
             Rule::from_markdown(
-                Path::new(&format!("{}.md", id)),
-                &format!("---\nname: {}\napply: \"*\"\nseverity: error\n---\n", name),
+                Path::new(&format!("{id}.md")),
+                &format!("---\nname: {name}\napply: \"*\"\nseverity: error\n---\n"),
             )
             .map(|mut r| {
                 r.id = id.to_string();

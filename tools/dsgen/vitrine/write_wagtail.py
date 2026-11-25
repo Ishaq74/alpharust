@@ -19,11 +19,19 @@ BASE = """@@meta mode=replace@@
         <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}</title>
         <meta name="description" content="{% block description %}{% if page.search_description %}{{ page.search_description }}{% else %}{{ site.description }}{% endif %}{% endblock %}" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+        <link rel="canonical" href="{{ seo.canonical }}" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="{% block og_title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}" />
         <meta property="og:description" content="{% if page.search_description %}{{ page.search_description }}{% else %}{{ site.description }}{% endif %}" />
-        <script>
+        {# Référencement commun aux 3 frameworks : hreflang (+ x-default), Open Graph, JSON-LD (layout/context_processors.py). #}
+        {% for alt in seo.alternates %}<link rel="alternate" hreflang="{{ alt.hreflang }}" href="{{ alt.href }}" />
+        {% endfor %}<meta property="og:url" content="{{ seo.canonical }}" />
+        <meta property="og:site_name" content="{{ site.name }}" />
+        <meta property="og:locale" content="{{ seo.og_locale }}" />
+        <meta name="twitter:card" content="summary" />
+        <script type="application/ld+json">{{ seo.organization }}</script>
+        {% if page.json_ld %}<script type="application/ld+json">{{ page.json_ld }}</script>
+        {% endif %}        <script>
             // Applique le thème choisi avant le premier rendu (évite le flash).
             try {
                 const saved = localStorage.getItem('theme');
@@ -239,11 +247,13 @@ Mêmes clés que src/lib/site.ts (Astro) et App\\\\Support\\\\SiteData (Laravel)
 Langues : internationalisation de Wagtail (pages et menus traduits, même ``translation_key``) ; les réglages et
 libellés d'interface passent par gettext (layout/locale/<langue>/LC_MESSAGES/django.po).
 """
+import json
 import re
 from datetime import date
 
 from django.conf import settings
 from django.utils.functional import SimpleLazyObject
+from django.utils.safestring import mark_safe
 from django.utils.translation import get_language, gettext
 from wagtail.models import Locale, Site
 
@@ -254,6 +264,8 @@ SOCIAL = [("github", "GitHub"), ("linkedin", "LinkedIn"), ("mastodon", "Mastodon
 UI = ''' + repr({k: v['fr'] for k, v in I18N.UI.items()}) + '''
 # Libellé du sélecteur et sens d'écriture de chaque langue (vitrine/locales) ; les langues servies sont settings.LANGUAGES.
 LOCALES = ''' + repr({c: {'label': m['label'], 'dir': m['dir']} for c, m in I18N.META.items()}) + '''
+# Open Graph (og:locale) de chaque langue, comme Astro (src/data/locales) et Laravel (config/site.php).
+OG_LOCALES = ''' + repr({c: m['og_locale'] for c, m in I18N.META.items()}) + '''
 
 
 def locale_code():
@@ -400,8 +412,42 @@ def account(request):
 
 
 @@end@@
+def json_ld(data):
+    """JSON-LD sûr dans <script> : < > & échappés (comme JSON_HEX_TAG côté Laravel et l'échappement d'Astro)."""
+    text = json.dumps(data, ensure_ascii=False)
+    return mark_safe(text.replace("<", "\\\\u003c").replace(">", "\\\\u003e").replace("&", "\\\\u0026"))
+
+
+def build_seo(request, site):
+    """Adresse canonique (sans paramètres), alternatives hreflang (+ x-default), og:locale, JSON-LD Organization."""
+    code = locale_code()
+    rest = unprefixed(request.path)
+    alternates = []
+    if len(settings.LANGUAGES) > 1:
+        alternates = [{"hreflang": c, "href": request.build_absolute_uri(prefix(c) + rest)} for c, _ in settings.LANGUAGES]
+        alternates.append({"hreflang": "x-default", "href": request.build_absolute_uri(prefix(settings.LANGUAGE_CODE) + rest)})
+    organization = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": site["name"],
+        "url": request.build_absolute_uri("/"),
+        "description": site["description"],
+        "email": site["contact"]["email"],
+        "telephone": site["contact"]["phone"],
+        "address": site["contact"]["address"],
+        "sameAs": [s["url"] for s in site["social"]],
+    }
+    return {
+        "canonical": request.build_absolute_uri(request.path),
+        "alternates": alternates,
+        "og_locale": OG_LOCALES.get(code, code),
+        "organization": json_ld(organization),
+    }
+
+
 def site(request):
-    return {"site": SimpleLazyObject(lambda: build_site(request))}
+    data = SimpleLazyObject(lambda: build_site(request))
+    return {"site": data, "seo": SimpleLazyObject(lambda: build_seo(request, data))}
 '''
 
 ICON_CHOICES = sorted({s['icon'] for s in D.SERVICES} | {i['icon'] for p in D.PAGES.values() for s in p['sections'] if s['type'] == 'features' for i in s['items']})
@@ -815,6 +861,24 @@ class BlogPage(Page):
     @property
     def back_url(self):
         return self.get_parent().url
+
+    @property
+    def json_ld(self):
+        """Article schema.org (BlogPosting) : mêmes champs qu'Astro et Laravel."""
+        from layout.context_processors import json_ld
+
+        site = self.get_site()
+        return json_ld({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": self.title,
+            "description": self.excerpt,
+            "datePublished": self.date_iso,
+            "author": {"@type": "Person", "name": self.author},
+            "inLanguage": self.locale.language_code,
+            "mainEntityOfPage": self.full_url,
+            "publisher": {"@type": "Organization", "name": site.site_name if site and site.site_name else "@@title@@"},
+        })
 
     def card(self):
         return {
@@ -1243,6 +1307,17 @@ class SiteTests(TestCase):
         self.assertContains(response, "Page introuvable", status_code=404)
         self.assertContains(response, "site-header", status_code=404)
 
+    def test_seo_robots_sitemap_and_structured_data(self):
+        robots = self.client.get("/robots.txt")
+        self.assertContains(robots, "Sitemap: http://testserver/sitemap.xml")
+        sitemap = self.client.get("/sitemap.xml")
+        self.assertEqual(sitemap.status_code, 200)
+        self.assertIn("/blog/choisir-son-framework/</loc>", sitemap.content.decode())
+        response = self.client.get("/blog/choisir-son-framework/?utm=x")
+        self.assertContains(response, '<link rel="canonical" href="http://testserver/blog/choisir-son-framework/" />')
+        self.assertContains(response, '"@type": "Organization"')
+        self.assertContains(response, '"@type": "BlogPosting"')
+
     def test_contact_form_validates_and_stores_submissions(self):
         response = self.client.post("/contact/", {"nom": "", "email": "x"})
         self.assertContains(response, "Ce champ est obligatoire.")
@@ -1285,6 +1360,18 @@ __SWITCH__    ]
         call_command("seed_site", stdout=StringIO())
         self.assertEqual(Page.objects.count(), before)
 ''')
+
+
+SEO_VIEWS = PYGEN + '''"""robots.txt servi par le site (comme Astro et Laravel) ; le plan du site est wagtail.contrib.sitemaps (/sitemap.xml)."""
+from django.http import HttpResponse
+from django.views.decorators.http import require_GET
+
+
+@require_GET
+def robots_txt(request):
+    sitemap = request.build_absolute_uri("/sitemap.xml")
+    return HttpResponse(f"User-agent: *\\nAllow: /\\n\\nSitemap: {sitemap}\\n", content_type="text/plain; charset=utf-8")
+'''
 
 
 AUTH_META = '@@meta when=auth@@\n'
@@ -1514,6 +1601,7 @@ def files(cat, css):
         'layout/icons.py.tpl': ICONS_PY,
         'layout/icons.json.tpl': icons_json(),
         'layout/context_processors.py.tpl': CONTEXT,
+        'layout/seo.py.tpl': SEO_VIEWS,
         'layout/migrations/__init__.py.tpl': '',
         'layout/templatetags/__init__.py.tpl': '',
         'layout/templatetags/site_tags.py.tpl': SITE_TAGS,

@@ -444,7 +444,7 @@ pub fn run(
     let cmd = command(p, task)?;
     let command_text = cmd
         .as_ref()
-        .map(|c| c.display())
+        .map(super::exec::Cmd::display)
         .unwrap_or_else(|| "alpharust lint".into());
     let info = StepInfo {
         id: task.id().to_string(),
@@ -480,7 +480,7 @@ pub fn run(
                 sink(Event::Log {
                     index: 0,
                     line: line.to_string(),
-                })
+                });
             })
             .map_err(|e| anyhow!("{} : {e}", c.program))
             .and_then(|o| {

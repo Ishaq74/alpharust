@@ -8,6 +8,18 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{ $title ? $title.' · '.$site['name'] : $site['name'] }}">
 <meta property="og:description" content="{{ $description ?: $site['description'] }}">
+{{-- Référencement commun aux 3 frameworks : hreflang (+ x-default), Open Graph, JSON-LD (SiteData::seo). --}}
+@php($seo = app(\App\Support\SiteData::class)->seo(request()->path(), $article ?? null))
+@foreach ($seo['alternates'] as $alt)
+<link rel="alternate" hreflang="{{ $alt['hreflang'] }}" href="{{ $alt['href'] }}">
+@endforeach
+<meta property="og:url" content="{{ url()->current() }}">
+<meta property="og:site_name" content="{{ $site['name'] }}">
+<meta property="og:locale" content="{{ $seo['og_locale'] }}">
+<meta name="twitter:card" content="summary">
+@foreach ($seo['json_ld'] as $json)
+<script type="application/ld+json">{!! $json !!}</script>
+@endforeach
 <script>
     // Applique le thème choisi avant le premier rendu (évite le flash).
     try {

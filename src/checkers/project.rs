@@ -68,7 +68,7 @@ pub fn file_contains(ctx: &ProjectCtx) -> Vec<Finding> {
     if matching.is_empty() {
         return vec![Finding::new(
             1,
-            message(ctx, &format!("fichier `{}` absent", file)),
+            message(ctx, &format!("fichier `{file}` absent")),
         )];
     }
     let ok = matching.iter().any(|f| {
@@ -80,10 +80,7 @@ pub fn file_contains(ctx: &ProjectCtx) -> Vec<Finding> {
     } else {
         vec![Finding::new(
             1,
-            message(
-                ctx,
-                &format!("`{}` ne contient pas l'entrée attendue", file),
-            ),
+            message(ctx, &format!("`{file}` ne contient pas l'entrée attendue")),
         )]
     }
 }
@@ -103,7 +100,7 @@ mod tests {
     }
 
     fn files(list: &[&str]) -> Vec<String> {
-        list.iter().map(|s| s.to_string()).collect()
+        list.iter().map(std::string::ToString::to_string).collect()
     }
 
     #[test]

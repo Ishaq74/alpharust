@@ -112,7 +112,7 @@ impl Rule {
         for entry in WalkDir::new(root)
             .sort_by_file_name()
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(std::result::Result::ok)
         {
             let path = entry.path();
             if !entry.file_type().is_file() || !is_rule_file(path) {
@@ -120,7 +120,7 @@ impl Rule {
             }
             match Self::from_file_in(root, path) {
                 Ok(rule) => report.rules.push(rule),
-                Err(e) => report.errors.push((path.to_path_buf(), format!("{:#}", e))),
+                Err(e) => report.errors.push((path.to_path_buf(), format!("{e:#}"))),
             }
         }
         if use_cache && report.errors.is_empty() {
@@ -148,7 +148,7 @@ impl Rule {
 
     pub fn from_markdown(path: &Path, content: &str) -> Result<Self> {
         let (front, body) = split_frontmatter(content)?;
-        let meta: RuleMeta = serde_yaml::from_str(&front)
+        let meta: RuleMeta = serde_saphyr::from_str(&front)
             .with_context(|| format!("frontmatter invalide dans {}", path.display()))?;
         let id = path
             .file_stem()
@@ -192,7 +192,7 @@ impl Rule {
         }
         if let Some(p) = &self.pattern {
             if let Err(e) = Regex::new(p) {
-                problems.push(format!("regex invalide: {}", e));
+                problems.push(format!("regex invalide: {e}"));
             }
         }
         if let Some(c) = &self.checker {

@@ -32,7 +32,7 @@ const page = {
 };
 ---
 
-<BaseLayout title={page.title} description={item.excerpt} bleed>
+<BaseLayout title={page.title} description={item.excerpt} article={item} bleed>
 <article class="site-article">
   <header class="site-page-header">
     <div class="site-container site-container--narrow">

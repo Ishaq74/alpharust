@@ -36,8 +36,7 @@ fn check_examples(rule: &Rule, report: &mut CheckReport) {
             let text = clean(bad);
             if !text.lines().any(|l| re.is_match(l)) {
                 report.problems.push(format!(
-                    "{}: l'exemple `bad` n'est pas détecté : {:?}",
-                    id, text
+                    "{id}: l'exemple `bad` n'est pas détecté : {text:?}"
                 ));
             }
         }
@@ -46,8 +45,7 @@ fn check_examples(rule: &Rule, report: &mut CheckReport) {
             let text = clean(good);
             if text.lines().any(|l| re.is_match(l)) {
                 report.problems.push(format!(
-                    "{}: l'exemple `good` est détecté à tort : {:?}",
-                    id, text
+                    "{id}: l'exemple `good` est détecté à tort : {text:?}"
                 ));
             }
         }
@@ -62,10 +60,9 @@ fn check_examples(rule: &Rule, report: &mut CheckReport) {
         for bad in &ex.bad {
             report.examples += 1;
             if run(&clean(bad)).is_empty() {
-                report.problems.push(format!(
-                    "{}: l'exemple `bad` n'est pas détecté : {:?}",
-                    id, bad
-                ));
+                report
+                    .problems
+                    .push(format!("{id}: l'exemple `bad` n'est pas détecté : {bad:?}"));
             }
         }
         for good in &ex.good {
@@ -80,8 +77,7 @@ fn check_examples(rule: &Rule, report: &mut CheckReport) {
         }
     } else {
         report.problems.push(format!(
-            "{}: `examples` n'est supporté que pour les règles regex et checkers fichier",
-            id
+            "{id}: `examples` n'est supporté que pour les règles regex et checkers fichier"
         ));
     }
 }
@@ -93,7 +89,7 @@ pub fn check_all() -> CheckReport {
         Err(e) => {
             report
                 .problems
-                .push(format!("chargement des règles impossible : {:#}", e));
+                .push(format!("chargement des règles impossible : {e:#}"));
             return report;
         }
     };
@@ -131,18 +127,15 @@ pub fn check_all() -> CheckReport {
                     Ok(p) => {
                         for pattern in p.unmatched_patterns(&loaded.rules) {
                             report.problems.push(format!(
-                                "profil {}: le motif `{}` ne correspond à aucune règle",
-                                name, pattern
+                                "profil {name}: le motif `{pattern}` ne correspond à aucune règle"
                             ));
                         }
                     }
-                    Err(e) => report.problems.push(format!("profil {}: {:#}", name, e)),
+                    Err(e) => report.problems.push(format!("profil {name}: {e:#}")),
                 }
             }
         }
-        Err(e) => report
-            .problems
-            .push(format!("profils illisibles : {:#}", e)),
+        Err(e) => report.problems.push(format!("profils illisibles : {e:#}")),
     }
     report
 }

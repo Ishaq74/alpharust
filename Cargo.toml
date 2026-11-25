@@ -1,13 +1,18 @@
 [package]
 name = "alpharust"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.89"
 resolver = "3"
 description = "AlphaRust — moteur de règles (regex + checkers sémantiques), générateurs de projets, CLI, TUI et GUI web"
 license = "MIT"
 repository = "https://github.com/Ishaq74/alpharust"
+documentation = "https://github.com/Ishaq74/alpharust/tree/main/docs"
 readme = "README.md"
+keywords = ["lint", "scaffold", "astro", "laravel", "wagtail"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
+# Paquet crates.io (`cargo install alpharust`) : code, règles, profils et couches embarquées ; ni captures ni projets générés.
+exclude = ["/sites", "/docs/screenshots", "/target", "/.github", "/todos"]
 
 [lib]
 name = "alpharust"
@@ -21,21 +26,33 @@ path = "src/main.rs"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-serde_yaml = "0.9"
 regex = "1.10"
 walkdir = "2.5"
 anyhow = "1.0"
-toml = "0.8"
-ratatui = "0.28"
-crossterm = "0.28"
-axum = "0.7"
+toml = "1"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm_0_29", "layout-cache"] }
+crossterm = "0.29"
+axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 include_dir = "0.7.4"
 dialoguer = "0.12.0"
 futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
 getrandom = "0.3"
+sha2 = "0.10"
+serde-saphyr = { version = "2.2.0", default-features = false, features = ["deserialize"] }
 
 [dev-dependencies]
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Lints pedantic ciblés (le reste de clippy::pedantic n'est pas activé : voir ADR 0018)
+[lints.clippy]
+uninlined_format_args = "warn"
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"

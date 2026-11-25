@@ -111,6 +111,9 @@ pub fn rating(ratio: f64) -> Rating {
 
 const LIGHT_TEXT: (u8, u8, u8) = (255, 255, 255);
 const DARK_TEXT: (u8, u8, u8) = (17, 24, 39); // #111827 comme themecsutomizer
+/// Surfaces les plus foncée (mode clair) et la plus claire (mode sombre) des kits : `--muted`.
+const LIGHT_SURFACE: (u8, u8, u8) = (236, 238, 245);
+const DARK_SURFACE: (u8, u8, u8) = (34, 38, 53);
 
 /// Texte (blanc ou #111827) le plus lisible sur ce fond.
 pub fn accessible_text(bg: (u8, u8, u8)) -> (u8, u8, u8) {
@@ -231,8 +234,13 @@ impl ThemeColors {
                 c.rating.label()
             ));
         }
+        let (light_text, dark_text) = self.primary_text()?;
+        out.push_str(&format!(
+            "  --{prefix}-primary-text: {light_text}; /* texte de marque lisible sur les surfaces claires (≥ 4.5:1) */\n"
+        ));
         out.push_str("}\n\n");
         out.push_str(":root[data-theme='dark'],\n.dark {\n");
+        out.push_str(&format!("  --{prefix}-primary-text: {dark_text};\n"));
         for c in &r {
             out.push_str(&format!("  --{prefix}-{}: {};\n", c.name, c.dark_hex));
         }
@@ -245,6 +253,18 @@ impl ThemeColors {
         }
         out.push_str("}\n");
         Ok(out)
+    }
+
+    /// Couleur primaire employée comme TEXTE (sur-titres, chiffres, icônes) : assombrie (mode clair) ou éclaircie
+    /// (mode sombre) jusqu'à 4.5:1 contre la surface la plus contrastée du kit (`--muted` clair `#eceef5`,
+    /// `--muted` sombre `#222635`), comme l'exige le critère WCAG 1.4.3.
+    pub fn primary_text(&self) -> Result<(String, String)> {
+        let Some(rgb) = parse_hex(&self.primary) else {
+            bail!("couleur `primary` invalide : `{}`", self.primary);
+        };
+        let light = ensure_contrast(rgb, LIGHT_SURFACE, 4.5, DARK_TEXT);
+        let dark = ensure_contrast(rgb, DARK_SURFACE, 4.5, LIGHT_TEXT);
+        Ok((to_hex(light), to_hex(dark)))
     }
 
     /// Résumé lisible pour le journal.
@@ -321,6 +341,29 @@ mod tests {
             ..Default::default()
         };
         assert!(bad.css("color").is_err());
+    }
+
+    #[test]
+    fn brand_text_reaches_aa_on_light_and_dark_surfaces_even_for_yellow() {
+        for primary in [DEFAULT_PRIMARY, "#ffb900", "#eab308", "#1e1b4b"] {
+            let t = ThemeColors {
+                primary: primary.into(),
+                ..Default::default()
+            };
+            let (light, dark) = t.primary_text().unwrap();
+            assert!(
+                contrast(parse_hex(&light).unwrap(), LIGHT_SURFACE) >= 4.5,
+                "{primary} {light}"
+            );
+            assert!(contrast(parse_hex(&light).unwrap(), (255, 255, 255)) >= 4.5);
+            assert!(
+                contrast(parse_hex(&dark).unwrap(), DARK_SURFACE) >= 4.5,
+                "{primary} {dark}"
+            );
+            let css = t.css("brand").unwrap();
+            assert!(css.contains(&format!("--brand-primary-text: {light};")));
+            assert!(css.contains(&format!("--brand-primary-text: {dark};")));
+        }
     }
 
     #[test]

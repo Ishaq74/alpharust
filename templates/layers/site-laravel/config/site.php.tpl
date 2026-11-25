@@ -14,6 +14,7 @@ return [
             'label' => 'FR',
             'dir' => 'ltr',
             'date' => 'j F Y',
+            'og' => 'fr_FR',
         ],
 @@if lang_en@@
         'en' => [
@@ -21,6 +22,7 @@ return [
             'label' => 'EN',
             'dir' => 'ltr',
             'date' => 'F j, Y',
+            'og' => 'en_US',
         ],
 @@end@@
 @@if lang_es@@
@@ -29,6 +31,7 @@ return [
             'label' => 'ES',
             'dir' => 'ltr',
             'date' => 'j \\d\\e F \\d\\e Y',
+            'og' => 'es_ES',
         ],
 @@end@@
 @@if lang_ar@@
@@ -37,6 +40,7 @@ return [
             'label' => 'AR',
             'dir' => 'rtl',
             'date' => 'j F Y',
+            'og' => 'ar_AR',
         ],
 @@end@@
     ],

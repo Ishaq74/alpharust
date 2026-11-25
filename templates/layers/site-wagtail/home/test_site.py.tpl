@@ -50,6 +50,17 @@ class SiteTests(TestCase):
         self.assertContains(response, "Page introuvable", status_code=404)
         self.assertContains(response, "site-header", status_code=404)
 
+    def test_seo_robots_sitemap_and_structured_data(self):
+        robots = self.client.get("/robots.txt")
+        self.assertContains(robots, "Sitemap: http://testserver/sitemap.xml")
+        sitemap = self.client.get("/sitemap.xml")
+        self.assertEqual(sitemap.status_code, 200)
+        self.assertIn("/blog/choisir-son-framework/</loc>", sitemap.content.decode())
+        response = self.client.get("/blog/choisir-son-framework/?utm=x")
+        self.assertContains(response, '<link rel="canonical" href="http://testserver/blog/choisir-son-framework/" />')
+        self.assertContains(response, '"@type": "Organization"')
+        self.assertContains(response, '"@type": "BlogPosting"')
+
     def test_contact_form_validates_and_stores_submissions(self):
         response = self.client.post("/contact/", {"nom": "", "email": "x"})
         self.assertContains(response, "Ce champ est obligatoire.")

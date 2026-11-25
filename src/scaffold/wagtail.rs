@@ -146,13 +146,13 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         "-m".to_string(),
         "pip".into(),
         "install".into(),
-        "wagtail".into(),
+        super::pins::WAGTAIL_PIP.into(),
     ];
     pip.extend(o.packages.iter().cloned());
     steps.push(Step::run(
         "pip-wagtail",
         Phase::Install,
-        "Installer Wagtail (pip install wagtail)",
+        "Installer Wagtail (pip install \"wagtail>=8.1,<8.2\")",
         Cmd::owned(&py, pip, Cwd::Project),
     ));
     steps.push(Step::run(
@@ -227,6 +227,14 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
             Internal::WagtailDesign(o.starwind, super::site::codes(&o.langs)),
         ));
+        if !o.starwind {
+            steps.push(Step::run(
+                "ds-bundle",
+                Phase::Configure,
+                "Regrouper le kit CSS en une feuille (manage.py ds_bundle → ds/static/ds/css/ds.bundle.css)",
+                Cmd::new(&py, &["manage.py", "ds_bundle"], Cwd::Project),
+            ));
+        }
         steps.push(Step::internal(
             "compilemessages",
             Phase::Configure,

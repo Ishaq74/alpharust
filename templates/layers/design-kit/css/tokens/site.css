@@ -10,7 +10,7 @@
   --text: var(--foreground);
   --text-muted: var(--muted-foreground);
   --brand: var(--primary);
-  --brand-text: var(--primary);
+  --brand-text: var(--brand-primary-text, var(--primary)); /* texte de marque lisible (themes/theme.css, WCAG) */
   --brand-contrast: var(--primary-foreground);
   --focus: var(--outline);
 

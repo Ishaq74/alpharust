@@ -11,7 +11,7 @@ Tailwind v4 compile ensuite cette feuille : `@tailwindcss/vite` côté Laravel (
 de Tailwind côté Wagtail (doc Tailwind « Standalone CLI »). Exclus : les classes de tw-animate-css (animations
 d'ouverture) et les marqueurs `group`/`peer` sans utilitaire (voir DROP).
 """
-import json, os, re
+import json, re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]

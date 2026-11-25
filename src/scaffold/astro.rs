@@ -1,6 +1,7 @@
 //! Astro : `create-astro` officiel, `astro add` pour les intégrations, puis couche AlphaRust.
 
 use super::exec::{Cmd, Cwd};
+use super::pins;
 use super::platform::{self, Db, UiKit};
 use super::theme::{self, ThemeColors};
 use super::tools::{self, ToolStatus};
@@ -61,21 +62,27 @@ impl PackageManager {
         }
     }
 
-    /// `<pm> create astro@latest <dir> <flags…>` (chaque gestionnaire a sa syntaxe de passage d'arguments).
+    /// `<pm> create astro@<version épinglée> <dir> <flags…>` (chaque gestionnaire a sa syntaxe de passage d'arguments ;
+    /// `yarn create astro` résout lui-même `create-astro`).
     fn create(self, folder: &str, flags: Vec<String>) -> Cmd {
         let mut args: Vec<String> = Vec::new();
         match self {
             PackageManager::Npm => {
-                args.extend(["create", "astro@latest", folder, "--"].map(String::from));
+                args.extend([
+                    "create".into(),
+                    pins::create_astro(),
+                    folder.into(),
+                    "--".into(),
+                ]);
             }
             PackageManager::Pnpm => {
-                args.extend(["create", "astro@latest", folder].map(String::from));
+                args.extend(["create".into(), pins::create_astro(), folder.into()]);
             }
             PackageManager::Yarn => {
                 args.extend(["create", "astro", folder].map(String::from));
             }
             PackageManager::Bun => {
-                args.extend(["create", "astro@latest", folder].map(String::from));
+                args.extend(["create".into(), pins::create_astro(), folder.into()]);
             }
         }
         args.extend(flags);
@@ -102,7 +109,7 @@ impl PackageManager {
                 vec!["add".into(), "-D".into()]
             }
         };
-        args.extend(pkgs.iter().map(|s| s.to_string()));
+        args.extend(pkgs.iter().map(std::string::ToString::to_string));
         Cmd::owned(self.id(), args, Cwd::Project)
     }
 
@@ -450,7 +457,7 @@ impl AstroOptions {
         let mut seen = std::collections::BTreeSet::new();
         for i in &self.integrations {
             if !seen.insert(i) {
-                bail!("intégration `{}` en double", i);
+                bail!("intégration `{i}` en double");
             }
         }
         let ui: Vec<&String> = self
@@ -703,6 +710,22 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         &format!("TypeScript : preset astro/tsconfigs/{}", o.typescript.id()),
         Internal::AstroTsconfig(o.typescript),
     ));
+    if pm == PackageManager::Npm {
+        // npm 11.16+ avertit, npm 12 bloque : scripts d'installation approuvés avant les `npm install` suivants
+        let mut pkgs = vec!["esbuild"];
+        if o.database == Db::Sqlite {
+            pkgs.push("better-sqlite3");
+        }
+        steps.push(Step::internal(
+            "allow-scripts",
+            Phase::Configure,
+            &format!(
+                "Autoriser les scripts d'installation de {} (allowScripts, npm 12)",
+                pkgs.join(", ")
+            ),
+            Internal::NpmAllowScripts(pkgs),
+        ));
+    }
 
     let to_add = o.astro_add_list();
     if !to_add.is_empty() && req.install {
@@ -714,11 +737,21 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         ));
     }
     if o.typecheck && req.install {
+        // Site vitrine : `process.env` (astro.config) et `node:fs` (contact sans base) demandent les types Node,
+        // comme l'indique `astro check` (ts 2591 : « install type definitions for node »).
+        let mut dev = vec!["@astrojs/check", TYPESCRIPT_SPEC];
+        if o.vitrine() {
+            dev.push("@types/node");
+        }
         steps.push(Step::run(
             "typecheck-deps",
             Phase::Install,
-            "Installer @astrojs/check et typescript 6",
-            pm.add_dev(&["@astrojs/check", TYPESCRIPT_SPEC]),
+            if o.vitrine() {
+                "Installer @astrojs/check, typescript 6 et @types/node"
+            } else {
+                "Installer @astrojs/check et typescript 6"
+            },
+            pm.add_dev(&dev),
         ));
     }
 
@@ -728,7 +761,10 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "starwind-init",
             Phase::Install,
             "Initialiser Starwind UI (starwind init)",
-            pm.dlx("starwind@latest", &["init".into(), "--defaults".into()]),
+            pm.dlx(
+                &format!("starwind@{}", pins::STARWIND_CLI),
+                &["init".into(), "--defaults".into()],
+            ),
         ));
         steps.push(Step::internal(
             "starwind-config",
@@ -916,7 +952,7 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             Phase::Install,
             "Générer le schéma Better Auth (auth generate → Drizzle)",
             pm.dlx(
-                "auth@latest",
+                &format!("auth@{}", pins::BETTER_AUTH_CLI),
                 &[
                     "generate".into(),
                     "--adapter".into(),
@@ -1051,6 +1087,7 @@ mod tests {
                 "prepare",
                 "create",
                 "tsconfig",
+                "allow-scripts",
                 "typecheck-deps",
                 "scripts",
                 "layer",
@@ -1066,7 +1103,7 @@ mod tests {
         assert_eq!(c.program, "npm");
         assert_eq!(
             c.args.join(" "),
-            "create astro@latest demo -- --template minimal --install --no-git --no-ai --yes --skip-houston"
+            "create astro@5.3.2 demo -- --template minimal --install --no-git --no-ai --yes --skip-houston"
         );
         assert_eq!(c.cwd, Cwd::Parent);
         assert_eq!(cmd_of(&s, "build").display(), "npm run build");
@@ -1081,7 +1118,7 @@ mod tests {
         let s = steps_for(&r);
         assert_eq!(
             cmd_of(&s, "create").display(),
-            "pnpm create astro@latest demo --template minimal --install --no-git --no-ai --yes --skip-houston"
+            "pnpm create astro@5.3.2 demo --template minimal --install --no-git --no-ai --yes --skip-houston"
         );
         assert_eq!(
             cmd_of(&s, "integrations").display(),
@@ -1208,10 +1245,10 @@ mod tests {
         let s = steps_for(&r);
         assert!(cmd_of(&s, "starwind-init")
             .display()
-            .contains("starwind@latest init --defaults"));
+            .contains("starwind@3.6.0 init --defaults"));
         assert!(cmd_of(&s, "auth-schema")
             .display()
-            .contains("auth@latest generate --adapter drizzle --dialect sqlite"));
+            .contains("auth@1.7.28 generate --adapter drizzle --dialect sqlite"));
     }
 
     #[test]

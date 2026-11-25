@@ -14,14 +14,16 @@ ds/                              # application Django « ds » (INSTALLED_APPS)
 └── static/ds/
     ├── css/
     │   ├── index.css            # importe jetons, thème, base et composants (ordre fixe)
+    │   ├── ds.bundle.css        # index.css regroupé en une feuille (manage.py ds_bundle), chargé par base.html
     │   ├── tokens/              # colors, typography, spacing, components, site
     │   ├── themes/theme.css     # palette de marque (à remplir ou générer)
     │   └── components/*.css     # un fichier par composant ; custom.css = vos surcharges (chargé en dernier)
     └── js/ds.js                 # onglets, dialogue, accordéon, interrupteur, info-bulle (HTML natif + ARIA)
 ```
 
-`base.html` charge `{% static 'ds/css/index.css' %}` et `{% static 'ds/js/ds.js' %}` ; Wagtail n'a donc besoin d'aucun outil de
-build : ce sont de simples fichiers statiques (Tailwind n'est pas utilisé ici).
+`base.html` charge `{% static 'ds/css/ds.bundle.css' %}` (le kit regroupé : une requête au lieu de 55), puis
+`{% static 'ds/css/components/custom.css' %}` (vos surcharges) et `{% static 'ds/js/ds.js' %}`. Wagtail n'a besoin d'aucun outil
+de build : après une modification du kit ou de la palette, relancez `python manage.py ds_bundle` (commande de l'application `ds`).
 
 ## Utiliser un composant
 

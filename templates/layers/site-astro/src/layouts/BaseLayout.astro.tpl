@@ -8,28 +8,41 @@ import '../styles/site.css';
 import SEO from '../components/SEO.astro';
 import SiteFooter from '../components/site/SiteFooter.astro';
 import SiteHeader from '../components/site/SiteHeader.astro';
-import { getSite } from '@lib/site';
+import { type Article, getSite, seo } from '@lib/site';
 
 interface Props {
   title: string;
   description?: string;
   /** Pages du site (sections pleine largeur) ; sinon le contenu est centré (catalogue, compte…). */
   bleed?: boolean;
+  /** Article (JSON-LD BlogPosting). */
+  article?: Article;
 }
 
-const { title, description, bleed = false } = Astro.props;
+const { title, description, bleed = false, article } = Astro.props;
 @@if auth@@
 // Lien « Connexion » ou « Mon compte » de l'en-tête (session lue par src/middleware.ts).
 const site = await getSite(Astro.url.pathname, Astro.locals.user);
 @@else@@
 const site = await getSite(Astro.url.pathname);
 @@end@@
+const meta = seo(site, Astro.url.pathname, Astro.site ?? Astro.url, article);
+// CSP de base, la même que Laravel et Wagtail (production seulement : le serveur de développement injecte ses scripts).
+// Balise <meta> : valable aussi pour les pages prérendues ; frame-ancestors n'y est pas permis (en-tête HTTP seulement).
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
 ---
 
 <!doctype html>
 <html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
+    {/* SEO.astro : title, description, canonical et og:url (astro.config `site`) ; le reste est commun aux 3 frameworks. */}
+    {meta.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    <meta property="og:site_name" content={meta.siteName} />
+    <meta property="og:locale" content={meta.ogLocale} />
+    <meta name="twitter:card" content="summary" />
+    {meta.jsonLd.map((j) => <script type="application/ld+json" set:html={j} />)}
     <script is:inline>
       // Applique le thème choisi avant le premier rendu (évite le flash).
       try {

@@ -6,6 +6,7 @@
   "dir": "ltr",
   "flag": "flag-en",
   "dateLocale": "en-US",
+  "ogLocale": "en_US",
   "order": 2,
   "site": {
     "name": "@@title@@",

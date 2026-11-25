@@ -1,6 +1,6 @@
 """Rendu Laravel : layout (composant anonyme, comme manecms) + partials + routes/contrôleurs + modèles/migrations/seeder."""
 import os
-from . import data as D, templates as TPL, i18n as I18N
+from . import data as D, templates as TPL
 from .ir import Blade
 from .icons import icons_json
 
@@ -31,7 +31,7 @@ def locales_php(ind):
     out = []
     for loc in D.LOCALES:
         m = D.META[loc]
-        entry = {'name': m['name'], 'label': m['label'], 'dir': m['dir'], 'date': m['date_php']}
+        entry = {'name': m['name'], 'label': m['label'], 'dir': m['dir'], 'date': m['date_php'], 'og': m['og_locale']}
         line = '    ' * ind + f"'{loc}' => {php(entry, ind)},\n"
         cond = lang_cond(loc)
         out.append(line if not cond else f'@@if {cond}@@\n{line}@@end@@\n')
@@ -65,11 +65,11 @@ ICON = (GEN + "{{-- Icônes du site : resources/data/icons.json (MDI par défaut
         "fill=\"currentColor\" aria-hidden=\"true\" class=\"site-icon\" data-icon=\"{{ $name }}\">{!! $icon['body'] !!}</svg>\n@endif\n")
 
 LAYOUT = GEN + """{{-- Gabarit commun du site (modèle manecms : composant « shell » + partials head/header/footer). --}}
-@props(['title' => null, 'description' => null])
+@props(['title' => null, 'description' => null, 'article' => null])
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $site['dir'] }}">
 <head>
-    @include('site.partials.head', ['title' => $title, 'description' => $description])
+    @include('site.partials.head', ['title' => $title, 'description' => $description, 'article' => $article])
 </head>
 <body class="site-body">
     <a class="site-skip" href="#contenu">{{ $site['ui']['skip'] }}</a>
@@ -91,6 +91,18 @@ HEAD = GEN + """<meta charset="utf-8">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{{ $title ? $title.' · '.$site['name'] : $site['name'] }}">
 <meta property="og:description" content="{{ $description ?: $site['description'] }}">
+{{-- Référencement commun aux 3 frameworks : hreflang (+ x-default), Open Graph, JSON-LD (SiteData::seo). --}}
+@php($seo = app(\\App\\Support\\SiteData::class)->seo(request()->path(), $article ?? null))
+@foreach ($seo['alternates'] as $alt)
+<link rel="alternate" hreflang="{{ $alt['hreflang'] }}" href="{{ $alt['href'] }}">
+@endforeach
+<meta property="og:url" content="{{ url()->current() }}">
+<meta property="og:site_name" content="{{ $site['name'] }}">
+<meta property="og:locale" content="{{ $seo['og_locale'] }}">
+<meta name="twitter:card" content="summary">
+@foreach ($seo['json_ld'] as $json)
+<script type="application/ld+json">{!! $json !!}</script>
+@endforeach
 <script>
     // Applique le thème choisi avant le premier rendu (évite le flash).
     try {
@@ -113,8 +125,9 @@ def page_view():
 </x-layouts.site>
 """
 
-def detail_view(cat, nodes):
-    return GEN + "<x-layouts.site :title=\"$page['title']\" :description=\"$page['description']\">\n" + Blade(cat).nodes(nodes, 1) + "</x-layouts.site>\n"
+def detail_view(cat, nodes, article=False):
+    extra = ' :article="$page"' if article else ''
+    return GEN + "<x-layouts.site :title=\"$page['title']\" :description=\"$page['description']\"" + extra + ">\n" + Blade(cat).nodes(nodes, 1) + "</x-layouts.site>\n"
 
 def not_found(cat):
     return GEN + '<x-layouts.site :title="$site[\'ui\'][\'not_found\']">\n' + Blade(cat).nodes(TPL.NOT_FOUND, 1) + '</x-layouts.site>\n'
@@ -188,6 +201,90 @@ final class SiteData
         self::$icons ??= json_decode((string) file_get_contents(resource_path('data/icons.json')), true)['icons'];
 
         return self::$icons[$name] ?? null;
+    }
+
+    /**
+     * Référencement commun (Astro : seo() de src/lib/site.ts ; Wagtail : layout/context_processors.py) :
+     * alternatives hreflang (+ x-default), og:locale et JSON-LD schema.org (Organization, BlogPosting sur un article).
+     *
+     * @param  array<string, mixed>|null  $article
+     * @return array{alternates: list<array{hreflang: string, href: string}>, og_locale: string, json_ld: list<string>}
+     */
+    public function seo(string $path, ?array $article = null): array
+    {
+        $s = trans('site');
+        $locale = App::getLocale();
+        $rest = self::unprefixed('/'.ltrim($path, '/'));
+        $locales = array_keys(config('site.locales'));
+        $alternates = [];
+        if (count($locales) > 1) {
+            foreach ($locales as $code) {
+                $alternates[] = ['hreflang' => $code, 'href' => url(self::href($rest, $code))];
+            }
+            $alternates[] = ['hreflang' => 'x-default', 'href' => url(self::href($rest, config('site.locale')))];
+        }
+        $graph = [[
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => $s['name'],
+            'url' => url('/'),
+            'description' => $s['description'],
+            'email' => $s['contact']['email'],
+            'telephone' => $s['contact']['phone'],
+            'address' => $s['contact']['address'],
+            'sameAs' => array_column($s['social'], 'url'),
+        ]];
+        if ($article) {
+            $graph[] = [
+                '@context' => 'https://schema.org',
+                '@type' => 'BlogPosting',
+                'headline' => $article['title'],
+                'description' => $article['excerpt'],
+                'datePublished' => $article['date_iso'],
+                'author' => ['@type' => 'Person', 'name' => $article['author']],
+                'inLanguage' => $locale,
+                'mainEntityOfPage' => url()->current(),
+                'publisher' => ['@type' => 'Organization', 'name' => $s['name']],
+            ];
+        }
+
+        return [
+            'alternates' => $alternates,
+            'og_locale' => config("site.locales.{$locale}.og", $locale),
+            'json_ld' => array_map(
+                fn (array $g) => json_encode($g, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG),
+                $graph
+            ),
+        ];
+    }
+
+    /**
+     * Plan du site (/sitemap.xml) : pages, services et articles de chaque langue, avec leurs alternatives.
+     *
+     * @return list<array{loc: string, alternates: list<array{hreflang: string, href: string}>}>
+     */
+    public function sitemap(): array
+    {
+        $default = config('site.locale');
+        $locales = array_keys(config('site.locales'));
+        $paths = array_values(array_map(fn (array $p) => $p['url'], trans('site.pages', [], $default)));
+        foreach (Service::query()->where('locale', $default)->orderBy('position')->pluck('slug') as $slug) {
+            $paths[] = '/services/'.$slug;
+        }
+        foreach (Post::query()->where('locale', $default)->orderByDesc('published_at')->pluck('slug') as $slug) {
+            $paths[] = '/blog/'.$slug;
+        }
+        $entries = [];
+        foreach (array_unique($paths) as $p) {
+            $alternates = count($locales) > 1
+                ? array_map(fn (string $c) => ['hreflang' => $c, 'href' => url(self::href($p, $c))], $locales)
+                : [];
+            foreach ($locales as $code) {
+                $entries[] = ['loc' => url(self::href($p, $code)), 'alternates' => $alternates];
+            }
+        }
+
+        return $entries;
     }
 
     /** @return list<array<string, mixed>> */
@@ -757,6 +854,7 @@ use App\\Http\\Controllers\\AccountController;
 @@end@@
 use App\\Http\\Controllers\\BlogController;
 use App\\Http\\Controllers\\ContactController;
+use App\\Http\\Controllers\\SeoController;
 use App\\Http\\Controllers\\ServiceController;
 use App\\Http\\Controllers\\SiteController;
 use Illuminate\\Support\\Facades\\Route;
@@ -787,6 +885,10 @@ foreach (array_keys(config('site.locales')) as $locale) {
 @@end@@
         });
 }
+
+// Référencement : robots.txt et plan du site XML (mêmes adresses qu'Astro et Wagtail).
+Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 
 require __DIR__.'/pages.php';
 """
@@ -856,6 +958,29 @@ class SiteTest extends TestCase
             ->assertSee('data-slot="theme-toggle"', false)
             ->assertSee('data-slot="sheet-content"', false)
             ->assertSee('<footer class="site-footer">', false);
+    }
+
+    public function test_security_headers_and_csp_in_production(): void
+    {
+        $this->get('/')->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeaderMissing('Content-Security-Policy');
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->get('/')->assertHeader('Content-Security-Policy', \\App\\Http\\Middleware\\SecurityHeaders::CSP);
+    }
+
+    public function test_seo_robots_sitemap_and_structured_data(): void
+    {
+        $this->get('/robots.txt')
+            ->assertOk()
+            ->assertSee('Sitemap: '.url('/sitemap.xml'), false);
+        $this->get('/sitemap.xml')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/xml; charset=utf-8')
+            ->assertSee('<loc>'.url('/blog/choisir-son-framework').'</loc>', false);
+        $this->get('/blog/choisir-son-framework')
+            ->assertOk()
+            ->assertSee('<link rel="canonical" href="'.url('/blog/choisir-son-framework').'">', false)
+            ->assertSee('"@type":"Organization"', false)
+            ->assertSee('"@type":"BlogPosting"', false);
     }
 
 @@if multilingual@@
@@ -1192,12 +1317,81 @@ class ExampleTest extends TestCase
 }
 """
 
+SECURITY_HEADERS = """<?php
+
+namespace App\\Http\\Middleware;
+
+use Closure;
+use Illuminate\\Http\\Request;
+use Symfony\\Component\\HttpFoundation\\Response;
+
+/**
+ * En-têtes de sécurité du site, comme Astro (src/middleware.ts) et Wagtail (settings/production.py).
+ * Branché sur le groupe web par bootstrap/app.php (`$middleware->web(append: [...])`).
+ * La CSP n'est envoyée qu'en production : le serveur Vite de développement (npm run dev) sert depuis un autre port.
+ */
+class SecurityHeaders
+{
+    public const CSP = "__CSP__";
+
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Referrer-Policy', 'same-origin');
+        if (app()->isProduction()) {
+            $response->headers->set('Content-Security-Policy', self::CSP);
+        }
+
+        return $response;
+    }
+}
+""".replace('__CSP__', D.CSP)
+
+SEO_CONTROLLER = """<?php
+
+namespace App\\Http\\Controllers;
+
+use App\\Support\\SiteData;
+use Illuminate\\Http\\Response;
+
+/** robots.txt et sitemap.xml (protocole sitemaps.org, alternatives hreflang), comme Astro et Wagtail. */
+class SeoController extends Controller
+{
+    public function robots(): Response
+    {
+        return response("User-agent: *\\nAllow: /\\n\\nSitemap: ".url('/sitemap.xml')."\\n", 200)
+            ->header('Content-Type', 'text/plain; charset=utf-8');
+    }
+
+    public function sitemap(SiteData $data): Response
+    {
+        return response()->view('site.sitemap', ['entries' => $data->sitemap()])
+            ->header('Content-Type', 'application/xml; charset=utf-8');
+    }
+}
+"""
+
+SITEMAP_VIEW = """{!! '<' . '?xml version="1.0" encoding="UTF-8"?' . '>' !!}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+@foreach ($entries as $e)
+  <url>
+    <loc>{{ $e['loc'] }}</loc>
+@foreach ($e['alternates'] as $a)
+    <xhtml:link rel="alternate" hreflang="{{ $a['hreflang'] }}" href="{{ $a['href'] }}"/>
+@endforeach
+  </url>
+@endforeach
+</urlset>
+"""
+
 def files(cat, css):
     gen = '@@meta when=ui@@\n'
     out = {
         'config/site.php.tpl': config(),
         'app/Support/SiteData.php.tpl': SITE_DATA,
         'app/Http/Middleware/SetSiteLocale.php.tpl': MIDDLEWARE,
+        'app/Http/Middleware/SecurityHeaders.php.tpl': SECURITY_HEADERS,
         'app/View/Composers/SiteComposer.php.tpl': COMPOSER,
         'app/Providers/SiteServiceProvider.php.tpl': PROVIDER,
         'bootstrap/providers.php.tpl': PROVIDERS,
@@ -1212,7 +1406,11 @@ def files(cat, css):
         'resources/views/site/partials/footer.blade.php.tpl': GEN + Blade(cat).nodes(TPL.FOOTER),
         'resources/views/site/page.blade.php.tpl': page_view(),
         'resources/views/site/service.blade.php.tpl': detail_view(cat, TPL.SERVICE_DETAIL),
-        'resources/views/site/post.blade.php.tpl': detail_view(cat, TPL.POST_DETAIL),
+        'resources/views/site/post.blade.php.tpl': detail_view(cat, TPL.POST_DETAIL, article=True),
+        'app/Http/Controllers/SeoController.php.tpl': SEO_CONTROLLER,
+        'resources/views/site/sitemap.blade.php.tpl': SITEMAP_VIEW,
+        # robots.txt statique de Laravel : remplacé par la route /robots.txt (adresse absolue du plan du site).
+        'public/robots.txt.tpl': '@@meta mode=delete@@\n',
         'resources/views/errors/404.blade.php.tpl': not_found(cat),
         'resources/css/site.css.tpl': css,
         'resources/data/icons.json.tpl': icons_json(),

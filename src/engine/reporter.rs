@@ -28,8 +28,7 @@ pub fn render(violations: &[Violation]) -> String {
         ));
     }
     out.push_str(&format!(
-        "\n{} error(s), {} warning(s), {} info(s)\n",
-        errors, warnings, infos
+        "\n{errors} error(s), {warnings} warning(s), {infos} info(s)\n"
     ));
     out
 }

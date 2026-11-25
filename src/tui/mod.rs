@@ -202,11 +202,11 @@ impl App {
             }
             KeyCode::PageDown => {
                 self.follow = false;
-                self.scroll = self.scroll.saturating_add(8)
+                self.scroll = self.scroll.saturating_add(8);
             }
             KeyCode::PageUp => {
                 self.follow = false;
-                self.scroll = self.scroll.saturating_sub(8)
+                self.scroll = self.scroll.saturating_sub(8);
             }
             KeyCode::Char('p') => self.cycle_profile(),
             KeyCode::Enter => self.activate(MENU[self.selected].1),
@@ -248,7 +248,7 @@ impl App {
             Action::ListCheckers => {
                 let mut out = vec![line("Checkers sémantiques", Level::Title)];
                 for (n, d) in crate::checkers::catalog() {
-                    out.push(line(format!("{:<20} {}", n, d), Level::Normal));
+                    out.push(line(format!("{n:<20} {d}"), Level::Normal));
                 }
                 self.status = format!("{} checkers", out.len() - 1);
                 self.set_output(out);
@@ -267,7 +267,7 @@ impl App {
                         report
                             .profile
                             .as_ref()
-                            .map(|p| format!(", profil {}", p))
+                            .map(|p| format!(", profil {p}"))
                             .unwrap_or_default()
                     ),
                     Level::Title,
@@ -295,7 +295,7 @@ impl App {
             }
             Err(e) => {
                 self.status = "Lint en échec".into();
-                self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]);
+                self.set_output(vec![line(format!("✗ {e:#}"), Level::Error)]);
             }
         }
     }
@@ -396,7 +396,7 @@ impl App {
         let req = Request::new(kind, name);
         if let Err(e) = req.validate() {
             self.status = "Génération en échec".into();
-            self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]);
+            self.set_output(vec![line(format!("✗ {e:#}"), Level::Error)]);
             return;
         }
         let (tx, rx) = mpsc::channel();
@@ -475,11 +475,11 @@ impl App {
                     Level::Title,
                 ));
                 if let Some(c) = command {
-                    self.output.push(line(format!("  $ {}", c), Level::Info));
+                    self.output.push(line(format!("  $ {c}"), Level::Info));
                 }
             }
             ScEvent::Log { line: l, .. } => {
-                self.output.push(line(format!("  │ {}", l), Level::Normal));
+                self.output.push(line(format!("  │ {l}"), Level::Normal));
             }
             ScEvent::StepEnd {
                 ok,
@@ -509,13 +509,12 @@ impl App {
                 self.status = format!("Projet prêt : {}", report.target);
                 self.output.push(line(report.summary(), Level::Ok));
                 for s in &report.next_steps {
-                    self.output.push(line(format!("  {}", s), Level::Info));
+                    self.output.push(line(format!("  {s}"), Level::Info));
                 }
             }
             ScEvent::Failed { message, .. } => {
                 self.status = "Génération en échec".into();
-                self.output
-                    .push(line(format!("✘ {}", message), Level::Error));
+                self.output.push(line(format!("✘ {message}"), Level::Error));
             }
         }
         if self.output.len() > 3000 {
@@ -543,7 +542,7 @@ impl App {
                 self.status = format!("{} règles chargées", rules.len());
                 self.set_output(out);
             }
-            Err(e) => self.set_output(vec![line(format!("✗ {:#}", e), Level::Error)]),
+            Err(e) => self.set_output(vec![line(format!("✗ {e:#}"), Level::Error)]),
         }
     }
 
@@ -596,7 +595,7 @@ impl App {
                 } else {
                     Style::default()
                 };
-                ListItem::new(format!(" {} ", label)).style(style)
+                ListItem::new(format!(" {label} ")).style(style)
             })
             .collect();
         f.render_widget(
@@ -803,7 +802,7 @@ mod tests {
             id: "create".into(),
             label: "Créer le projet".into(),
             phase: Phase::Scaffold,
-            command: Some("npm create astro@latest demo".into()),
+            command: Some("npm create astro@5.3.2 demo".into()),
         })
         .unwrap();
         tx.send(ScEvent::Log {
@@ -833,7 +832,7 @@ mod tests {
         assert!(text.iter().any(|l| l.contains("[1/2] Créer le projet")));
         assert!(text
             .iter()
-            .any(|l| l.contains("$ npm create astro@latest demo")));
+            .any(|l| l.contains("$ npm create astro@5.3.2 demo")));
         assert!(text.iter().any(|l| l.contains("Dependencies installed")));
         assert!(text.iter().any(|l| l.contains("✔ 1.5s")));
         assert!(text.iter().any(|l| l.contains("✘ boum")));

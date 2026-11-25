@@ -11,6 +11,8 @@ exclude = [
   "tools/dsgen/ext_astro*.py",
   # gabarits Blade/Django générés (mêmes SVG et URL d'embed) et liens vers la doc officielle de Blade et Django
   "tools/dsgen/ext_server.py",
+  # écrivains du site vitrine : textes de gabarits (schema.org du JSON-LD, espaces de noms XML du sitemap)
+  "tools/dsgen/vitrine/write_*.py",
   "sites/**",
   "docs/screenshots/**",
 ]

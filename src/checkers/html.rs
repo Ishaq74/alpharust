@@ -39,7 +39,7 @@ pub fn tags(content: &str) -> Vec<Tag> {
         }
         let closing = b.get(i + 1) == Some(&b'/');
         let name_start = i + 1 + usize::from(closing);
-        if !b.get(name_start).is_some_and(|c| c.is_ascii_alphabetic()) {
+        if !b.get(name_start).is_some_and(u8::is_ascii_alphabetic) {
             i += 1;
             continue;
         }
@@ -80,7 +80,7 @@ pub fn tags(content: &str) -> Vec<Tag> {
         });
         i = (k + 1).min(b.len());
         if !closing && (name == "script" || name == "style") {
-            let end_tag = format!("</{}", name);
+            let end_tag = format!("</{name}");
             let lower = content[i..].to_ascii_lowercase();
             i = lower.find(&end_tag).map_or(b.len(), |e| i + e);
         }
@@ -212,7 +212,7 @@ pub fn heading_order(ctx: &FileCtx) -> Vec<Finding> {
             if prev != 0 && level > prev + 1 {
                 out.push(Finding::new(
                     t.line,
-                    format!("niveau de titre sauté : <h{}> après <h{}>", level, prev),
+                    format!("niveau de titre sauté : <h{level}> après <h{prev}>"),
                 ));
             }
             prev = level;

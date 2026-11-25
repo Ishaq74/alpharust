@@ -112,22 +112,22 @@ const {{ asChild = false, class: className, ...rest }} = Astro.props;
 }}
 '''
 
-F['aspect-ratio/AspectRatio.astro'] = f'''---
-import type {{ HTMLAttributes, HTMLTag }} from "astro/types";
+F['aspect-ratio/AspectRatio.astro'] = '''---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
 
-type Props = HTMLAttributes<"div"> & {{
+type Props = HTMLAttributes<"div"> & {
   /** Élément rendu (défaut : div). */
   as?: HTMLTag;
   /** Largeur / hauteur (ex. 16 / 9). */
   ratio?: number;
-}};
+};
 
-const {{ ratio = 1, as: Tag = "div", class: className, ...rest }} = Astro.props;
+const { ratio = 1, as: Tag = "div", class: className, ...rest } = Astro.props;
 ---
 
-{{/* alpharust-ignore: no-inline-styles — padding calculé par instance, comme l'atome d'atomic */}}
-<div style={{{{ "--ds-ratio": String(ratio), paddingBottom: `${{100 / ratio}}%` }}}} data-slot="aspect-ratio-wrapper">
-  <Tag class={{className}} data-slot="aspect-ratio" {{...rest}}>
+{/* alpharust-ignore: no-inline-styles — padding calculé par instance, comme l'atome d'atomic */}
+<div style={{ "--ds-ratio": String(ratio), paddingBottom: `${100 / ratio}%` }} data-slot="aspect-ratio-wrapper">
+  <Tag class={className} data-slot="aspect-ratio" {...rest}>
     <slot />
   </Tag>
 </div>
@@ -269,10 +269,10 @@ const {{ defaultOpen = false, disabled = false, class: className, ...rest }} = A
 F[D+'CollapsibleTrigger.astro'] = trigger('collapsible-trigger', extra=' aria-expanded="false"')
 F[D+'CollapsibleContent.astro'] = simple('div', 'collapsible-content', ' data-state="closed" hidden')
 
-F['container/Container.astro'] = f'''---
-import type {{ HTMLAttributes, HTMLTag }} from "astro/types";
+F['container/Container.astro'] = '''---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
 
-type Props = HTMLAttributes<"div"> & {{
+type Props = HTMLAttributes<"div"> & {
   as?: HTMLTag;
   size?: "xs" | "sm" | "md" | "lg" | "xl" | "prose" | "full";
   gutter?: "none" | "sm" | "md" | "lg" | "xl";
@@ -285,9 +285,9 @@ type Props = HTMLAttributes<"div"> & {{
   /** Fond pleine largeur, contenu centré. */
   bleed?: boolean;
   centered?: boolean;
-}};
+};
 
-const {{
+const {
   as: Tag = "div",
   bleed = false,
   size = "lg",
@@ -301,26 +301,26 @@ const {{
   centered,
   class: className,
   ...rest
-}} = Astro.props;
+} = Astro.props;
 
 const layout = centered ? "centered" : (layoutProp ?? "stack");
 const useWrapper = bleed || layout === "split";
 ---
 
-{{
+{
   useWrapper ? (
     <Tag
-      class={{className}}
-      data-background={{background}}
-      data-padding-y={{paddingY}}
-      data-min-height={{minHeight}}
-      data-border={{border}}
-      data-rounded={{rounded}}
+      class={className}
+      data-background={background}
+      data-padding-y={paddingY}
+      data-min-height={minHeight}
+      data-border={border}
+      data-rounded={rounded}
       data-bleed
       data-slot="container"
-      {{...rest}}
+      {...rest}
     >
-      <div data-container-inner data-size={{size}} data-gutter={{gutter}} data-layout={{layout}}>
+      <div data-container-inner data-size={size} data-gutter={gutter} data-layout={layout}>
         <div data-container-main>
           <slot />
         </div>
@@ -331,22 +331,22 @@ const useWrapper = bleed || layout === "split";
     </Tag>
   ) : (
     <Tag
-      class={{className}}
-      data-size={{size}}
-      data-gutter={{gutter}}
-      data-padding-y={{paddingY}}
-      data-background={{background}}
-      data-border={{border}}
-      data-rounded={{rounded}}
-      data-min-height={{minHeight}}
-      data-layout={{layout}}
+      class={className}
+      data-size={size}
+      data-gutter={gutter}
+      data-padding-y={paddingY}
+      data-background={background}
+      data-border={border}
+      data-rounded={rounded}
+      data-min-height={minHeight}
+      data-layout={layout}
       data-slot="container"
-      {{...rest}}
+      {...rest}
     >
       <slot />
     </Tag>
   )
-}}
+}
 '''
 
 E = 'dropdown/'
@@ -437,29 +437,29 @@ const {{
   <slot />
 </div>
 '''
-F[E+'DropdownItem.astro'] = f'''---
-import type {{ HTMLAttributes, HTMLTag }} from "astro/types";
+F[E+'DropdownItem.astro'] = '''---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
 
-type Props = HTMLAttributes<"div"> & {{
+type Props = HTMLAttributes<"div"> & {
   /** Élément rendu (ex. "a" avec href). */
   as?: HTMLTag;
   href?: string;
   inset?: boolean;
   disabled?: boolean;
-}};
+};
 
-const {{ inset = false, disabled = false, as: Tag = "div", class: className, ...rest }} = Astro.props;
+const { inset = false, disabled = false, as: Tag = "div", class: className, ...rest } = Astro.props;
 ---
 
 <Tag
-  class={{className}}
+  class={className}
   role="menuitem"
-  tabindex={{disabled ? "-1" : "0"}}
-  aria-disabled={{disabled ? "true" : undefined}}
-  data-disabled={{disabled ? "true" : undefined}}
-  data-inset={{inset ? "" : undefined}}
+  tabindex={disabled ? "-1" : "0"}
+  aria-disabled={disabled ? "true" : undefined}
+  data-disabled={disabled ? "true" : undefined}
+  data-inset={inset ? "" : undefined}
   data-slot="dropdown-item"
-  {{...rest}}
+  {...rest}
 >
   <slot />
 </Tag>

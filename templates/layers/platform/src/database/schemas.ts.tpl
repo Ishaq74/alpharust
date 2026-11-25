@@ -5,3 +5,6 @@ export * from './schemas/auth.schema';
 export * from './schemas/audit-log.schema';
 @@end@@
 export * from './schemas/note.schema';
+@@if vitrine@@
+export * from './schemas/contact-message.schema';
+@@end@@

@@ -43,9 +43,9 @@ impl Profile {
 
     pub fn load(name: &str) -> Result<Self> {
         if name.is_empty() || name.contains(['/', '\\', '.']) {
-            bail!("nom de profil invalide : `{}`", name);
+            bail!("nom de profil invalide : `{name}`");
         }
-        let path = crate::paths::profiles_dir().join(format!("{}.toml", name));
+        let path = crate::paths::profiles_dir().join(format!("{name}.toml"));
         if !path.exists() {
             bail!(
                 "profil `{}` introuvable (disponibles : {})",
@@ -54,9 +54,9 @@ impl Profile {
             );
         }
         let content =
-            fs::read_to_string(&path).with_context(|| format!("lecture du profil {}", name))?;
+            fs::read_to_string(&path).with_context(|| format!("lecture du profil {name}"))?;
         let pf: ProfileFile =
-            toml::from_str(&content).with_context(|| format!("profil {} invalide", name))?;
+            toml::from_str(&content).with_context(|| format!("profil {name} invalide"))?;
         Ok(Profile {
             name: if pf.name.is_empty() {
                 name.to_string()
@@ -117,8 +117,7 @@ mod tests {
             let selected = p.select(all.clone());
             assert!(
                 !selected.is_empty(),
-                "le profil {} ne sélectionne aucune règle",
-                name
+                "le profil {name} ne sélectionne aucune règle"
             );
             assert!(
                 p.unmatched_patterns(&all).is_empty(),

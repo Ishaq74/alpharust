@@ -28,7 +28,7 @@ pub fn parse_color(value: &str) -> Option<(f64, f64, f64)> {
         .trim()
         .to_lowercase();
     if let Some(hex) = v.strip_prefix('#') {
-        let hex: String = hex.chars().take_while(|c| c.is_ascii_hexdigit()).collect();
+        let hex: String = hex.chars().take_while(char::is_ascii_hexdigit).collect();
         let expanded = match hex.len() {
             3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
             6 | 8 => hex[..6].to_string(),
@@ -114,10 +114,7 @@ pub fn contrast(ctx: &FileCtx) -> Vec<Finding> {
             if ratio < min {
                 out.push(Finding::new(
                     line_of(content, pos),
-                    format!(
-                        "contraste insuffisant : {:.2}:1 (minimum {:.1}:1)",
-                        ratio, min
-                    ),
+                    format!("contraste insuffisant : {ratio:.2}:1 (minimum {min:.1}:1)"),
                 ));
             }
         }

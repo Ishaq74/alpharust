@@ -31,9 +31,25 @@ class ComponentCatalogTests(TestCase):
 @@if starwind@@
         self.assertIn("css/tailwind.css", html)  # kit Starwind compilé par la CLI Tailwind
 @@else@@
-        self.assertIn("ds/css/index.css", html)
+        self.assertIn("ds/css/ds.bundle.css", html)  # kit regroupé (manage.py ds_bundle)
+        self.assertIn("ds/css/components/custom.css", html)  # vos surcharges, à part
 @@end@@
         self.assertIn("ds/js/ds.js", html)
+
+
+class BundleTests(TestCase):
+    def test_ds_bundle_inlines_every_import_but_custom_css(self):
+        from io import StringIO
+        from pathlib import Path
+
+        from django.core.management import call_command
+
+        call_command("ds_bundle", stdout=StringIO())
+        css = Path(__file__).resolve().parent / "static" / "ds" / "css"
+        bundle = (css / "ds.bundle.css").read_text(encoding="utf-8")
+        self.assertNotIn("@import", bundle)
+        self.assertIn("/* components/button.css */", bundle)
+        self.assertNotIn("/* components/custom.css */", bundle)
 
 
 class AdvancedCatalogTests(TestCase):

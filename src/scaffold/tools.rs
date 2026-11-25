@@ -168,7 +168,7 @@ pub fn which(program: &str) -> Option<PathBuf> {
         std::env::var("PATHEXT")
             .unwrap_or(".EXE;.CMD;.BAT".into())
             .split(';')
-            .map(|s| s.to_lowercase())
+            .map(str::to_lowercase)
             .collect()
     } else {
         vec![String::new()]
