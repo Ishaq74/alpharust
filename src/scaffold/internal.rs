@@ -1067,6 +1067,48 @@ pub const TAILWIND_VERSION: &str = "v4.3.5";
 // alpharust-ignore: no-hardcoded-urls (assets officiels des releases Tailwind)
 const TAILWIND_RELEASES: &str = "https://github.com/tailwindlabs/tailwindcss/releases/download";
 
+/// Empreintes SHA-256 publiées avec la release (`sha256sums.txt` de tailwindlabs/tailwindcss v4.3.5).
+/// Épinglées dans le binaire : un fichier téléchargé qui ne correspond pas est supprimé et refusé.
+const TAILWIND_SHA256: &[(&str, &str)] = &[
+    (
+        "tailwindcss-linux-arm64",
+        "ffcd0d21dbd7c605dc12743ff0c0b47debc963c86b399674084c1c8f2c96ecad",
+    ),
+    (
+        "tailwindcss-linux-x64",
+        "e47695cee3f0d90623a91f3939b08bdee610eb5ad99340adff9d4145b284d6cc",
+    ),
+    (
+        "tailwindcss-macos-arm64",
+        "f3f4f5d1727e2b693b8f1c9a1492b5dd87008c86ea286bee1589cb458e6235fc",
+    ),
+    (
+        "tailwindcss-macos-x64",
+        "a63702686a3ed048b3135d84a73be49ea9d47f880c9b20e54b3ef60934ad8cdf",
+    ),
+    (
+        "tailwindcss-windows-x64.exe",
+        "2803583268c53f4713e89943e211081fddb186c0a4a7d07b5c342c6ae853ec95",
+    ),
+];
+
+/// Empreinte attendue d'un asset de la CLI Tailwind.
+pub fn tailwind_sha256(asset: &str) -> Option<&'static str> {
+    TAILWIND_SHA256
+        .iter()
+        .find(|(a, _)| *a == asset)
+        .map(|(_, h)| *h)
+}
+
+/// SHA-256 (hexadécimal) d'un fichier.
+pub fn sha256_file(path: &Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut f = fs::File::open(path)?;
+    let mut h = Sha256::new();
+    std::io::copy(&mut f, &mut h)?;
+    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
 /// Nom du binaire de la CLI autonome pour la plateforme courante (assets des releases tailwindlabs/tailwindcss).
 pub fn tailwind_asset() -> Result<&'static str> {
     Ok(match (std::env::consts::OS, std::env::consts::ARCH) {
@@ -1097,6 +1139,12 @@ fn tailwind_standalone(
     } else {
         "tailwindcss"
     });
+    let expected = tailwind_sha256(asset)
+        .ok_or_else(|| anyhow::anyhow!("empreinte SHA-256 inconnue pour {asset}"))?;
+    if bin.is_file() && sha256_file(&bin)? != expected {
+        on_line("CLI Tailwind en cache : empreinte différente, nouveau téléchargement");
+        fs::remove_file(&bin)?;
+    }
     if !bin.is_file() {
         let url = format!("{TAILWIND_RELEASES}/{TAILWIND_VERSION}/{asset}");
         on_line(&format!("téléchargement de {url}"));
@@ -1117,6 +1165,12 @@ fn tailwind_standalone(
             let _ = fs::remove_file(&bin);
             bail!("téléchargement de la CLI Tailwind impossible ({url})");
         }
+        let got = sha256_file(&bin)?;
+        if got != expected {
+            let _ = fs::remove_file(&bin);
+            bail!("CLI Tailwind refusée : SHA-256 {got} au lieu de {expected} ({url})");
+        }
+        on_line(&format!("SHA-256 vérifié : {expected}"));
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -1141,21 +1195,7 @@ fn tailwind_standalone(
     if !out.success {
         bail!("la CLI Tailwind a échoué sur tailwind/input.css");
     }
-    let gi = target.join(".gitignore");
-    let text = fs::read_to_string(&gi).unwrap_or_default();
-    if !text.lines().any(|l| l.trim() == ".tailwind/") {
-        fs::write(
-            &gi,
-            format!(
-                "{text}{}.tailwind/\n",
-                if text.ends_with('\n') || text.is_empty() {
-                    ""
-                } else {
-                    "\n"
-                }
-            ),
-        )?;
-    }
+    ensure_gitignore(target, &[".tailwind/"])?;
     Ok(format!(
         "CLI Tailwind {TAILWIND_VERSION} ({asset}) : {output}"
     ))
@@ -1247,6 +1287,40 @@ fn git_cfg(target: &Path, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Fichiers locaux jamais versionnés, quel que soit le `.gitignore` officiel conservé : bases SQLite de
+/// développement (`data/<nom>.db` de la plateforme Astro, journaux WAL/SHM compris) et messages de contact
+/// du site Astro sans base (`data/contact-messages.jsonl`).
+pub const LOCAL_ONLY: &[&str] = &[
+    "data/*.db",
+    "data/*.db-journal",
+    "data/*.db-wal",
+    "data/*.db-shm",
+    "data/*.jsonl",
+];
+
+/// Ajoute au `.gitignore` du projet les motifs absents (sans toucher aux lignes existantes).
+pub fn ensure_gitignore(target: &Path, patterns: &[&str]) -> Result<()> {
+    let gi = target.join(".gitignore");
+    let mut text = fs::read_to_string(&gi).unwrap_or_default();
+    let missing: Vec<&str> = patterns
+        .iter()
+        .copied()
+        .filter(|p| !text.lines().any(|l| l.trim() == *p))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    for p in missing {
+        text.push_str(p);
+        text.push('\n');
+    }
+    fs::write(&gi, text)?;
+    Ok(())
+}
+
 fn git_init(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -> Result<String> {
     if super::tools::which("git").is_none() {
         bail!("git introuvable (dépôt non initialisé)");
@@ -1270,6 +1344,7 @@ fn git_init(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -
         ],
         on_line,
     )?;
+    ensure_gitignore(target, LOCAL_ONLY)?;
     step(vec!["add".into(), "-A".into()], on_line)?;
     let mut commit: Vec<String> = Vec::new();
     if !git_cfg(target, "user.name") || !git_cfg(target, "user.email") {
@@ -1476,6 +1551,47 @@ fn site_icons(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn every_tailwind_asset_has_a_pinned_checksum() {
+        for asset in [
+            "tailwindcss-linux-x64",
+            "tailwindcss-linux-arm64",
+            "tailwindcss-macos-x64",
+            "tailwindcss-macos-arm64",
+            "tailwindcss-windows-x64.exe",
+        ] {
+            let h = super::tailwind_sha256(asset).unwrap();
+            assert_eq!(h.len(), 64);
+        }
+        assert_eq!(
+            super::tailwind_asset()
+                .map(super::tailwind_sha256)
+                .ok()
+                .flatten()
+                .map(str::len),
+            Some(64)
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("x");
+        std::fs::write(&f, b"abc").unwrap();
+        assert_eq!(
+            super::sha256_file(&f).unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn local_sqlite_databases_are_never_committed() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".gitignore"), "node_modules/\n.env").unwrap();
+        super::ensure_gitignore(dir.path(), super::LOCAL_ONLY).unwrap();
+        super::ensure_gitignore(dir.path(), super::LOCAL_ONLY).unwrap(); // idempotent
+        let gi = std::fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert!(gi.starts_with("node_modules/\n.env\ndata/*.db\n"), "{gi}");
+        assert_eq!(gi.matches("data/*.db\n").count(), 1);
+        assert!(gi.contains("data/*.db-wal"));
+    }
+
     #[test]
     fn po_catalogs_compile_to_gettext_mo() {
         let po = "# c\nmsgid \"\"\nmsgstr \"\"\n\"Language: en\\n\"\n\nmsgid \"Accueil\"\nmsgstr \"Home\"\n\nmsgid \"a \\\"b\\\"\"\nmsgstr \"\"\n\"multi\"\n\"line\"\n";

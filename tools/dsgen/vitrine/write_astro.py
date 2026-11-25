@@ -333,10 +333,40 @@ export function validateContact(values: Record<string, string>, locale = DEFAULT
   return errors;
 }
 
+/** Champs déclarés du formulaire seulement (comme `$request->validate()` de Laravel), 5 000 caractères au plus. */
+export function contactData(values: Record<string, string>, locale = DEFAULT_LOCALE) {
+  return Object.fromEntries(
+    data(locale).contactFields.map((f) => [f.name, (values[f.name] ?? '').trim().slice(0, 5000)]),
+  ) as Record<string, string>;
+}
+
 export const crumbs = (locale: string, ...items: [string, string][]) => [
   { label: data(locale).ui.home, url: href('/', locale) },
   ...items.map(([label, url]) => ({ label, url: href(url, locale) })),
 ];
+"""
+
+CONTACT_STORE = META + HEAD + """// Messages du formulaire de contact : enregistrés comme Laravel (table contact_messages) et Wagtail
+// (soumissions du formulaire). Avec --db : table Drizzle `contact_message` ; sinon : data/contact-messages.jsonl
+// (une ligne JSON par message, fichier local ignoré par Git).
+@@if db@@
+import { getDrizzle } from '@database/drizzle';
+import { contactMessage } from '@database/schemas';
+@@else@@
+import { appendFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+@@end@@
+
+export async function saveContactMessage(data: Record<string, string>): Promise<void> {
+@@if db@@
+  await getDrizzle().insert(contactMessage).values({ data: JSON.stringify(data) });
+@@else@@
+  const dir = join(process.cwd(), 'data');
+  await mkdir(dir, { recursive: true });
+  const line = JSON.stringify({ data, created_at: new Date().toISOString() });
+  await appendFile(join(dir, 'contact-messages.jsonl'), `${line}\\n`, 'utf8');
+@@end@@
+}
 """
 
 def icon_component():
@@ -456,10 +486,11 @@ def contact_page(locale='fr'):
     return lang_meta(locale) + f"""---
 {HEAD}import BaseLayout from '@layouts/BaseLayout.astro';
 import Sections from '@/components/site/Sections.astro';
-import {{ type ContactState, getPage, getSite, validateContact }} from '@lib/site';
+import {{ type ContactState, contactData, getPage, getSite, validateContact }} from '@lib/site';
+import {{ saveContactMessage }} from '@lib/contact-store';
 
-// Rendu à la demande, même dans un site statique (adaptateur Node) : le formulaire est validé ici
-// (Astro vérifie l'origine des POST : security.checkOrigin).
+// Rendu à la demande, même dans un site statique (adaptateur Node) : le formulaire est validé puis le message
+// est enregistré (comme Laravel et Wagtail) ; Astro vérifie l'origine des POST (security.checkOrigin).
 export const prerender = false;
 
 const locale = '{locale}';
@@ -468,8 +499,13 @@ if (Astro.request.method === 'POST') {{
   const form = await Astro.request.formData();
   const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
   const errors = validateContact(values, locale);
-  state = Object.keys(errors).length ? {{ values, errors }} : {{ sent: true }};
-  if (Object.keys(errors).length) Astro.response.status = 422;
+  if (Object.keys(errors).length) {{
+    state = {{ values, errors }};
+    Astro.response.status = 422;
+  }} else {{
+    await saveContactMessage(contactData(values, locale));
+    state = {{ sent: true }};
+  }}
 }}
 const page = await getPage('contact', state, locale);
 const site = await getSite(Astro.url.pathname);
@@ -727,6 +763,7 @@ def files(cat, css):
         'src/data/site.json.tpl': site_json(),
         'src/lib/site.ts.tpl': LIB,
         'src/lib/site-auth.ts.tpl': SITE_AUTH,
+        'src/lib/contact-store.ts.tpl': CONTACT_STORE,
         'src/content.config.ts.tpl': CONTENT_CONFIG,
         'src/layouts/BaseLayout.astro.tpl': layout(),
         'src/components/site/SiteHeader.astro.tpl': comp(cat, TPL.HEADER, SITE_PROPS),

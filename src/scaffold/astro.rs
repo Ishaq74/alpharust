@@ -1,6 +1,7 @@
 //! Astro : `create-astro` officiel, `astro add` pour les intégrations, puis couche AlphaRust.
 
 use super::exec::{Cmd, Cwd};
+use super::pins;
 use super::platform::{self, Db, UiKit};
 use super::theme::{self, ThemeColors};
 use super::tools::{self, ToolStatus};
@@ -61,21 +62,27 @@ impl PackageManager {
         }
     }
 
-    /// `<pm> create astro@latest <dir> <flags…>` (chaque gestionnaire a sa syntaxe de passage d'arguments).
+    /// `<pm> create astro@<version épinglée> <dir> <flags…>` (chaque gestionnaire a sa syntaxe de passage d'arguments ;
+    /// `yarn create astro` résout lui-même `create-astro`).
     fn create(self, folder: &str, flags: Vec<String>) -> Cmd {
         let mut args: Vec<String> = Vec::new();
         match self {
             PackageManager::Npm => {
-                args.extend(["create", "astro@latest", folder, "--"].map(String::from));
+                args.extend([
+                    "create".into(),
+                    pins::create_astro(),
+                    folder.into(),
+                    "--".into(),
+                ]);
             }
             PackageManager::Pnpm => {
-                args.extend(["create", "astro@latest", folder].map(String::from));
+                args.extend(["create".into(), pins::create_astro(), folder.into()]);
             }
             PackageManager::Yarn => {
                 args.extend(["create", "astro", folder].map(String::from));
             }
             PackageManager::Bun => {
-                args.extend(["create", "astro@latest", folder].map(String::from));
+                args.extend(["create".into(), pins::create_astro(), folder.into()]);
             }
         }
         args.extend(flags);
@@ -728,7 +735,10 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             "starwind-init",
             Phase::Install,
             "Initialiser Starwind UI (starwind init)",
-            pm.dlx("starwind@latest", &["init".into(), "--defaults".into()]),
+            pm.dlx(
+                &format!("starwind@{}", pins::STARWIND_CLI),
+                &["init".into(), "--defaults".into()],
+            ),
         ));
         steps.push(Step::internal(
             "starwind-config",
@@ -916,7 +926,7 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
             Phase::Install,
             "Générer le schéma Better Auth (auth generate → Drizzle)",
             pm.dlx(
-                "auth@latest",
+                &format!("auth@{}", pins::BETTER_AUTH_CLI),
                 &[
                     "generate".into(),
                     "--adapter".into(),
@@ -1066,7 +1076,7 @@ mod tests {
         assert_eq!(c.program, "npm");
         assert_eq!(
             c.args.join(" "),
-            "create astro@latest demo -- --template minimal --install --no-git --no-ai --yes --skip-houston"
+            "create astro@5.3.2 demo -- --template minimal --install --no-git --no-ai --yes --skip-houston"
         );
         assert_eq!(c.cwd, Cwd::Parent);
         assert_eq!(cmd_of(&s, "build").display(), "npm run build");
@@ -1081,7 +1091,7 @@ mod tests {
         let s = steps_for(&r);
         assert_eq!(
             cmd_of(&s, "create").display(),
-            "pnpm create astro@latest demo --template minimal --install --no-git --no-ai --yes --skip-houston"
+            "pnpm create astro@5.3.2 demo --template minimal --install --no-git --no-ai --yes --skip-houston"
         );
         assert_eq!(
             cmd_of(&s, "integrations").display(),
@@ -1208,10 +1218,10 @@ mod tests {
         let s = steps_for(&r);
         assert!(cmd_of(&s, "starwind-init")
             .display()
-            .contains("starwind@latest init --defaults"));
+            .contains("starwind@3.6.0 init --defaults"));
         assert!(cmd_of(&s, "auth-schema")
             .display()
-            .contains("auth@latest generate --adapter drizzle --dialect sqlite"));
+            .contains("auth@1.7.28 generate --adapter drizzle --dialect sqlite"));
     }
 
     #[test]

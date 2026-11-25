@@ -12,7 +12,7 @@
   --text: var(--text-default);
   --border: var(--border-default);
   --brand: var(--color-primary);
-  --brand-text: var(--color-primary);
+  --brand-text: var(--color-primary-text, var(--color-primary));
   --brand-contrast: var(--button-primary-color);
   --focus: var(--color-primary);
   --radius: var(--border-radius-lg);
@@ -38,7 +38,7 @@
   --text: var(--foreground);
   --text-muted: var(--muted-foreground);
   --brand: var(--primary);
-  --brand-text: var(--primary-deep); /* lisible sur fond clair (atomic) */
+  --brand-text: var(--brand-primary-text, var(--primary-deep)); /* texte de marque lisible (themes/theme.css, WCAG) */
   --brand-contrast: var(--primary-foreground);
   --focus: var(--outline);
 

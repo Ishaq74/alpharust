@@ -146,13 +146,13 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
         "-m".to_string(),
         "pip".into(),
         "install".into(),
-        "wagtail".into(),
+        super::pins::WAGTAIL_PIP.into(),
     ];
     pip.extend(o.packages.iter().cloned());
     steps.push(Step::run(
         "pip-wagtail",
         Phase::Install,
-        "Installer Wagtail (pip install wagtail)",
+        "Installer Wagtail (pip install \"wagtail>=8.1,<8.2\")",
         Cmd::owned(&py, pip, Cwd::Project),
     ));
     steps.push(Step::run(

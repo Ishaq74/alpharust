@@ -288,6 +288,13 @@ export function validateContact(values: Record<string, string>, locale = DEFAULT
   return errors;
 }
 
+/** Champs déclarés du formulaire seulement (comme `$request->validate()` de Laravel), 5 000 caractères au plus. */
+export function contactData(values: Record<string, string>, locale = DEFAULT_LOCALE) {
+  return Object.fromEntries(
+    data(locale).contactFields.map((f) => [f.name, (values[f.name] ?? '').trim().slice(0, 5000)]),
+  ) as Record<string, string>;
+}
+
 export const crumbs = (locale: string, ...items: [string, string][]) => [
   { label: data(locale).ui.home, url: href('/', locale) },
   ...items.map(([label, url]) => ({ label, url: href(url, locale) })),

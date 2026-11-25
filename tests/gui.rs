@@ -198,7 +198,7 @@ async fn plan_previews_official_commands_and_validates() {
         .collect();
     assert!(
         cmds.iter()
-            .any(|c| c.starts_with("pnpm create astro@latest vitrine")),
+            .any(|c| c.starts_with("pnpm create astro@5.3.2 vitrine")),
         "{cmds:?}"
     );
     assert!(
@@ -538,4 +538,29 @@ async fn meta_exposes_platform_options_and_presets() {
     assert!(presets
         .iter()
         .any(|p| p["id"] == "saas-pg" && p["options"]["database"] == "postgres"));
+}
+
+#[tokio::test]
+async fn every_route_rejects_a_foreign_host_header() {
+    for uri in [
+        "/",
+        "/api/meta",
+        "/api/lint?path=.",
+        "/api/rules",
+        "/api/jobs",
+    ] {
+        let req = Request::builder()
+            .uri(uri)
+            .header(header::HOST, "evil.example:3000")
+            .body(Body::empty())
+            .unwrap();
+        let r = call(app(), req).await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{uri} : {}", r.body);
+        let ok = Request::builder()
+            .uri(uri)
+            .header(header::HOST, "127.0.0.1:3000")
+            .body(Body::empty())
+            .unwrap();
+        assert_eq!(call(app(), ok).await.status, StatusCode::OK, "{uri}");
+    }
 }

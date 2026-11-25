@@ -107,12 +107,12 @@ pub fn frontmatter(ctx: &FileCtx) -> Vec<Finding> {
             "frontmatter non fermé (`---` final manquant)",
         )];
     };
-    match serde_yaml::from_str::<serde_yaml::Value>(&rest[..end]) {
-        Ok(serde_yaml::Value::Mapping(_)) => Vec::new(),
-        Ok(serde_yaml::Value::Null) => vec![Finding::new(1, "frontmatter vide")],
+    match serde_saphyr::from_str::<serde_json::Value>(&rest[..end]) {
+        Ok(serde_json::Value::Object(_)) => Vec::new(),
+        Ok(serde_json::Value::Null) => vec![Finding::new(1, "frontmatter vide")],
         Ok(_) => vec![Finding::new(1, "le frontmatter doit être un mapping YAML")],
         Err(e) => {
-            let line = e.location().map_or(1, |l| l.line() + 1);
+            let line = e.location().map_or(1, |l| l.line().max(1) as usize);
             vec![Finding::new(
                 line,
                 format!("frontmatter YAML invalide : {}", e),

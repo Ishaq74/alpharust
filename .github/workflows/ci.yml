@@ -87,4 +87,4 @@ jobs:
         env:
           ALPHARUST_E2E: "1"
           ALPHARUST_E2E_PG_URL: postgresql://postgres:${{ env.PGPW }}@localhost:5432/ci_e2e
-        run: cargo test --release --test generators e2e -- --test-threads=1 --nocapture
+        run: cargo test --release --test generators e2e -- --ignored --test-threads=1 --nocapture

@@ -148,7 +148,7 @@ impl Rule {
 
     pub fn from_markdown(path: &Path, content: &str) -> Result<Self> {
         let (front, body) = split_frontmatter(content)?;
-        let meta: RuleMeta = serde_yaml::from_str(&front)
+        let meta: RuleMeta = serde_saphyr::from_str(&front)
             .with_context(|| format!("frontmatter invalide dans {}", path.display()))?;
         let id = path
             .file_stem()

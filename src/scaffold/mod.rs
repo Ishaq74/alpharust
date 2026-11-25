@@ -10,6 +10,7 @@ pub mod exec;
 pub mod internal;
 pub mod laravel;
 pub mod layer;
+pub mod pins;
 pub mod platform;
 pub mod projects;
 pub mod rust;
@@ -159,6 +160,26 @@ impl Request {
 
     pub fn framework(&self) -> Framework {
         self.options.framework()
+    }
+
+    /// Demande complétée par les valeurs par défaut qui garantissent un site identique sur les 6 combinaisons :
+    /// sans `--theme-*`, le site vitrine reçoit la palette par défaut (`theme::ThemeColors::default()`),
+    /// écrite dans `themes/theme.css` avec ses textes lisibles (WCAG), quel que soit le kit.
+    pub fn with_defaults(&self) -> Request {
+        let mut r = self.clone();
+        match &mut r.options {
+            Options::Astro(o) if o.vitrine() && o.theme.is_none() => {
+                o.theme = Some(theme::ThemeColors::default());
+            }
+            Options::Laravel(o) if o.ui && o.theme.is_none() => {
+                o.theme = Some(theme::ThemeColors::default());
+            }
+            Options::Wagtail(o) if o.ui && o.theme.is_none() => {
+                o.theme = Some(theme::ThemeColors::default());
+            }
+            _ => {}
+        }
+        r
     }
 
     /// Dossier du projet.
@@ -397,6 +418,7 @@ impl Plan {
 
 /// Construit le plan d'une demande (sans effet de bord).
 pub fn plan(req: &Request) -> Result<Plan> {
+    let req = &req.with_defaults();
     req.validate()?;
     let target = req.target();
     let steps = match &req.options {
@@ -554,6 +576,7 @@ impl Report {
 
 /// Exécute le plan. `sink` reçoit chaque événement ; `cancel` interrompt la commande en cours.
 pub fn execute(req: &Request, sink: &mut dyn FnMut(Event), cancel: &AtomicBool) -> Result<Report> {
+    let req = &req.with_defaults();
     let started = Instant::now();
     let plan = match plan(req) {
         Ok(p) => p,
@@ -759,7 +782,7 @@ mod tests {
         let r = Request::new(Framework::Astro, "demo");
         let p = plan(&r).unwrap();
         let text = p.preview();
-        assert!(text.contains("create astro@latest demo"), "{text}");
+        assert!(text.contains("create astro@5.3.2 demo"), "{text}");
         assert!(text.contains("build"), "{text}");
         assert!(p.steps.iter().any(|s| s.id == "create"));
     }

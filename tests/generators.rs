@@ -49,7 +49,7 @@ fn write_exe(dir: &Path, name: &str, body: &str) {
     std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
 }
 
-/// Faux `node` + faux `npm` qui imitent `npm create astro@latest`, `astro add`, `npm install`, `npm run`.
+/// Faux `node` + faux `npm` qui imitent `npm create astro@5.3.2`, `astro add`, `npm install`, `npm run`.
 fn fake_astro_toolchain() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     write_exe(dir.path(), "node", "echo v24.0.0");
@@ -163,7 +163,12 @@ fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
     // 2. les vraies commandes ont été lancées, dans l'ordre
     let npm = read(&log);
     let lines: Vec<&str> = npm.lines().collect();
-    assert!(lines[0].starts_with("npm create astro@latest vitrine -- --template minimal --install --no-git --no-ai --yes"), "{lines:?}");
+    assert!(
+        lines[0].starts_with(
+            "npm create astro@5.3.2 vitrine -- --template minimal --install --no-git --no-ai --yes"
+        ),
+        "{lines:?}"
+    );
     assert!(
         lines[1].contains("exec -- astro add tailwind mdx sitemap --yes"),
         "{lines:?}"
@@ -448,7 +453,7 @@ fn plans_are_pure_previews_and_never_touch_the_disk() {
     });
     req.install = true;
     let p = scaffold::plan(&req).unwrap().preview();
-    assert!(p.contains("bun create astro@latest pm"), "{p}");
+    assert!(p.contains("bun create astro@5.3.2 pm"), "{p}");
 }
 
 #[test]
@@ -539,6 +544,7 @@ fn assert_lint_clean(t: &Path) {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_npm_with_integrations() {
     let _g = lock();
     let mut req = Request::new(Framework::Astro, "e2e-astro");
@@ -578,6 +584,7 @@ fn e2e_astro_npm_with_integrations() {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_official_blog_template_with_pnpm() {
     let _g = lock();
     if alpharust::scaffold::tools::which("pnpm").is_none() {
@@ -605,6 +612,7 @@ fn e2e_astro_official_blog_template_with_pnpm() {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_laravel_with_breeze_and_pest() {
     let _g = lock();
     let mut req = Request::new(Framework::Laravel, "e2e-laravel");
@@ -628,6 +636,7 @@ fn e2e_laravel_with_breeze_and_pest() {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_wagtail_in_a_venv() {
     let _g = lock();
     let Some((t, report, _keep)) = e2e(Request::new(Framework::Wagtail, "e2e-cms")) else {
@@ -645,6 +654,7 @@ fn e2e_wagtail_in_a_venv() {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_laravel_design_kit_builds_with_vite_and_passes_its_tests() {
     let _g = lock();
     let mut req = Request::new(Framework::Laravel, "e2e-lv-kit");
@@ -715,6 +725,7 @@ fn walk_count(dir: &Path, suffix: &str) -> usize {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_wagtail_design_kit_serves_components_and_passes_its_tests() {
     let _g = lock();
     let mut req = Request::new(Framework::Wagtail, "e2e-wg-kit");
@@ -777,6 +788,7 @@ fn step_ok(report: &Report, id: &str) {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
     let _g = lock();
     let mut req = Request::new(Framework::Astro, "e2e-platform");
@@ -840,6 +852,7 @@ fn e2e_astro_platform_sqlite_auth_starwind_i18n() {
 }
 
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_platform_concordia_theme_all_components() {
     let _g = lock();
     let mut req = Request::new(Framework::Astro, "e2e-concordia");
@@ -893,6 +906,7 @@ fn assert_design_layout(t: &Path) {
 
 /// CSS simple et Tailwind seul : même arborescence, palette de marque générée, build réel.
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_design_system_plain_and_tailwind() {
     let _g = lock();
     for (name, integrations) in [
@@ -939,6 +953,7 @@ fn walk(dir: &Path) -> usize {
 
 /// PostgreSQL réel : `ALPHARUST_E2E_PG_URL=postgresql://…/base` (la base `<base>_test` doit exister aussi).
 #[test]
+#[ignore = "génération réelle : ALPHARUST_E2E=1 cargo test --test generators -- --ignored"]
 fn e2e_astro_platform_postgres() {
     let _g = lock();
     let Ok(url) = std::env::var("ALPHARUST_E2E_PG_URL") else {

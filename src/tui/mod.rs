@@ -803,7 +803,7 @@ mod tests {
             id: "create".into(),
             label: "Créer le projet".into(),
             phase: Phase::Scaffold,
-            command: Some("npm create astro@latest demo".into()),
+            command: Some("npm create astro@5.3.2 demo".into()),
         })
         .unwrap();
         tx.send(ScEvent::Log {
@@ -833,7 +833,7 @@ mod tests {
         assert!(text.iter().any(|l| l.contains("[1/2] Créer le projet")));
         assert!(text
             .iter()
-            .any(|l| l.contains("$ npm create astro@latest demo")));
+            .any(|l| l.contains("$ npm create astro@5.3.2 demo")));
         assert!(text.iter().any(|l| l.contains("Dependencies installed")));
         assert!(text.iter().any(|l| l.contains("✔ 1.5s")));
         assert!(text.iter().any(|l| l.contains("✘ boum")));

@@ -153,7 +153,7 @@ fn check_rules_passes() {
 #[test]
 fn generate_dry_run_prints_the_official_commands_for_each_framework() {
     for (fw, expect) in [
-        ("astro", "npm create astro@latest demo"),
+        ("astro", "npm create astro@5.3.2 demo"),
         ("laravel", "composer create-project laravel/laravel"),
         ("wagtail", "wagtail start"),
         ("rust", "cargo new"),
@@ -201,7 +201,7 @@ fn generate_dry_run_json_is_machine_readable() {
         .collect();
     assert!(
         cmds.iter()
-            .any(|c| c.starts_with("pnpm create astro@latest demo")),
+            .any(|c| c.starts_with("pnpm create astro@5.3.2 demo")),
         "{cmds:?}"
     );
     assert!(
