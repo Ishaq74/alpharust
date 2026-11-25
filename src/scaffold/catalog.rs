@@ -552,12 +552,12 @@ mod tests {
         fs::create_dir_all(p.join("demo/templates")).unwrap();
         fs::write(
             p.join("demo/settings/base.py"),
-            "INSTALLED_APPS = [\n    \"home\",\n]\nTEMPLATES = [{\"OPTIONS\": {\"context_processors\": [\n                \"django.contrib.messages.context_processors.messages\",\n]}}]\nLANGUAGE_CODE = \"en-us\"\n",
+            "INSTALLED_APPS = [\n    \"home\",\n]\nMIDDLEWARE = [\n    \"django.contrib.sessions.middleware.SessionMiddleware\",\n]\nTEMPLATES = [{\"OPTIONS\": {\"context_processors\": [\n                \"django.contrib.messages.context_processors.messages\",\n]}}]\nLANGUAGE_CODE = \"en-us\"\n",
         )
         .unwrap();
         fs::write(
             p.join("demo/urls.py"),
-            "urlpatterns = [\n    path(\"search/\", search_views.search, name=\"search\"),\n]\n",
+            "urlpatterns = [\n    path(\"search/\", search_views.search, name=\"search\"),\n]\nurlpatterns = urlpatterns + [\n    path(\"\", include(wagtail_urls)),\n]\n",
         )
         .unwrap();
         fs::write(
@@ -566,7 +566,13 @@ mod tests {
         )
         .unwrap();
         for _ in 0..2 {
-            crate::scaffold::internal::patch_wagtail_design(p, "demo").unwrap();
+            crate::scaffold::internal::patch_wagtail_design(
+                p,
+                "demo",
+                false,
+                &["fr".into(), "en".into()],
+            )
+            .unwrap();
         }
         let settings = fs::read_to_string(p.join("demo/settings/base.py")).unwrap();
         assert_eq!(settings.matches("\"ds\",").count(), 1);
@@ -578,12 +584,17 @@ mod tests {
         assert!(settings.contains("LANGUAGE_CODE = \"fr\""));
         let urls = fs::read_to_string(p.join("demo/urls.py")).unwrap();
         assert_eq!(urls.matches("ds.urls").count(), 1);
+        assert_eq!(urls.matches("i18n_patterns(").count(), 1);
+        assert!(urls.contains("prefix_default_language=False"));
+        assert_eq!(settings.matches("wagtail.locales").count(), 1);
+        assert_eq!(settings.matches("LocaleMiddleware").count(), 1);
+        assert_eq!(settings.matches("WAGTAIL_I18N_ENABLED").count(), 1);
         let base = fs::read_to_string(p.join("demo/templates/base.html")).unwrap();
         assert_eq!(base.matches("ds/css/index.css").count(), 1);
         assert_eq!(base.matches("ds/js/ds.js").count(), 1);
         assert_eq!(base.matches("ds/favicon.svg").count(), 1);
         // un squelette modifié est signalé, jamais patché à l'aveugle
         fs::write(p.join("demo/urls.py"), "urlpatterns = []\n").unwrap();
-        assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo").is_err());
+        assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo", false, &[]).is_err());
     }
 }

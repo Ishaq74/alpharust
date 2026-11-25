@@ -48,8 +48,10 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant` ; les 46 composants d'atomic en CSS pur, même API que Starwind) |
 | `--theme-primary/-secondary/-accent` | palette de marque WCAG → `src/styles/themes/theme.css`, **tous les kits** |
 | `--db`, `--db-url` | `none`, `sqlite`, `postgres` (+ URL de développement : migrations appliquées) |
-| `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` |
+| `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` (site vitrine : pages de compte du site) |
+| `--icons` | site vitrine : jeu d'icônes Iconify (MDI par défaut ; drapeaux Circle Flags) |
 | `--i18n` | `fr,en,es,ar` (au moins deux, la première est la langue par défaut) |
+| `--langs` | langues du site vitrine (`--ui`) : `fr,en,es,ar`, défaut `fr,en` (ou celles de `--i18n`), français obligatoire ; ADR 0017 |
 | `--docker`, `--ci` | Dockerfile + compose ; workflow GitHub Actions |
 
 Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
@@ -60,9 +62,12 @@ Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
 | `--dark`, `--pest` | mode sombre Breeze, Pest au lieu de PHPUnit (exigent un kit) |
 | `--db` | `sqlite` (défaut : migrations + données d'exemple exécutées), `mysql`, `pgsql` |
 | `--frontend` | `npm install && npm run build` même sans kit |
-| `--ui` | `none`, `css` : catalogue de composants Blade (`<x-ds.*>`), Vite + Tailwind v4, page `/components` (squelette sans Breeze) |
+| `--ui` | `none`, `css` (design kit CSS pur) ou `starwind` (Tailwind v4 + règles des atomes Starwind) : composants Blade `<x-ds.*>`, page `/components` et **site vitrine** FR/EN (squelette sans Breeze) |
+| `--auth` | comptes du site avec **Laravel Fortify** (`/auth/sign-in`, `/auth/sign-up`, `/auth/dashboard`) ; exige `--ui` |
+| `--icons` | jeu d'icônes Iconify du site (MDI par défaut, `lucide`, tout jeu Iconify) ; exige `--ui` |
+| `--langs` | langues du site vitrine : `fr,en,es,ar` (défaut `fr,en`, français obligatoire) ; exige `--ui` |
 
-Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css` (application `ds` : balises `{% ds_* %}`, page `/components/`). Rust : `--kind bin|lib`, `--edition`, `--dep`.
+Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind` (application `ds` : balises `{% ds_* %}`, page `/components/`, site vitrine dans les langues de `--langs` ; Starwind compilé par la CLI autonome Tailwind), `--auth` (authentification Django), `--icons <jeu>`, `--langs fr,en,es,ar`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
 
 ## Contrôles et garde-fous
 

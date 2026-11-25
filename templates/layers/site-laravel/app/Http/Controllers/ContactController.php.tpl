@@ -27,14 +27,14 @@ class ContactController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $rules = [];
-        foreach (config('site.contact_fields') as $f) {
+        foreach (trans('site.contact_fields') as $f) {
             $rules[$f['name']] = array_filter([
                 $f['required'] ? 'required' : 'nullable', 'string', 'max:5000', $f['type'] === 'email' ? 'email' : null,
             ]);
         }
         $data = $request->validate($rules, [
-            'required' => 'Ce champ est obligatoire.',
-            'email' => 'Adresse e-mail invalide.',
+            'required' => trans('site.ui.required'),
+            'email' => trans('site.ui.invalid_email'),
         ]);
         ContactMessage::create(['data' => $data]);
 

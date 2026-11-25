@@ -46,6 +46,72 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+@@if multilingual@@
+    public static function translatedPages(): array
+    {
+        return [
+@@if lang_en@@
+            'en home' => ['en', 'ltr', '/en', 'Fast, accessible websites that are easy to grow', 'Main navigation'],
+            'en about' => ['en', 'ltr', '/en/a-propos', 'A small team with high standards', 'Main navigation'],
+            'en service' => ['en', 'ltr', '/en/services/accessibilite', 'What’s included', 'Main navigation'],
+            'en article' => ['en', 'ltr', '/en/blog/choisir-son-framework', 'All articles', 'Main navigation'],
+            'en contact' => ['en', 'ltr', '/en/contact', 'Let’s talk about your project', 'Main navigation'],
+@@end@@
+@@if lang_es@@
+            'es home' => ['es', 'ltr', '/es', 'Sitios rápidos, accesibles y fáciles de hacer evolucionar', 'Navegación principal'],
+            'es about' => ['es', 'ltr', '/es/a-propos', 'Un equipo pequeño, con grandes exigencias', 'Navegación principal'],
+            'es service' => ['es', 'ltr', '/es/services/accessibilite', 'Qué incluye', 'Navegación principal'],
+            'es article' => ['es', 'ltr', '/es/blog/choisir-son-framework', 'Todos los artículos', 'Navegación principal'],
+            'es contact' => ['es', 'ltr', '/es/contact', 'Hablemos de su proyecto', 'Navegación principal'],
+@@end@@
+@@if lang_ar@@
+            'ar home' => ['ar', 'rtl', '/ar', 'مواقع سريعة وسهلة الوصول ويسهل تطويرها', 'التنقل الرئيسي'],
+            'ar about' => ['ar', 'rtl', '/ar/a-propos', 'فريق صغير بمعايير عالية', 'التنقل الرئيسي'],
+            'ar service' => ['ar', 'rtl', '/ar/services/accessibilite', 'ما تتضمنه الخدمة', 'التنقل الرئيسي'],
+            'ar article' => ['ar', 'rtl', '/ar/blog/choisir-son-framework', 'جميع المقالات', 'التنقل الرئيسي'],
+            'ar contact' => ['ar', 'rtl', '/ar/contact', 'لنتحدث عن مشروعكم', 'التنقل الرئيسي'],
+@@end@@
+        ];
+    }
+
+    /** @dataProvider translatedPages */
+    #[\PHPUnit\Framework\Attributes\DataProvider('translatedPages')]
+    public function test_translated_pages(string $locale, string $dir, string $url, string $text, string $nav): void
+    {
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('<html lang="'.$locale.'" dir="'.$dir.'">', false)
+            ->assertSee($text)
+            ->assertSee('aria-label="'.$nav.'"', false)
+            ->assertSee('hreflang="fr"', false);
+    }
+
+    public static function switcherPages(): array
+    {
+        return [
+@@if lang_en@@
+            'en' => ['en', 'Page not found'],
+@@end@@
+@@if lang_es@@
+            'es' => ['es', 'Página no encontrada'],
+@@end@@
+@@if lang_ar@@
+            'ar' => ['ar', 'الصفحة غير موجودة'],
+@@end@@
+        ];
+    }
+
+    /** @dataProvider switcherPages */
+    #[\PHPUnit\Framework\Attributes\DataProvider('switcherPages')]
+    public function test_the_language_switcher_links_to_the_same_page(string $locale, string $notFound): void
+    {
+        $this->get('/blog')->assertSee('href="/'.$locale.'/blog"', false);
+        $this->get('/'.$locale.'/blog')->assertSee('href="/blog"', false)
+            ->assertSee('href="/'.$locale.'/blog" aria-current="page"', false);
+        $this->get('/'.$locale.'/nope')->assertNotFound()->assertSee($notFound);
+    }
+@@end@@
+
     public function test_the_current_page_is_marked_in_the_menu(): void
     {
         $this->get('/blog')->assertSee('href="/blog" aria-current="page"', false);

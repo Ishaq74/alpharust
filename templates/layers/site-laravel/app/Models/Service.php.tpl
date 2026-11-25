@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Service extends Model
 {
-    protected $fillable = ['slug', 'title', 'summary', 'icon', 'price', 'features', 'body', 'position'];
+    protected $fillable = ['locale', 'slug', 'title', 'summary', 'icon', 'price', 'features', 'body', 'position'];
 
     protected function casts(): array
     {
@@ -26,7 +26,7 @@ class Service extends Model
             'icon' => $this->icon,
             'price' => $this->price,
             'features' => $this->features ?? [],
-            'more_label' => 'En savoir plus : '.$this->title,
+            'more_label' => trans('site.ui.more_label').$this->title,
         ];
     }
 }

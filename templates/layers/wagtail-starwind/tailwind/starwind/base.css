@@ -1,0 +1,6 @@
+/* Valeurs de départ de Tailwind reprises d'atomic (bordures, anneau de focus, curseur). */
+@layer base {
+  * { @apply border-border outline-outline/50; }
+  body { @apply bg-background text-foreground scheme-light dark:scheme-dark; }
+  button { @apply cursor-pointer; }
+}

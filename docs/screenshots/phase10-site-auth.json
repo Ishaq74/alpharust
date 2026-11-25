@@ -1,0 +1,404 @@
+{
+ "astro-starwind": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://localhost:4401/auth/sign-in/"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://localhost:4401/auth/dashboard/"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-astro-starwind-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://localhost:4401/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://localhost:4401/en/auth/dashboard/"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ],
+ "astro-css": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://localhost:4402/auth/sign-in/"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://localhost:4402/auth/dashboard/"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-astro-css-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://localhost:4402/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://localhost:4402/en/auth/dashboard/"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ],
+ "laravel-css": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://127.0.0.1:4403/auth/sign-in"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4403/auth/dashboard"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-laravel-css-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://127.0.0.1:4403/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4403/en/auth/dashboard"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ],
+ "wagtail-css": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://127.0.0.1:4404/auth/sign-in/"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4404/auth/dashboard/"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-wagtail-css-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://127.0.0.1:4404/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4404/en/auth/dashboard/"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ],
+ "laravel-starwind": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://127.0.0.1:4405/auth/sign-in"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4405/auth/dashboard"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-laravel-starwind-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://127.0.0.1:4405/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4405/en/auth/dashboard"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ],
+ "wagtail-starwind": [
+  {
+   "step": "header: Connexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "lien -> /auth/sign-in",
+   "ok": true,
+   "detail": "http://127.0.0.1:4406/auth/sign-in/"
+  },
+  {
+   "step": "inscription -> /auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4406/auth/dashboard/"
+  },
+  {
+   "step": "Mon compte : nom et e-mail",
+   "ok": true,
+   "detail": "Mon compte\n\nVous êtes connecté.\n\nNom\nAda Lovelace\nE-mail\nada-wagtail-starwind-1795018602@example.com\nSe déconnecter"
+  },
+  {
+   "step": "header: Mon compte",
+   "ok": true,
+   "detail": "Mon compte"
+  },
+  {
+   "step": "déconnexion -> accueil",
+   "ok": true,
+   "detail": "http://127.0.0.1:4406/"
+  },
+  {
+   "step": "header: Connexion après déconnexion",
+   "ok": true,
+   "detail": "Connexion"
+  },
+  {
+   "step": "inscription en double",
+   "ok": true,
+   "detail": "Un compte existe déjà avec cette adresse."
+  },
+  {
+   "step": "mot de passe trop court",
+   "ok": true,
+   "detail": "Le mot de passe doit contenir au moins 8 caractères."
+  },
+  {
+   "step": "EN : identifiants refusés",
+   "ok": true,
+   "detail": "Incorrect e-mail or password."
+  },
+  {
+   "step": "EN : e-mail ré-affiché",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "step": "EN : connexion -> /en/auth/dashboard",
+   "ok": true,
+   "detail": "http://127.0.0.1:4406/en/auth/dashboard/"
+  },
+  {
+   "step": "EN header: My account",
+   "ok": true,
+   "detail": "My account"
+  }
+ ]
+}

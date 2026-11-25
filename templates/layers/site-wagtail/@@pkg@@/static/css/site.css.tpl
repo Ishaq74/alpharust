@@ -58,7 +58,7 @@
 .site-container { width: min(100% - 2 * var(--site-gutter), var(--site-width)); margin-inline: auto; }
 .site-container--narrow { width: min(100% - 2 * var(--site-gutter), 48rem); }
 .site-skip {
-  position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: 0.5rem 1rem; border-radius: 0.5rem;
+  position: absolute; inset-inline-start: 1rem; top: -4rem; z-index: 100; padding: 0.5rem 1rem; border-radius: 0.5rem;
   background: var(--brand); color: var(--brand-contrast); font-weight: 600; text-decoration: none;
 }
 .site-skip:focus { top: 1rem; }
@@ -84,13 +84,21 @@
 .site-body .site-nav__link:hover, .site-body .site-nav__link[aria-current] { color: var(--text); background: var(--site-soft); }
 .site-nav__menu { min-width: 15rem; }
 .site-nav__menu a { text-decoration: none; color: inherit; }
-.site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.site-header__actions { display: flex; align-items: center; gap: 0.5rem; margin-inline-start: auto; }
+/* Sélecteur de langue (FR / EN) : liens vers la même page dans l'autre langue. */
+.site-lang__list { display: flex; align-items: center; gap: 0.125rem; margin: 0; padding: 0; list-style: none; }
+.site-lang__link {
+  display: inline-flex; align-items: center; gap: 0.35rem; height: 2.25rem; padding: 0 0.5rem; border-radius: 0.5rem;
+  font-size: 0.875rem; font-weight: 500; line-height: 1; color: var(--site-muted); text-decoration: none;
+}
+.site-lang__link:hover { color: var(--text); background: var(--site-soft); }
+.site-lang__link[aria-current] { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 0.3em; }
 .site-header__mobile { display: none; }
 .site-mobile__nav { padding: 0.5rem 0; }
 .site-mobile__list { display: grid; gap: 0.15rem; }
 .site-mobile__link {
   display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0.7rem 0.75rem; border: 0;
-  border-radius: 0.5rem; background: transparent; color: var(--text); font: inherit; font-weight: 500; text-align: left;
+  border-radius: 0.5rem; background: transparent; color: var(--text); font: inherit; font-weight: 500; text-align: start;
   text-decoration: none; cursor: pointer;
 }
 .site-mobile__link:hover, .site-mobile__link[aria-current] { background: var(--site-soft); }
@@ -98,8 +106,9 @@
 .site-mobile__sub a { display: block; padding: 0.45rem 0.75rem; border-radius: 0.5rem; color: var(--site-muted); text-decoration: none; }
 .site-mobile__sub a:hover, .site-mobile__sub a[aria-current] { color: var(--text); background: var(--site-soft); }
 .site-mobile__cta { width: 100%; }
+.site-mobile__cta + .site-mobile__cta { margin-top: 0.5rem; }
 @media (max-width: 60rem) {
-  .site-nav, .site-header__cta { display: none; }
+  .site-nav, .site-header__cta, .site-header__account { display: none; }
   .site-header__mobile { display: block; }
 }
 
@@ -181,7 +190,7 @@
 .site-form__notice { margin-bottom: 1rem; }
 .site-field { display: grid; gap: 0.4rem; }
 .site-field__error { color: var(--tone-error, #b91c1c); font-size: 0.875rem; }
-.site-required { margin-left: 0.2rem; color: var(--tone-error, #b91c1c); }
+.site-required { margin-inline-start: 0.2rem; color: var(--tone-error, #b91c1c); }
 .site-form [type="submit"] { justify-self: start; }
 .site-contact__list { display: grid; gap: 1rem; }
 .site-contact__list li { display: flex; align-items: flex-start; gap: 0.75rem; }
@@ -266,6 +275,12 @@ body.site-body [data-slot='breadcrumb-link'] { color: inherit; font-size: inheri
 body.site-body [data-slot='breadcrumb-link']:hover { color: var(--text); text-decoration: underline; }
 body.site-body [data-slot='breadcrumb-page'] { color: var(--text); font-weight: 500; font-size: inherit; }
 body.site-body [data-slot='breadcrumb-separator'] svg { width: 0.875rem; height: 0.875rem; }
+[dir='rtl'] [data-slot='breadcrumb-separator'] svg { transform: scaleX(-1); }
+/* Croix du menu mobile : même place sur les 6 combinaisons (Starwind serveur n'a pas de règle pour elle), côté fin de
+   ligne, donc à gauche en RTL. */
+body.site-body [data-slot='sheet-close'] { position: absolute; inset-block-start: 1rem; inset-inline-end: 1rem; inset-inline-start: auto; display: inline-flex; padding: 0.25rem; color: var(--text-muted); background: transparent; border: 0; border-radius: 0.375rem; cursor: pointer; }
+body.site-body [data-slot='sheet-close']:hover { color: var(--text); }
+body.site-body [data-slot='sheet-close'] svg { width: 1.25rem; height: 1.25rem; }
 body.site-body [data-slot='theme-toggle'] { width: 2.25rem; height: 2.25rem; min-width: 0; padding: 0; border-radius: 0.5rem; }
 body.site-body .site-required { margin: 0; color: var(--site-error); }
 body.site-body blockquote.site-quote__text { padding: 0; border: 0; color: var(--text); font-style: normal; }
@@ -276,3 +291,19 @@ body.site-body [data-slot='button'][data-variant='ghost'] { color: var(--text); 
 body.site-body [data-slot='button'][data-variant='primary'] { border: 1px solid transparent; }
 body.site-body [data-slot='avatar'] { position: relative; display: inline-block; flex-shrink: 0; width: 2.5rem; height: 2.5rem; margin: 0; overflow: hidden; font-size: 0.875rem; line-height: 1.6; color: var(--text); background: var(--surface-2); border: 2px solid var(--border); border-radius: 9999px; }
 body.site-body [data-slot='avatar-fallback'] { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: inherit; font-weight: 500; line-height: inherit; background: transparent; border-radius: 9999px; }
+
+/* ---------- comptes (--auth) : connexion, inscription, compte ---------- */
+.site-auth .site-container--narrow { max-width: 28rem; }
+.site-auth__title { margin: 0; font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.site-auth .site-lead { margin: 0.35rem 0 0; font-size: 1rem; }
+.site-auth .site-icon-box { margin-bottom: 0.75rem; }
+.site-auth__card .site-form [type="submit"] { justify-self: stretch; }
+.site-auth__alt { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: center; font-size: 0.9rem; color: var(--site-muted); }
+.site-auth__alt a { color: var(--text); font-weight: 600; }
+.site-auth__details { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.25rem; margin: 0; }
+.site-auth__details dt { color: var(--site-muted); }
+.site-auth__details dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+
+/* Écriture de droite à gauche (dir="rtl", ex. arabe) : la mise en page suit les propriétés logiques ci-dessus ; seules
+   les flèches de direction sont retournées. */
+[dir='rtl'] .site-icon[data-icon^='arrow-'] { transform: scaleX(-1); }

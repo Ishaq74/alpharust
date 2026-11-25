@@ -17,7 +17,7 @@
                 {% if s.link %}
                     {% ds_button href=s.link.url variant="ghost" %}
                         {{ s.link.label }}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        {% site_icon "arrow-right" size=16 %}
                     {% endds_button %}
                 {% endif %}
             </div>
@@ -45,7 +45,7 @@
                             {{ item.price }}
                         {% endds_badge %}
                         {% ds_button href=item.url variant="outline" size="sm" aria_label=item.more_label %}
-                            En savoir plus
+                            {{ site.ui.more }}
                         {% endds_button %}
                     {% endds_card_footer %}
                 {% endds_card %}

@@ -11,10 +11,15 @@ register = template.Library()
 @register.simple_tag
 def site_icon(name, size=20):
     """Icône du site par son nom (``{% site_icon "mail" 18 %}``)."""
+    icon = ICONS.get(name)
+    if not icon:
+        return ""
     return format_html(
-        '<svg width="{}" height="{}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon">{}</svg>',
+        '<svg width="{}" height="{}" viewBox="0 0 {} {}" fill="currentColor" aria-hidden="true" class="site-icon" data-icon="{}">{}</svg>',
         size,
         size,
-        mark_safe(ICONS.get(name, "")),
+        icon["width"],
+        icon["height"],
+        name,
+        mark_safe(icon["body"]),
     )

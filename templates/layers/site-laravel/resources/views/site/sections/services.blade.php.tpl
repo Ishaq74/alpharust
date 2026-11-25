@@ -16,7 +16,7 @@
                 @if (! empty($s['link']))
                     <x-ds.button :href="$s['link']['url'] ?? ''" variant="ghost">
                         {{ $s['link']['label'] ?? '' }}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        <x-site.icon name="arrow-right" :size="16" />
                     </x-ds.button>
                 @endif
             </div>
@@ -44,7 +44,7 @@
                             {{ $item['price'] ?? '' }}
                         </x-ds.badge>
                         <x-ds.button :href="$item['url'] ?? ''" variant="outline" size="sm" :aria-label="$item['more_label'] ?? ''">
-                            En savoir plus
+                            {{ $site['ui']['more'] ?? '' }}
                         </x-ds.button>
                     </x-ds.card.footer>
                 </x-ds.card>

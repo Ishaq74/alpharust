@@ -11,24 +11,25 @@ import { render } from 'astro:content';
 import BaseLayout from '@layouts/BaseLayout.astro';
 import { crumbs, getServices, getSite, href } from '@lib/site';
 void href;
+const locale = 'fr';
 
 @@if ssr@@
 // Rendu serveur : l'entrée est résolue à la demande.
 export const prerender = false;
-const item = (await getServices()).find((x) => x.entry.id === Astro.params.slug);
+const item = (await getServices(locale)).find((x) => x.slug === Astro.params.slug);
 if (!item) return Astro.rewrite('/404');
 @@else@@
 export async function getStaticPaths() {
-  return (await getServices()).map((item) => ({ params: { slug: item.entry.id }, props: { id: item.entry.id } }));
+  return (await getServices('fr')).map((item) => ({ params: { slug: item.slug }, props: { id: item.entry.id } }));
 }
-const item = (await getServices()).find((x) => x.entry.id === Astro.props.id)!;
+const item = (await getServices(locale)).find((x) => x.entry.id === Astro.props.id)!;
 @@end@@
 const { Content } = await render(item.entry);
+const site = await getSite(Astro.url.pathname);
 const page = {
   ...item,
-  crumbs: crumbs(['Services', '/services']),
+  crumbs: crumbs(locale, [site.ui.services, '/services']),
 };
-const site = await getSite(Astro.url.pathname);
 ---
 
 <BaseLayout title={page.title} description={item.summary} bleed>
@@ -76,7 +77,7 @@ const site = await getSite(Astro.url.pathname);
       <Card class="site-card">
         <CardHeader>
           <h2 class="site-card__title">
-            Ce qui est inclus
+            {site.ui.included}
           </h2>
         </CardHeader>
         <CardContent>
@@ -84,7 +85,7 @@ const site = await getSite(Astro.url.pathname);
             {(page.features ?? []).map((feature: any) => (
               <Fragment>
                 <li>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M20 6 9 17l-5-5"/></svg>
+                  <SiteIcon name="check" size={18} />
                   <span>
                     {feature}
                   </span>

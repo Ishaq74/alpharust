@@ -3,6 +3,7 @@
 // Généré par tools/dsgen/vitrine (spec.py) : même site que Laravel et Wagtail.
 import { Avatar, AvatarFallback } from '@atoms/avatar';
 import { Button } from '@atoms/button';
+import SiteIcon from '@/components/site/SiteIcon.astro';
 import type { Section, Site } from '@lib/site';
 
 interface Props {
@@ -35,7 +36,7 @@ void site;
             <Fragment>
               <Button href={s.link.url} variant="ghost">
                 {s.link.label}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="site-icon"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                <SiteIcon name="arrow-right" size={16} />
               </Button>
             </Fragment>
           )}

@@ -1,0 +1,26 @@
+{
+ "_": "Généré par gen_ds.py depuis vitrine/locales : langues du site vitrine (--langs)",
+ "default": "fr",
+ "locales": [
+  {
+   "code": "fr",
+   "name": "Français",
+   "dir": "ltr"
+  },
+  {
+   "code": "en",
+   "name": "English",
+   "dir": "ltr"
+  },
+  {
+   "code": "es",
+   "name": "Español",
+   "dir": "ltr"
+  },
+  {
+   "code": "ar",
+   "name": "العربية",
+   "dir": "rtl"
+  }
+ ]
+}

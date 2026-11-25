@@ -103,8 +103,16 @@ pub struct LaravelOptions {
     pub frontend: bool,
     /// Catalogue de composants du design kit partagé (Blade, CSS pur, Vite + Tailwind v4) et page `/components`.
     pub ui: bool,
+    /// Kit Tailwind + Starwind (`--ui starwind`) au lieu du kit CSS : mêmes composants, classes des atomes d'atomic.
+    pub starwind: bool,
     /// Palette de marque (exige `ui`) : même `themes/theme.css` qu'Astro, donc même rendu.
     pub theme: Option<super::theme::ThemeColors>,
+    /// Comptes du site (exige `ui`) : Laravel Fortify, pages connexion / inscription / compte du site.
+    pub auth: bool,
+    /// Jeu d'icônes Iconify du site (`--icons`, MDI par défaut ; drapeaux Circle Flags).
+    pub icons: Option<String>,
+    /// Langues du site vitrine (`--langs`, vide = fr,en) : localisation officielle de Laravel.
+    pub langs: Vec<String>,
 }
 
 impl Default for LaravelOptions {
@@ -116,7 +124,11 @@ impl Default for LaravelOptions {
             database: Database::Sqlite,
             frontend: false,
             ui: false,
+            starwind: false,
             theme: None,
+            auth: false,
+            icons: None,
+            langs: vec![],
         }
     }
 }
@@ -129,8 +141,19 @@ impl LaravelOptions {
         if self.dark && !self.starter.has_frontend() {
             anyhow::bail!("--dark n'a pas de sens avec le kit API");
         }
+        if (self.auth || self.icons.is_some() || !self.langs.is_empty()) && !self.ui {
+            anyhow::bail!("--auth, --icons et --langs s'appliquent au site vitrine : ajoutez --ui css ou --ui starwind");
+        }
+        super::site::validate(&self.langs)?;
+        if let Some(set) = &self.icons {
+            if !super::internal::valid_icon_set(set) {
+                anyhow::bail!(
+                    "--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)"
+                );
+            }
+        }
         if self.theme.is_some() && !self.ui {
-            anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css");
+            anyhow::bail!("--theme-* s'applique au design kit : ajoutez --ui css ou --ui starwind");
         }
         if let Some(t) = &self.theme {
             t.validate()?;
@@ -149,11 +172,15 @@ impl LaravelOptions {
     }
 
     pub fn flags(&self) -> Vec<(&'static str, bool)> {
-        vec![
+        let mut v = vec![
             ("breeze", self.starter != Starter::None),
             ("sqlite", self.database == Database::Sqlite),
             ("ui", self.ui),
-        ]
+            ("starwind", self.ui && self.starwind),
+            ("auth", self.ui && self.auth),
+        ];
+        v.extend(super::site::flags(&self.langs));
+        v
     }
 }
 
@@ -269,6 +296,19 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             ));
         }
     }
+    if o.ui && o.auth {
+        // Comptes du site : Laravel Fortify (authentification sans interface ; pages fournies par le site).
+        steps.push(Step::run(
+            "fortify",
+            Phase::Install,
+            "Installer Laravel Fortify (comptes du site)",
+            Cmd::new(
+                "composer",
+                &["require", "laravel/fortify", "--no-interaction"],
+                Cwd::Project,
+            ),
+        ));
+    }
     if o.database != Database::Sqlite {
         steps.push(Step::internal(
             "env",
@@ -285,13 +325,17 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
         Phase::Layer,
         "Appliquer la couche AlphaRust (pages, modèle, migration, tests, docs)",
         Internal::Layer(if o.ui {
-            vec![
+            let mut v = vec![
                 "common",
                 "laravel",
                 "ui-blade",
                 "laravel-ds",
                 "site-laravel",
-            ]
+            ];
+            if o.starwind {
+                v.push("laravel-starwind");
+            }
+            v
         } else {
             vec!["common", "laravel"]
         }),
@@ -303,6 +347,9 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
             "Copier le design kit (resources/css/design, resources/js/design)",
             Internal::DesignKit(DesignTarget::Laravel),
         ));
+        if let Some(set) = o.icons.as_ref().filter(|s| s.as_str() != "mdi") {
+            steps.push(super::site_icons_step(set));
+        }
         if let Some(t) = &o.theme {
             steps.push(Step::internal(
                 "theme",
@@ -394,6 +441,26 @@ pub fn steps(req: &Request, o: &LaravelOptions) -> Vec<Step> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn starwind_kit_adds_its_layer_and_flag() {
+        let o = LaravelOptions {
+            ui: true,
+            starwind: true,
+            ..Default::default()
+        };
+        assert!(o.flags().contains(&("starwind", true)));
+        let mut r = Request::new(super::super::Framework::Laravel, "x");
+        r.options = super::super::Options::Laravel(o.clone());
+        let s = steps(&r, &o);
+        let layer = s.iter().find(|s| s.id == "layer").unwrap();
+        match &layer.action {
+            super::super::Action::Do(Internal::Layer(v)) => {
+                assert_eq!(v.last(), Some(&"laravel-starwind"))
+            }
+            _ => panic!(),
+        }
+    }
+
     use super::*;
     use crate::scaffold::{Action, Framework, Options};
 
@@ -410,6 +477,45 @@ mod tests {
             Action::Run(c) => c.display(),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn auth_installs_fortify_and_icons_rewrite_icons_json() {
+        let s = steps_with(|o| {
+            o.ui = true;
+            o.auth = true;
+            o.icons = Some("lucide".into());
+        });
+        assert_eq!(
+            display(&s, "fortify"),
+            "composer require laravel/fortify --no-interaction"
+        );
+        assert!(s
+            .iter()
+            .any(|s| matches!(&s.action, Action::Do(Internal::SiteIcons(set)) if set == "lucide")));
+        let o = LaravelOptions {
+            ui: true,
+            auth: true,
+            ..Default::default()
+        };
+        assert!(o.flags().contains(&("auth", true)));
+        // sans le site vitrine (--ui), ni comptes ni jeu d'icônes
+        assert!(steps_with(|o| o.auth = true)
+            .iter()
+            .all(|s| s.id != "fortify"));
+        assert!(LaravelOptions {
+            auth: true,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(LaravelOptions {
+            ui: true,
+            icons: Some("../x".into()),
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
     }
 
     #[test]
