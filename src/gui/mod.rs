@@ -930,8 +930,8 @@ pub async fn run(port: u16) -> anyhow::Result<()> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .map_err(|e| anyhow::anyhow!("impossible d'écouter sur {} : {}", addr, e))?;
-    println!("AlphaRust GUI running at http://{}", addr);
+        .map_err(|e| anyhow::anyhow!("impossible d'écouter sur {addr} : {e}"))?;
+    println!("AlphaRust GUI running at http://{addr}");
     axum::serve(listener, router(port)).await?;
     Ok(())
 }

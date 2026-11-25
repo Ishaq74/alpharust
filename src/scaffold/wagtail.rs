@@ -227,6 +227,14 @@ pub fn steps(req: &Request, o: &WagtailOptions) -> Vec<Step> {
             "Brancher l'application ds (INSTALLED_APPS, /components/, feuille et script du kit)",
             Internal::WagtailDesign(o.starwind, super::site::codes(&o.langs)),
         ));
+        if !o.starwind {
+            steps.push(Step::run(
+                "ds-bundle",
+                Phase::Configure,
+                "Regrouper le kit CSS en une feuille (manage.py ds_bundle → ds/static/ds/css/ds.bundle.css)",
+                Cmd::new(&py, &["manage.py", "ds_bundle"], Cwd::Project),
+            ));
+        }
         steps.push(Step::internal(
             "compilemessages",
             Phase::Configure,

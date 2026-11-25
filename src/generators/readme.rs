@@ -3,10 +3,7 @@
 pub fn generate_with(project_name: &str, install: &str, usage: &str) -> String {
     format!(
         // alpharust-ignore: no-hardcoded-urls
-        "# {name}\n\nProjet généré et gouverné par [AlphaRust](https://github.com/Ishaq74/alpharust).\n\n## Installation\n\n```bash\n{install}\n```\n\n## Usage\n\n```bash\n{usage}\n```\n\n## Qualité\n\n```bash\nalpharust lint --profile strict\n```\n\n## License\n\nMIT\n",
-        name = project_name,
-        install = install,
-        usage = usage
+        "# {project_name}\n\nProjet généré et gouverné par [AlphaRust](https://github.com/Ishaq74/alpharust).\n\n## Installation\n\n```bash\n{install}\n```\n\n## Usage\n\n```bash\n{usage}\n```\n\n## Qualité\n\n```bash\nalpharust lint --profile strict\n```\n\n## License\n\nMIT\n"
     )
 }
 
@@ -14,7 +11,7 @@ pub fn generate_with(project_name: &str, install: &str, usage: &str) -> String {
 pub fn generate(project_name: &str) -> String {
     generate_with(
         project_name,
-        &format!("git clone <url-du-depot> {0}\ncd {0}", project_name),
+        &format!("git clone <url-du-depot> {project_name}\ncd {project_name}"),
         "# voir la documentation du projet dans docs/",
     )
 }

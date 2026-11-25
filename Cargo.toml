@@ -1,13 +1,18 @@
 [package]
 name = "alpharust"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.89"
 resolver = "3"
 description = "AlphaRust — moteur de règles (regex + checkers sémantiques), générateurs de projets, CLI, TUI et GUI web"
 license = "MIT"
 repository = "https://github.com/Ishaq74/alpharust"
+documentation = "https://github.com/Ishaq74/alpharust/tree/main/docs"
 readme = "README.md"
+keywords = ["lint", "scaffold", "astro", "laravel", "wagtail"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
+# Paquet crates.io (`cargo install alpharust`) : code, règles, profils et couches embarquées ; ni captures ni projets générés.
+exclude = ["/sites", "/docs/screenshots", "/target", "/.github", "/todos"]
 
 [lib]
 name = "alpharust"
@@ -40,3 +45,14 @@ serde-saphyr = { version = "2.2.0", default-features = false, features = ["deser
 tempfile = "3"
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Lints pedantic ciblés (le reste de clippy::pedantic n'est pas activé : voir ADR 0018)
+[lints.clippy]
+uninlined_format_args = "warn"
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"

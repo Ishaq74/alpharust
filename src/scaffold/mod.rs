@@ -279,6 +279,8 @@ pub enum Internal {
     /// Site vitrine : jeu d'icônes Iconify (`--icons`) réécrit dans `icons.json` (MDI par défaut).
     SiteIcons(String),
     PackageScripts(Vec<(&'static str, &'static str)>),
+    /// npm 11.16+ : dépendances autorisées à lancer leurs scripts d'installation (`allowScripts` de package.json).
+    NpmAllowScripts(Vec<&'static str>),
     LaravelEnv(laravel::Database),
     LaravelRoutes,
     WriteManifest,
@@ -629,7 +631,7 @@ pub fn execute(req: &Request, sink: &mut dyn FnMut(Event), cancel: &AtomicBool) 
             sink(Event::Log {
                 index,
                 line: line.to_string(),
-            })
+            });
         });
         let millis = t0.elapsed().as_millis();
         let (ok, note) = match outcome {

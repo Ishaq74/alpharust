@@ -593,11 +593,34 @@ mod tests {
         assert_eq!(settings.matches("LocaleMiddleware").count(), 1);
         assert_eq!(settings.matches("WAGTAIL_I18N_ENABLED").count(), 1);
         let base = fs::read_to_string(p.join("demo/templates/base.html")).unwrap();
-        assert_eq!(base.matches("ds/css/index.css").count(), 1);
+        assert_eq!(base.matches("ds/css/ds.bundle.css").count(), 1);
+        assert_eq!(base.matches("ds/css/components/custom.css").count(), 1);
         assert_eq!(base.matches("ds/js/ds.js").count(), 1);
         assert_eq!(base.matches("ds/favicon.svg").count(), 1);
         // un squelette modifié est signalé, jamais patché à l'aveugle
         fs::write(p.join("demo/urls.py"), "urlpatterns = []\n").unwrap();
         assert!(crate::scaffold::internal::patch_wagtail_design(p, "demo", false, &[]).is_err());
+    }
+
+    #[test]
+    fn the_three_frameworks_send_the_same_base_csp() {
+        let csp = |layer: &str, path: &str| -> String {
+            let (_, body) = crate::scaffold::layer::files(layer)
+                .into_iter()
+                .find(|(p, _)| p == path)
+                .unwrap_or_else(|| panic!("{layer}/{path}"));
+            let start = body.find("default-src").expect("CSP");
+            let end = start + body[start..].find('"').unwrap();
+            body[start..end].to_string()
+        };
+        let laravel = csp(
+            "site-laravel",
+            "app/Http/Middleware/SecurityHeaders.php.tpl",
+        );
+        let wagtail = csp("wagtail", "@@pkg@@/settings/production.py.tpl");
+        let astro = csp("site-astro", "src/layouts/BaseLayout.astro.tpl");
+        assert_eq!(laravel, wagtail);
+        // balise <meta> côté Astro : frame-ancestors n'y est pas permis (en-tête HTTP seulement)
+        assert_eq!(format!("{astro}; frame-ancestors 'self'"), laravel);
     }
 }

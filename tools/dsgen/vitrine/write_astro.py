@@ -1,6 +1,6 @@
 """Rendu Astro : layout + composants + pages + collections de contenu (couche site-astro)."""
 import json
-from . import data as D, templates as TPL, i18n as I18N
+from . import data as D, templates as TPL
 from .ir import Astro
 from .icons import icons_json
 
@@ -518,12 +518,16 @@ const site = await getSite(Astro.url.pathname, Astro.locals.user);
 const site = await getSite(Astro.url.pathname);
 @@end@@
 const meta = seo(site, Astro.url.pathname, Astro.site ?? Astro.url, article);
+// CSP de base, la même que Laravel et Wagtail (production seulement : le serveur de développement injecte ses scripts).
+// Balise <meta> : valable aussi pour les pages prérendues ; frame-ancestors n'y est pas permis (en-tête HTTP seulement).
+const csp = "__CSP_META__";
 ---
 
 <!doctype html>
 <html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
     {/* SEO.astro : title, description, canonical et og:url (astro.config `site`) ; le reste est commun aux 3 frameworks. */}
     {meta.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
     <meta property="og:site_name" content={meta.siteName} />
@@ -628,7 +632,6 @@ const site = await getSite(Astro.url.pathname);
 
 def detail_page(cat, kind, locale='fr'):
     """services/[slug].astro et blog/[...slug].astro : rendu serveur (ssr) ou pages statiques."""
-    coll = 'services' if kind == 'service' else 'blog'
     nodes = TPL.SERVICE_DETAIL if kind == 'service' else TPL.POST_DETAIL
     r = Astro(cat)
     body = r.nodes(nodes)
@@ -881,7 +884,7 @@ def files(cat, css):
         # robots.txt statique de la couche astro : remplacé par la route ci-dessus (adresse absolue du plan du site).
         'public/robots.txt.tpl': '@@meta mode=delete when=vitrine@@\n',
         'src/content.config.ts.tpl': CONTENT_CONFIG,
-        'src/layouts/BaseLayout.astro.tpl': layout(),
+        'src/layouts/BaseLayout.astro.tpl': layout().replace('__CSP_META__', D.CSP.replace("; frame-ancestors 'self'", '')),
         'src/components/site/SiteHeader.astro.tpl': comp(cat, TPL.HEADER, SITE_PROPS),
         'src/components/site/SiteFooter.astro.tpl': comp(cat, TPL.FOOTER, SITE_PROPS),
         'src/components/site/SiteIcon.astro.tpl': icon_component(),

@@ -5,10 +5,14 @@
 # ou props, slot) sont lues directement dans les atomes CSS pur (ui-css) ; les autres sont décrites dans MANUAL.
 # Deux rendus : composant Blade anonyme (@props, $attributes->merge — https://laravel.com/docs/blade#components)
 # et balise Django simple_tag / simple_block_tag (https://docs.djangoproject.com/en/stable/howto/custom-template-tags/).
-# Appelé par gen_ds.py après ext_write.py ; ne pas éditer les fichiers générés.
-import glob, json, os, re
+# Importé par gen_ds.py après ext_write.write() (generate()) ; ne pas éditer les fichiers générés.
+import glob
+import os
+import re
 
-EXT_DIR = os.path.join(ROOT, 'ui-css', 'src', 'components', 'atoms')  # noqa: F821 (ROOT vient de gen_ds.py)
+from common import OUT_BLADE, OUT_DJ, ROOT, ext_components, part_rel, w
+
+EXT_DIR = os.path.join(ROOT, 'ui-css', 'src', 'components', 'atoms')
 
 # ---------------------------------------------------------------- IR
 class L:            # littéral
@@ -631,26 +635,12 @@ part('video', 'Video', [('src', ''), ('title', 'Video'), ('autoplay', False), ('
           ('is_short', "str_contains($src, '/shorts/')", '"/shorts/" in src')])
 
 # ---------------------------------------------------------------- assemblage
-EXT_PARTS = []
-for comp in ext:  # noqa: F821 (liste des composants étendus, gen_ds.py)
-    for path in sorted(glob.glob(f'{EXT_DIR}/{comp}/*.astro')):
-        name = os.path.basename(path)[:-6]
-        p = M.get(name) or auto_part(comp, name, path)
-        assert p is not None, f'partie {comp}/{name} : ni simple ni décrite dans MANUAL'
-        assert p.comp == comp, (comp, name)
-        EXT_PARTS.append(p)
-unused = set(M) - {p.name for p in EXT_PARTS}
-assert not unused, unused
-
 def ext_blade_path(p):
-    rel = 'toaster' if p.name == 'Toaster' else part_rel(p.comp, p.name)  # noqa: F821
-    return f'{OUT_BLADE}/{p.comp}/{rel or p.comp}.blade.php'  # noqa: F821
-
-for p in EXT_PARTS:
-    w(ext_blade_path(p), blade_part(p))  # noqa: F821
+    rel = 'toaster' if p.name == 'Toaster' else part_rel(p.comp, p.name)
+    return f'{OUT_BLADE}/{p.comp}/{rel or p.comp}.blade.php'
 
 # helpers PHP partagés (curseur, vidéo) : classe d'application, comme un composant Blade à classe
-w(ROOT + '/ui-blade/app/View/DesignKit.php', r'''<?php
+DESIGN_KIT_PHP = r'''<?php
 
 namespace App\View;
 
@@ -731,7 +721,7 @@ final class DesignKit
         return round((($v - $min) / $span) * 100, 4);
     }
 }
-''')
+'''
 
 DJ_EXT_HEADER = r'''
 
@@ -813,18 +803,38 @@ def _youtube_embed(src, autoplay, muted, loop, controls):
     return None
 
 '''
-dj_core = open(OUT_DJ).read()  # noqa: F821
-core_tags = set(re.findall(r'name="(ds_[a-z_]+)"', dj_core))
-ext_tags = [dj_tag_name(p) for p in EXT_PARTS]
-assert not core_tags & set(ext_tags), core_tags & set(ext_tags)
-assert len(ext_tags) == len(set(ext_tags))
-w(OUT_DJ, dj_core + DJ_EXT_HEADER + '\n\n'.join(django_part(p) for p in EXT_PARTS))  # noqa: F821
 
-# index lisible : partie -> composant Blade -> balise Django (utilisé par les tests de parité et la doc)
-EXT_INDEX = {p.comp: [] for p in EXT_PARTS}
-for p in EXT_PARTS:
-    EXT_INDEX[p.comp].append({'part': p.name,
-                              'blade': 'x-ds.' + ext_blade_path(p)[len(OUT_BLADE) + 1:-len('.blade.php')].replace('/', '.')
-                                       .replace(f'{p.comp}.{p.comp}', p.comp),  # noqa: F821
-                              'django': dj_tag_name(p)})
-print('blade+django étendus ok', len(EXT_PARTS), 'parties')
+
+def generate():
+    """Parties étendues Blade et Django (assemblées depuis les atomes CSS pur), DesignKit.php, ds.py."""
+    ext_parts = []
+    for comp in ext_components():
+        for path in sorted(glob.glob(f'{EXT_DIR}/{comp}/*.astro')):
+            name = os.path.basename(path)[:-6]
+            p = M.get(name) or auto_part(comp, name, path)
+            assert p is not None, f'partie {comp}/{name} : ni simple ni décrite dans MANUAL'
+            assert p.comp == comp, (comp, name)
+            ext_parts.append(p)
+    unused = set(M) - {p.name for p in ext_parts}
+    assert not unused, unused
+    for p in ext_parts:
+        w(ext_blade_path(p), blade_part(p))
+
+    # helpers PHP partagés (curseur, vidéo) : classe d'application, comme un composant Blade à classe
+    w(ROOT + '/ui-blade/app/View/DesignKit.php', DESIGN_KIT_PHP)
+    dj_core = open(OUT_DJ).read()
+    core_tags = set(re.findall(r'name="(ds_[a-z_]+)"', dj_core))
+    ext_tags = [dj_tag_name(p) for p in ext_parts]
+    assert not core_tags & set(ext_tags), core_tags & set(ext_tags)
+    assert len(ext_tags) == len(set(ext_tags))
+    w(OUT_DJ, dj_core + DJ_EXT_HEADER + '\n\n'.join(django_part(p) for p in ext_parts))
+
+    # index lisible : partie -> composant Blade -> balise Django (utilisé par les tests de parité et la doc)
+    ext_index = {p.comp: [] for p in ext_parts}
+    for p in ext_parts:
+        ext_index[p.comp].append({'part': p.name,
+                                  'blade': 'x-ds.' + ext_blade_path(p)[len(OUT_BLADE) + 1:-len('.blade.php')].replace('/', '.')
+                                           .replace(f'{p.comp}.{p.comp}', p.comp),
+                                  'django': dj_tag_name(p)})
+    print('blade+django étendus ok', len(ext_parts), 'parties')
+    return ext_index

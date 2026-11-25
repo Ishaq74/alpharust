@@ -294,7 +294,7 @@ struct GenOpts {
         long,
         value_delimiter = ',',
         value_name = "LANGUES",
-        help = "[site vitrine] langues : fr (toujours), en, es, ar (RTL) ; défaut fr,en (astro, laravel, wagtail)"
+        help = "langues : fr, en, es, ar (RTL) — site vitrine (fr toujours, défaut fr,en) ; [astro] sans --ui : routage i18n (la première est par défaut)"
     )]
     langs: Vec<String>,
     #[arg(
@@ -306,7 +306,7 @@ struct GenOpts {
     #[arg(
         long,
         value_delimiter = ',',
-        help = "[astro] langues (la première est par défaut) : fr, en, es, ar"
+        help = "[astro] déprécié : alias de --langs (la première langue est celle par défaut)"
     )]
     i18n: Vec<String>,
     #[arg(long, help = "[astro] Dockerfile + docker-compose")]
@@ -326,8 +326,8 @@ struct GenOpts {
     pest: bool,
     #[arg(
         long,
-        value_name = "sqlite|mysql|pgsql | none|postgres|sqlite",
-        help = "[laravel] base de données ; [astro] base Drizzle (none, postgres, sqlite)"
+        value_name = "sqlite|postgres|mysql|none",
+        help = "base de données — [laravel] sqlite (défaut), postgres (pilote pgsql), mysql ; [astro] base Drizzle : none (défaut), sqlite, postgres"
     )]
     db: Option<String>,
     #[arg(long, help = "[laravel] npm install && npm run build même sans kit")]
@@ -416,7 +416,7 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
         || o.db_url.is_some()
         || (o.auth && !matches!(framework, Framework::Laravel | Framework::Wagtail))
         || (o.icons.is_some() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
-        || (!o.langs.is_empty() && !matches!(framework, Framework::Laravel | Framework::Wagtail))
+        || (!o.langs.is_empty() && framework == Framework::Rust)
         || !o.auth_plugins.is_empty()
         || !o.i18n.is_empty()
         || o.docker
@@ -508,6 +508,14 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
                 })?;
                 preset.apply(&mut a);
             }
+            // `--langs` est l'option des langues pour les 3 frameworks : sans site vitrine (pas de --ui), elle
+            // règle le routage i18n de la plateforme Astro (l'ancien `--i18n`, gardé comme alias déprécié).
+            if !a.vitrine() && a.i18n.is_empty() && !a.langs.is_empty() {
+                a.i18n = std::mem::take(&mut a.langs);
+            }
+            if !o.i18n.is_empty() {
+                eprintln!("avertissement : --i18n est déprécié, utilisez --langs (mêmes valeurs)");
+            }
             Options::Astro(a)
         }
         Framework::Laravel => {
@@ -520,7 +528,12 @@ fn request_from(framework: Framework, name: &str, o: &GenOpts) -> Result<Request
             )? {
                 l.starter = v;
             }
-            if let Some(v) = parse_opt("--db", &o.db, Database::parse, "sqlite, mysql, pgsql")? {
+            if let Some(v) = parse_opt(
+                "--db",
+                &o.db,
+                Database::parse,
+                "sqlite, postgres (pgsql), mysql",
+            )? {
                 l.database = v;
             }
             l.dark = o.dark;
@@ -620,7 +633,7 @@ fn run_scaffold(req: &Request, dry_run: bool, json: bool, verbose: bool) -> Resu
                 if matches!(&ev, Event::StepStart { index, .. } if *index > 0) {
                     touched.set(true);
                 }
-                printer.handle(&ev)
+                printer.handle(&ev);
             },
             &cancel,
         )
@@ -734,7 +747,7 @@ pub async fn run() -> Result<i32> {
                     report
                         .profile
                         .as_ref()
-                        .map(|p| format!(", profil {}", p))
+                        .map(|p| format!(", profil {p}"))
                         .unwrap_or_default()
                 );
             }
@@ -755,7 +768,7 @@ pub async fn run() -> Result<i32> {
                 }
             } else if checkers {
                 for (name, desc) in crate::checkers::catalog() {
-                    out.push_str(&format!("{:<22} {}\n", name, desc));
+                    out.push_str(&format!("{name:<22} {desc}\n"));
                 }
             } else {
                 let rules = Rule::load_all()?;
@@ -784,7 +797,7 @@ pub async fn run() -> Result<i32> {
                 Ok(0)
             } else {
                 for p in &report.problems {
-                    emit(&format!("✗ {}\n", p));
+                    emit(&format!("✗ {p}\n"));
                 }
                 Ok(1)
             }
@@ -841,7 +854,7 @@ pub async fn run() -> Result<i32> {
         }
         Commands::Checks { profile } => {
             let (title, rules) = match &profile {
-                Some(p) => (format!("profil {}", p), Profile::load(p)?.resolve_rules()?),
+                Some(p) => (format!("profil {p}"), Profile::load(p)?.resolve_rules()?),
                 None => ("toutes les règles".to_string(), Rule::load_all()?),
             };
             emit(&checks::generate(&title, &composer::compose(rules)));
@@ -855,7 +868,7 @@ pub async fn run() -> Result<i32> {
                         "cache : {} ({}) — {}\n",
                         cache::cache_file().display(),
                         if exists {
-                            format!("{} octets", size)
+                            format!("{size} octets")
                         } else {
                             "absent".into()
                         },

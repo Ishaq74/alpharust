@@ -109,7 +109,7 @@ impl PackageManager {
                 vec!["add".into(), "-D".into()]
             }
         };
-        args.extend(pkgs.iter().map(|s| s.to_string()));
+        args.extend(pkgs.iter().map(std::string::ToString::to_string));
         Cmd::owned(self.id(), args, Cwd::Project)
     }
 
@@ -457,7 +457,7 @@ impl AstroOptions {
         let mut seen = std::collections::BTreeSet::new();
         for i in &self.integrations {
             if !seen.insert(i) {
-                bail!("intégration `{}` en double", i);
+                bail!("intégration `{i}` en double");
             }
         }
         let ui: Vec<&String> = self
@@ -710,6 +710,22 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         &format!("TypeScript : preset astro/tsconfigs/{}", o.typescript.id()),
         Internal::AstroTsconfig(o.typescript),
     ));
+    if pm == PackageManager::Npm {
+        // npm 11.16+ avertit, npm 12 bloque : scripts d'installation approuvés avant les `npm install` suivants
+        let mut pkgs = vec!["esbuild"];
+        if o.database == Db::Sqlite {
+            pkgs.push("better-sqlite3");
+        }
+        steps.push(Step::internal(
+            "allow-scripts",
+            Phase::Configure,
+            &format!(
+                "Autoriser les scripts d'installation de {} (allowScripts, npm 12)",
+                pkgs.join(", ")
+            ),
+            Internal::NpmAllowScripts(pkgs),
+        ));
+    }
 
     let to_add = o.astro_add_list();
     if !to_add.is_empty() && req.install {
@@ -1061,6 +1077,7 @@ mod tests {
                 "prepare",
                 "create",
                 "tsconfig",
+                "allow-scripts",
                 "typecheck-deps",
                 "scripts",
                 "layer",

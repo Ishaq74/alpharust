@@ -13,6 +13,20 @@ use std::fs;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
+mod gettext;
+mod git;
+mod icons;
+mod tailwind;
+
+use gettext::compile_messages;
+pub use gettext::{compile_mo, parse_po};
+use git::git_init;
+pub use git::{ensure_gitignore, LOCAL_ONLY};
+use icons::site_icons;
+pub use icons::valid_icon_set;
+use tailwind::tailwind_standalone;
+pub use tailwind::{sha256_file, tailwind_asset, tailwind_sha256, TAILWIND_VERSION};
+
 /// État partagé entre les étapes.
 pub struct State {
     pub ctx: Ctx,
@@ -213,7 +227,7 @@ pub fn list_files(target: &Path) -> Vec<String> {
                 || !e.file_type().is_dir()
                 || !SKIP.contains(&e.file_name().to_string_lossy().as_ref())
         })
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
     {
         if e.file_type().is_file() {
             if let Ok(rel) = e.path().strip_prefix(target) {
@@ -375,6 +389,7 @@ fn run_internal(
             tailwind_standalone(target, &req.name, cancel, on_line).map(Some)
         }
         Internal::PackageScripts(scripts) => patch_package_scripts(target, scripts).map(Some),
+        Internal::NpmAllowScripts(pkgs) => patch_allow_scripts(target, pkgs).map(Some),
         Internal::LaravelEnv(db) => patch_laravel_env(target, *db, &req.name).map(Some),
         Internal::LaravelRoutes => patch_laravel_routes(target).map(Some),
         Internal::WriteManifest => write_manifest(req, target).map(|_| None),
@@ -467,6 +482,26 @@ pub fn patch_package_scripts(target: &Path, scripts: &[(&str, &str)]) -> Result<
         .map(|(k, _)| *k)
         .collect::<Vec<_>>()
         .join(", "))
+}
+
+/// `allowScripts` de package.json (doc npm, « npm install-scripts ») : entrées par nom, toutes versions.
+/// npm 12 bloque les scripts d'installation non approuvés (better-sqlite3 se compile, esbuild installe son binaire).
+pub fn patch_allow_scripts(target: &Path, pkgs: &[&str]) -> Result<String> {
+    let path = target.join("package.json");
+    let mut v = read_json(&path)?;
+    let obj = v
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("package.json invalide"))?;
+    let entry = obj.entry("allowScripts").or_insert_with(|| json!({}));
+    let map = entry
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("`allowScripts` invalide dans package.json"))?;
+    for p in pkgs {
+        // une décision explicite (`false`) de l'utilisateur n'est jamais écrasée
+        map.entry((*p).to_string()).or_insert(json!(true));
+    }
+    write_json(&path, &v)?;
+    Ok(format!("allowScripts : {}", pkgs.join(", ")))
 }
 
 /// Alias de chemins, comme dans le dépôt atomic.
@@ -749,7 +784,8 @@ pub fn patch_wagtail_design(
             // kit Starwind : sortie de la CLI Tailwind (tailwind/input.css), à la place du kit CSS
             "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'css/tailwind.css' %}\">\n"
         } else {
-            "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/index.css' %}\">\n"
+            // kit CSS regroupé (manage.py ds_bundle : une requête au lieu de 55), puis vos surcharges
+            "        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/ds.bundle.css' %}\">\n        <link rel=\"stylesheet\" type=\"text/css\" href=\"{% static 'ds/css/components/custom.css' %}\">\n"
         },
     )?;
     edit(
@@ -826,7 +862,7 @@ pub fn patch_wagtail_design(
         );
         fs::write(&urls, patched)?;
     }
-    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings, wagtail.contrib.sitemaps), processeurs de contexte, /sitemap.xml, /robots.txt, LANGUAGE_CODE = fr, langues fr/en (wagtail.locales, LocaleMiddleware, i18n_patterns), /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
+    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings, wagtail.contrib.sitemaps), processeurs de contexte, /sitemap.xml, /robots.txt, LANGUAGE_CODE = fr, langues fr/en (wagtail.locales, LocaleMiddleware, i18n_patterns), /components/, ds/css/ds.bundle.css + custom.css, ds/js/ds.js, favicon".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.
@@ -928,12 +964,38 @@ pub fn patch_laravel_env(target: &Path, db: Database, name: &str) -> Result<Stri
 }
 
 pub fn patch_laravel_routes(target: &Path) -> Result<String> {
+    let mut done = Vec::new();
+    // Site (--ui) : en-têtes de sécurité et CSP sur le groupe web, comme le recommande la doc Laravel
+    // (« Middleware » : `$middleware->web(append: [...])` dans bootstrap/app.php).
+    if target
+        .join("app/Http/Middleware/SecurityHeaders.php")
+        .is_file()
+    {
+        let app = target.join("bootstrap/app.php");
+        let text = fs::read_to_string(&app).context("lecture de bootstrap/app.php")?;
+        fs::write(
+            &app,
+            insert_after(
+                &text,
+                "->withMiddleware(function (Middleware $middleware)",
+                "        $middleware->web(append: [\\App\\Http\\Middleware\\SecurityHeaders::class]);\n",
+                "bootstrap/app.php",
+            )?,
+        )?;
+        done.push("SecurityHeaders ajouté au groupe web (bootstrap/app.php)");
+    }
+    let routes = patch_laravel_pages(target)?;
+    done.push(routes);
+    Ok(done.join(" ; "))
+}
+
+fn patch_laravel_pages(target: &Path) -> Result<&'static str> {
     let path = target.join("routes/web.php");
     let text =
         fs::read_to_string(&path).with_context(|| format!("lecture de {}", path.display()))?;
     let line = "require __DIR__.'/pages.php';";
     if text.contains(line) {
-        return Ok("déjà branché".into());
+        return Ok("routes/pages.php déjà branché");
     }
     let mut s = text;
     if !s.ends_with('\n') {
@@ -941,7 +1003,7 @@ pub fn patch_laravel_routes(target: &Path) -> Result<String> {
     }
     s.push_str(&format!("\n{line}\n"));
     fs::write(&path, s)?;
-    Ok("routes/pages.php inclus dans routes/web.php".into())
+    Ok("routes/pages.php inclus dans routes/web.php")
 }
 
 fn append_requirements(target: &Path, pkgs: &[String]) -> Result<String> {
@@ -971,270 +1033,6 @@ fn append_requirements(target: &Path, pkgs: &[String]) -> Result<String> {
     }
     fs::write(&path, text)?;
     Ok(format!("{added} paquet(s) ajouté(s)"))
-}
-
-/// Lit un catalogue gettext (.po simple : msgid/msgstr, chaînes sur plusieurs lignes, échappements C).
-pub fn parse_po(text: &str) -> Vec<(String, String)> {
-    fn unquote(line: &str) -> String {
-        let t = line.trim();
-        let inner = t
-            .strip_prefix('"')
-            .and_then(|t| t.strip_suffix('"'))
-            .unwrap_or("");
-        let mut out = String::new();
-        let mut chars = inner.chars();
-        while let Some(c) = chars.next() {
-            if c == '\\' {
-                match chars.next() {
-                    Some('n') => out.push('\n'),
-                    Some('t') => out.push('\t'),
-                    Some(o) => out.push(o),
-                    None => {}
-                }
-            } else {
-                out.push(c);
-            }
-        }
-        out
-    }
-    let mut entries = Vec::new();
-    let (mut id, mut msg, mut field) = (None::<String>, None::<String>, 0u8);
-    for line in text.lines().chain(std::iter::once("")) {
-        let t = line.trim();
-        if let Some(rest) = t.strip_prefix("msgid ") {
-            if let (Some(i), Some(m)) = (id.take(), msg.take()) {
-                entries.push((i, m));
-            }
-            id = Some(unquote(rest));
-            field = 1;
-        } else if let Some(rest) = t.strip_prefix("msgstr ") {
-            msg = Some(unquote(rest));
-            field = 2;
-        } else if t.starts_with('"') {
-            let target = if field == 1 {
-                id.as_mut()
-            } else {
-                msg.as_mut()
-            };
-            if let Some(s) = target {
-                s.push_str(&unquote(t));
-            }
-        } else if t.is_empty() || t.starts_with('#') {
-            if let (Some(i), Some(m)) = (id.take(), msg.take()) {
-                entries.push((i, m));
-            }
-            field = 0;
-        }
-    }
-    entries
-}
-
-/// Catalogue binaire .mo (format GNU gettext, sans table de hachage) : ce que produit `msgfmt` / `compilemessages`.
-pub fn compile_mo(entries: &[(String, String)]) -> Vec<u8> {
-    let mut e: Vec<&(String, String)> = entries.iter().filter(|(_, m)| !m.is_empty()).collect();
-    e.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
-    let n = e.len() as u32;
-    let (orig_at, trans_at) = (28u32, 28 + 8 * n);
-    let mut data_at = trans_at + 8 * n;
-    let (mut origs, mut transs, mut blob) = (Vec::new(), Vec::new(), Vec::new());
-    for (id, _) in &e {
-        origs.push((id.len() as u32, data_at));
-        blob.extend_from_slice(id.as_bytes());
-        blob.push(0);
-        data_at += id.len() as u32 + 1;
-    }
-    for (_, m) in &e {
-        transs.push((m.len() as u32, data_at));
-        blob.extend_from_slice(m.as_bytes());
-        blob.push(0);
-        data_at += m.len() as u32 + 1;
-    }
-    let mut out = Vec::new();
-    for v in [
-        0x9504_12de_u32,
-        0,
-        n,
-        orig_at,
-        trans_at,
-        0,
-        trans_at + 8 * n,
-    ] {
-        out.extend_from_slice(&v.to_le_bytes());
-    }
-    for (len, off) in origs.iter().chain(transs.iter()) {
-        out.extend_from_slice(&len.to_le_bytes());
-        out.extend_from_slice(&off.to_le_bytes());
-    }
-    out.extend_from_slice(&blob);
-    out
-}
-
-/// Compile chaque `locale/<langue>/LC_MESSAGES/*.po` du projet en `.mo` (équivalent de `manage.py compilemessages`,
-/// sans dépendre de GNU gettext).
-fn compile_messages(target: &Path) -> Result<String> {
-    let mut n = 0;
-    for entry in walkdir::WalkDir::new(target)
-        .into_iter()
-        .filter_entry(|e| {
-            !matches!(
-                e.file_name().to_str(),
-                Some(".venv" | "node_modules" | ".git")
-            )
-        })
-        .filter_map(|e| e.ok())
-    {
-        let p = entry.path();
-        if p.extension().and_then(|x| x.to_str()) == Some("po")
-            && p.parent()
-                .and_then(|d| d.file_name())
-                .and_then(|d| d.to_str())
-                == Some("LC_MESSAGES")
-        {
-            let text = fs::read_to_string(p)?;
-            fs::write(p.with_extension("mo"), compile_mo(&parse_po(&text)))?;
-            n += 1;
-        }
-    }
-    Ok(format!("{n} catalogue(s) gettext compilé(s)"))
-}
-
-/// Version de la CLI autonome de Tailwind (même version majeure que `tailwindcss` côté Laravel et Astro).
-pub const TAILWIND_VERSION: &str = "v4.3.5";
-// alpharust-ignore: no-hardcoded-urls (assets officiels des releases Tailwind)
-const TAILWIND_RELEASES: &str = "https://github.com/tailwindlabs/tailwindcss/releases/download";
-
-/// Empreintes SHA-256 publiées avec la release (`sha256sums.txt` de tailwindlabs/tailwindcss v4.3.5).
-/// Épinglées dans le binaire : un fichier téléchargé qui ne correspond pas est supprimé et refusé.
-const TAILWIND_SHA256: &[(&str, &str)] = &[
-    (
-        "tailwindcss-linux-arm64",
-        "ffcd0d21dbd7c605dc12743ff0c0b47debc963c86b399674084c1c8f2c96ecad",
-    ),
-    (
-        "tailwindcss-linux-x64",
-        "e47695cee3f0d90623a91f3939b08bdee610eb5ad99340adff9d4145b284d6cc",
-    ),
-    (
-        "tailwindcss-macos-arm64",
-        "f3f4f5d1727e2b693b8f1c9a1492b5dd87008c86ea286bee1589cb458e6235fc",
-    ),
-    (
-        "tailwindcss-macos-x64",
-        "a63702686a3ed048b3135d84a73be49ea9d47f880c9b20e54b3ef60934ad8cdf",
-    ),
-    (
-        "tailwindcss-windows-x64.exe",
-        "2803583268c53f4713e89943e211081fddb186c0a4a7d07b5c342c6ae853ec95",
-    ),
-];
-
-/// Empreinte attendue d'un asset de la CLI Tailwind.
-pub fn tailwind_sha256(asset: &str) -> Option<&'static str> {
-    TAILWIND_SHA256
-        .iter()
-        .find(|(a, _)| *a == asset)
-        .map(|(_, h)| *h)
-}
-
-/// SHA-256 (hexadécimal) d'un fichier.
-pub fn sha256_file(path: &Path) -> Result<String> {
-    use sha2::{Digest, Sha256};
-    let mut f = fs::File::open(path)?;
-    let mut h = Sha256::new();
-    std::io::copy(&mut f, &mut h)?;
-    Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
-}
-
-/// Nom du binaire de la CLI autonome pour la plateforme courante (assets des releases tailwindlabs/tailwindcss).
-pub fn tailwind_asset() -> Result<&'static str> {
-    Ok(match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("linux", "x86_64") => "tailwindcss-linux-x64",
-        ("linux", "aarch64") => "tailwindcss-linux-arm64",
-        ("macos", "x86_64") => "tailwindcss-macos-x64",
-        ("macos", "aarch64") => "tailwindcss-macos-arm64",
-        ("windows", "x86_64") => "tailwindcss-windows-x64.exe",
-        (os, arch) => bail!("pas de CLI autonome Tailwind pour {os}/{arch}"),
-    })
-}
-
-/// Wagtail + Starwind : télécharge la CLI autonome de Tailwind dans `.tailwind/` (une fois) puis compile
-/// `tailwind/input.css` vers `<pkg>/static/css/tailwind.css` (doc : https://tailwindcss.com/blog/standalone-cli). alpharust-ignore: no-hardcoded-urls
-fn tailwind_standalone(
-    target: &Path,
-    name: &str,
-    cancel: &AtomicBool,
-    on_line: &mut dyn FnMut(&str),
-) -> Result<String> {
-    let pkg = Vars::new(name)?.pkg;
-    let asset = tailwind_asset()?;
-    let target = &fs::canonicalize(target)?; // chemins absolus : curl et la CLI tournent dans le projet
-    let dir = target.join(".tailwind");
-    fs::create_dir_all(&dir)?;
-    let bin = dir.join(if cfg!(windows) {
-        "tailwindcss.exe"
-    } else {
-        "tailwindcss"
-    });
-    let expected = tailwind_sha256(asset)
-        .ok_or_else(|| anyhow::anyhow!("empreinte SHA-256 inconnue pour {asset}"))?;
-    if bin.is_file() && sha256_file(&bin)? != expected {
-        on_line("CLI Tailwind en cache : empreinte différente, nouveau téléchargement");
-        fs::remove_file(&bin)?;
-    }
-    if !bin.is_file() {
-        let url = format!("{TAILWIND_RELEASES}/{TAILWIND_VERSION}/{asset}");
-        on_line(&format!("téléchargement de {url}"));
-        let out = exec::run(
-            "curl",
-            &[
-                "-fsSL".into(),
-                "-o".into(),
-                bin.display().to_string(),
-                url.clone(),
-            ],
-            target,
-            cancel,
-            std::time::Duration::from_secs(300),
-            on_line,
-        )?;
-        if !out.success {
-            let _ = fs::remove_file(&bin);
-            bail!("téléchargement de la CLI Tailwind impossible ({url})");
-        }
-        let got = sha256_file(&bin)?;
-        if got != expected {
-            let _ = fs::remove_file(&bin);
-            bail!("CLI Tailwind refusée : SHA-256 {got} au lieu de {expected} ({url})");
-        }
-        on_line(&format!("SHA-256 vérifié : {expected}"));
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&bin, fs::Permissions::from_mode(0o755))?;
-        }
-    }
-    let output = format!("{pkg}/static/css/tailwind.css");
-    let out = exec::run(
-        &bin.display().to_string(),
-        &[
-            "-i".into(),
-            "tailwind/input.css".into(),
-            "-o".into(),
-            output.clone(),
-            "--minify".into(),
-        ],
-        target,
-        cancel,
-        std::time::Duration::from_secs(300),
-        on_line,
-    )?;
-    if !out.success {
-        bail!("la CLI Tailwind a échoué sur tailwind/input.css");
-    }
-    ensure_gitignore(target, &[".tailwind/"])?;
-    Ok(format!(
-        "CLI Tailwind {TAILWIND_VERSION} ({asset}) : {output}"
-    ))
 }
 
 fn freeze(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -> Result<String> {
@@ -1311,102 +1109,6 @@ pub fn write_manifest(req: &Request, target: &Path) -> Result<()> {
     write_json(&target.join(MANIFEST), &manifest)
 }
 
-fn git_cfg(target: &Path, key: &str) -> bool {
-    super::tools::which("git")
-        .and_then(|g| {
-            std::process::Command::new(g)
-                .args(["-C", &target.display().to_string(), "config", key])
-                .output()
-                .ok()
-        })
-        .map(|o| o.status.success() && !o.stdout.is_empty())
-        .unwrap_or(false)
-}
-
-/// Fichiers locaux jamais versionnés, quel que soit le `.gitignore` officiel conservé : bases SQLite de
-/// développement (`data/<nom>.db` de la plateforme Astro, journaux WAL/SHM compris) et messages de contact
-/// du site Astro sans base (`data/contact-messages.jsonl`).
-pub const LOCAL_ONLY: &[&str] = &[
-    "data/*.db",
-    "data/*.db-journal",
-    "data/*.db-wal",
-    "data/*.db-shm",
-    "data/*.jsonl",
-];
-
-/// Ajoute au `.gitignore` du projet les motifs absents (sans toucher aux lignes existantes).
-pub fn ensure_gitignore(target: &Path, patterns: &[&str]) -> Result<()> {
-    let gi = target.join(".gitignore");
-    let mut text = fs::read_to_string(&gi).unwrap_or_default();
-    let missing: Vec<&str> = patterns
-        .iter()
-        .copied()
-        .filter(|p| !text.lines().any(|l| l.trim() == *p))
-        .collect();
-    if missing.is_empty() {
-        return Ok(());
-    }
-    if !text.is_empty() && !text.ends_with('\n') {
-        text.push('\n');
-    }
-    for p in missing {
-        text.push_str(p);
-        text.push('\n');
-    }
-    fs::write(&gi, text)?;
-    Ok(())
-}
-
-fn git_init(target: &Path, cancel: &AtomicBool, on_line: &mut dyn FnMut(&str)) -> Result<String> {
-    if super::tools::which("git").is_none() {
-        bail!("git introuvable (dépôt non initialisé)");
-    }
-    let t = std::time::Duration::from_secs(120);
-    let step = |args: Vec<String>, on_line: &mut dyn FnMut(&str)| -> Result<()> {
-        on_line(&format!("$ git {}", args.join(" ")));
-        let o = exec::run("git", &args, target, cancel, t, on_line)?;
-        if !o.success {
-            bail!("`git {}` a échoué\n{}", args.join(" "), short_tail(&o.tail));
-        }
-        Ok(())
-    };
-    step(vec!["init".into(), "-q".into()], on_line)?;
-    // branche `main` quelle que soit la version de git
-    step(
-        vec![
-            "symbolic-ref".into(),
-            "HEAD".into(),
-            "refs/heads/main".into(),
-        ],
-        on_line,
-    )?;
-    ensure_gitignore(target, LOCAL_ONLY)?;
-    step(vec!["add".into(), "-A".into()], on_line)?;
-    let mut commit: Vec<String> = Vec::new();
-    if !git_cfg(target, "user.name") || !git_cfg(target, "user.email") {
-        commit.extend(
-            [
-                "-c",
-                "user.name=AlphaRust",
-                "-c",
-                "user.email=alpharust@users.noreply.local",
-            ]
-            .map(String::from),
-        );
-    }
-    commit.extend(
-        [
-            "commit",
-            "-q",
-            "-m",
-            "chore: projet initial généré par AlphaRust",
-        ]
-        .map(String::from),
-    );
-    step(commit, on_line)?;
-    Ok("dépôt initialisé (branche main)".into())
-}
-
 fn lint(target: &Path, state: &mut State, on_line: &mut dyn FnMut(&str)) -> Result<String> {
     let report = crate::engine::lint(target, None)?;
     let (mut e, mut w, mut i) = (0, 0, 0);
@@ -1443,146 +1145,6 @@ fn lint(target: &Path, state: &mut State, on_line: &mut dyn FnMut(&str)) -> Resu
         bail!("{note}");
     }
     Ok(note)
-}
-
-// — Icônes du site (vitrine) —————————————————————————————————————————————————————
-
-/// Jeux d'icônes copiés (MDI par défaut, Lucide, drapeaux Circle Flags) et correspondance des noms logiques :
-/// écrit par `tools/dsgen/vitrine/fetch_icons.py`, la même source que les couches du site.
-const ICONSETS: &str = include_str!("../../tools/dsgen/vitrine/iconsets.json");
-/// API publique d'Iconify (jeux non copiés : tabler, ph, heroicons, openmoji…).
-// alpharust-ignore: no-hardcoded-urls
-const ICONIFY_API: &str = "https://api.iconify.design";
-/// Emplacement de `icons.json` selon le framework (Astro, Laravel, Wagtail).
-const ICON_FILES: [&str; 3] = [
-    "src/data/icons.json",
-    "resources/data/icons.json",
-    "layout/icons.json",
-];
-
-/// Un nom de jeu Iconify : minuscules, chiffres et tirets (`mdi`, `lucide`, `material-symbols`).
-pub fn valid_icon_set(set: &str) -> bool {
-    !set.is_empty()
-        && set.len() <= 40
-        && set
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-}
-
-/// Icônes logiques d'un jeu Iconify (`{nom: {body, width, height}}`) à partir de sa réponse JSON
-/// (format Iconify : `icons`, `aliases`, `width`/`height` par défaut) ; les noms introuvables sont absents.
-fn pick_icons(set: &str, data: &Value, catalog: &Value) -> serde_json::Map<String, Value> {
-    let (w, h) = (
-        data.get("width").and_then(Value::as_u64).unwrap_or(16),
-        data.get("height").and_then(Value::as_u64).unwrap_or(16),
-    );
-    let lookup = |name: &str| -> Option<Value> {
-        let icons = data.get("icons")?;
-        let src = icons.get(name).or_else(|| {
-            let parent = data.get("aliases")?.get(name)?.get("parent")?.as_str()?;
-            icons.get(parent)
-        })?;
-        Some(json!({
-            "body": src.get("body")?.as_str()?,
-            "width": src.get("width").and_then(Value::as_u64).unwrap_or(w),
-            "height": src.get("height").and_then(Value::as_u64).unwrap_or(h),
-        }))
-    };
-    let mut out = serde_json::Map::new();
-    let empty = serde_json::Map::new();
-    let map = catalog["map"].as_object().unwrap_or(&empty);
-    for (logical, names) in map {
-        let mut tries: Vec<String> = names
-            .get(set)
-            .and_then(Value::as_str)
-            .map(|s| vec![s.to_string()])
-            .unwrap_or_default();
-        if let Some(c) = catalog["candidates"][logical.as_str()].as_array() {
-            tries.extend(c.iter().filter_map(Value::as_str).map(String::from));
-        }
-        if let Some(icon) = tries.iter().find_map(|n| lookup(n)) {
-            out.insert(logical.clone(), icon);
-        }
-    }
-    out
-}
-
-/// `--icons <jeu>` : réécrit `icons.json` du site avec un autre jeu Iconify (copié ou téléchargé depuis l'API
-/// Iconify). Les icônes absentes du jeu gardent leur tracé MDI ; les drapeaux (Circle Flags) ne changent pas.
-fn site_icons(
-    target: &Path,
-    set: &str,
-    cancel: &AtomicBool,
-    on_line: &mut dyn FnMut(&str),
-) -> Result<String> {
-    if !valid_icon_set(set) {
-        bail!("--icons : nom de jeu Iconify invalide `{set}` (ex. mdi, lucide, tabler, ph)");
-    }
-    let Some(rel) = ICON_FILES.iter().find(|f| target.join(f).is_file()) else {
-        bail!("icons.json introuvable : --icons s'applique au site vitrine (--ui)");
-    };
-    let path = target.join(rel);
-    let mut current: Value = serde_json::from_str(&fs::read_to_string(&path)?)
-        .with_context(|| format!("lecture de {rel}"))?;
-    let catalog: Value = serde_json::from_str(ICONSETS)?;
-    let data = if let Some(bundled) = catalog["sets"].get(set) {
-        bundled.clone()
-    } else {
-        let mut names: Vec<String> = Vec::new();
-        for (logical, per_set) in catalog["map"].as_object().into_iter().flatten() {
-            names.extend(
-                per_set
-                    .as_object()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|(_, v)| v.as_str().map(String::from)),
-            );
-            names.extend(
-                catalog["candidates"][logical.as_str()]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|v| v.as_str().map(String::from)),
-            );
-        }
-        names.sort();
-        names.dedup();
-        let url = format!("{ICONIFY_API}/{set}.json?icons={}", names.join(","));
-        let target = &fs::canonicalize(target)?;
-        let tmp = target.join(".icons.json.tmp");
-        on_line(&format!("téléchargement du jeu {set} ({ICONIFY_API})"));
-        let out = exec::run(
-            "curl",
-            &["-fsSL".into(), "-o".into(), tmp.display().to_string(), url],
-            target,
-            cancel,
-            std::time::Duration::from_secs(120),
-            on_line,
-        )?;
-        let text = fs::read_to_string(&tmp).unwrap_or_default();
-        let _ = fs::remove_file(&tmp);
-        if !out.success {
-            bail!("jeu d'icônes `{set}` introuvable sur Iconify (réseau ou nom du jeu)");
-        }
-        serde_json::from_str(&text).context("réponse Iconify illisible")?
-    };
-    let picked = pick_icons(set, &data, &catalog);
-    if picked.is_empty() {
-        bail!("le jeu `{set}` n'a aucune des icônes du site : nom de jeu erroné ?");
-    }
-    let total = catalog["map"].as_object().map_or(0, |m| m.len());
-    let n = picked.len();
-    let icons = current["icons"]
-        .as_object_mut()
-        .ok_or_else(|| anyhow!("{rel} : clé `icons` absente"))?;
-    for (k, v) in picked {
-        icons.insert(k, v);
-    }
-    current["set"] = json!(set);
-    fs::write(&path, serde_json::to_string_pretty(&current)? + "\n")?;
-    Ok(format!(
-        "{rel} : jeu {set}, {n}/{total} icône(s) ; les autres gardent MDI, drapeaux Circle Flags"
-    ))
 }
 
 #[cfg(test)]
@@ -1672,6 +1234,19 @@ mod tests {
         assert!(p.find("\"name\"").unwrap() < p.find("\"scripts\"").unwrap());
         assert!(p.find("\"scripts\"").unwrap() < p.find("\"dependencies\"").unwrap());
         assert!(p.contains("\"check\": \"astro check\"") && p.contains("\"dev\""));
+
+        // allowScripts : ajout par nom, sans écraser un refus explicite
+        fs::write(
+            d.path().join("package.json"),
+            r#"{"name":"x","allowScripts":{"esbuild":false}}"#,
+        )
+        .unwrap();
+        patch_allow_scripts(d.path(), &["esbuild", "better-sqlite3"]).unwrap();
+        let v: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(d.path().join("package.json")).unwrap())
+                .unwrap();
+        assert_eq!(v["allowScripts"]["esbuild"], false);
+        assert_eq!(v["allowScripts"]["better-sqlite3"], true);
     }
 
     #[test]
@@ -1833,7 +1408,7 @@ mod tests {
         for s in &p.steps {
             match &s.action {
                 Action::Do(Internal::Layer(l)) => {
-                    layer::apply(l, &ctx, dir.path()).map(|_| ()).unwrap()
+                    layer::apply(l, &ctx, dir.path()).map(|_| ()).unwrap();
                 }
                 Action::Do(Internal::DesignKit(t)) => {
                     write_design_kit(dir.path(), *t).unwrap();
@@ -2008,52 +1583,5 @@ mod tests {
             .path()
             .join("src/styles/components/retro.css")
             .exists());
-    }
-}
-
-#[cfg(test)]
-mod icon_tests {
-    use super::*;
-
-    #[test]
-    fn bundled_icon_sets_map_every_logical_name() {
-        let catalog: Value = serde_json::from_str(ICONSETS).unwrap();
-        let total = catalog["map"].as_object().unwrap().len();
-        assert_eq!(
-            pick_icons("mdi", &catalog["sets"]["mdi"], &catalog).len(),
-            total
-        );
-        // Lucide n'a pas de logo Mastodon : repli MDI
-        assert_eq!(
-            pick_icons("lucide", &catalog["sets"]["lucide"], &catalog).len(),
-            total - 1
-        );
-        assert!(valid_icon_set("material-symbols"));
-        assert!(!valid_icon_set("../x") && !valid_icon_set(""));
-    }
-
-    #[test]
-    fn site_icons_rewrites_icons_json_and_keeps_flags() {
-        let dir = tempfile::tempdir().unwrap();
-        let p = dir.path();
-        fs::create_dir_all(p.join("layout")).unwrap();
-        fs::write(
-            p.join("layout/icons.json"),
-            r#"{"set": "mdi", "icons": {"flag-fr": {"body": "F", "width": 512, "height": 512}, "mastodon": {"body": "M", "width": 24, "height": 24}}}"#,
-        )
-        .unwrap();
-        let msg = site_icons(p, "lucide", &AtomicBool::new(false), &mut |_| {}).unwrap();
-        assert!(msg.contains("lucide"), "{msg}");
-        let v: Value =
-            serde_json::from_str(&fs::read_to_string(p.join("layout/icons.json")).unwrap())
-                .unwrap();
-        assert_eq!(v["set"], "lucide");
-        assert_eq!(v["icons"]["flag-fr"]["body"], "F");
-        assert_eq!(v["icons"]["mastodon"]["body"], "M");
-        assert!(v["icons"]["menu"]["body"]
-            .as_str()
-            .unwrap()
-            .contains("stroke"));
-        assert!(site_icons(p, "Bad Set", &AtomicBool::new(false), &mut |_| {}).is_err());
     }
 }

@@ -24,10 +24,17 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Build
         run: cargo build --release
+      - name: Paquet crates.io (cargo package : le crate publié se compile seul)
+        run: cargo package --locked
       - name: Tests (unitaires, intégration, CLI, GUI, générateurs)
         run: cargo test --all-targets
       - name: Kit partagé à jour (tools/dsgen régénère CSS pur, Blade, Django et catalog.toml)
         run: python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers tools/dsgen/vitrine/locales.json && test -z "$(git status --porcelain templates/layers tools/dsgen/vitrine)"
+      - name: tools/dsgen — ruff et pytest (fichiers de référence)
+        run: |
+          python3 -m pip install --quiet ruff pytest
+          python3 -m ruff check tools/dsgen
+          python3 -m pytest -q tools/dsgen/tests
       - name: Règles, exemples et profils valides
         run: ./target/release/alpharust check-rules
       - name: Auto-lint du dépôt (profil strict)
@@ -38,6 +45,39 @@ jobs:
         with:
           name: alpharust-sarif
           path: alpharust.sarif
+
+  cross-os:
+    name: build · tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked
+      - name: Tests
+        run: cargo test --release --locked --all-targets
+
+  msrv:
+    name: MSRV (rust-version de Cargo.toml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.89
+      - uses: Swatinem/rust-cache@v2
+      - name: Compilation avec la version minimale annoncée
+        run: cargo check --locked --all-targets
+
+  cargo-deny:
+    name: cargo-deny (RustSec, licences, sources)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: EmbarkStudios/cargo-deny-action@v2
 
   generated-projects:
     name: projets générés pour de vrai (Astro · Laravel · Wagtail · Rust)

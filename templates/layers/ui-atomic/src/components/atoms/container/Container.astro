@@ -178,8 +178,6 @@ type Props<Tag extends HTMLTag> = Polymorphic<{ as: Tag }> &
      * @default false
      */
     bleed?: boolean;
-    /** @deprecated Use layout="centered" instead. */
-    centered?: boolean;
   };
 
 const {
@@ -193,12 +191,12 @@ const {
   rounded,
   minHeight,
   layout: layoutProp,
-  centered,
   class: className,
   ...rest
 } = Astro.props;
 
-const layout = centered ? "centered" : (layoutProp ?? "stack");
+// L'ancien booléen `centered` (déprécié upstream, inutilisé ici) est retiré : layout="centered".
+const layout = layoutProp ?? "stack";
 const useWrapper = bleed || layout === "split";
 ---
 

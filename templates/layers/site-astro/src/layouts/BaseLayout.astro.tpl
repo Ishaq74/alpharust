@@ -27,12 +27,16 @@ const site = await getSite(Astro.url.pathname, Astro.locals.user);
 const site = await getSite(Astro.url.pathname);
 @@end@@
 const meta = seo(site, Astro.url.pathname, Astro.site ?? Astro.url, article);
+// CSP de base, la même que Laravel et Wagtail (production seulement : le serveur de développement injecte ses scripts).
+// Balise <meta> : valable aussi pour les pages prérendues ; frame-ancestors n'y est pas permis (en-tête HTTP seulement).
+const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'";
 ---
 
 <!doctype html>
 <html lang={site.locale} dir={site.dir}>
   <head>
     <SEO title={title} description={description ?? site.description} />
+    {import.meta.env.PROD && <meta http-equiv="Content-Security-Policy" content={csp} />}
     {/* SEO.astro : title, description, canonical et og:url (astro.config `site`) ; le reste est commun aux 3 frameworks. */}
     {meta.alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
     <meta property="og:site_name" content={meta.siteName} />

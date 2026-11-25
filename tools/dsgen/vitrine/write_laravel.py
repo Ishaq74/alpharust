@@ -1,6 +1,6 @@
 """Rendu Laravel : layout (composant anonyme, comme manecms) + partials + routes/contrôleurs + modèles/migrations/seeder."""
 import os
-from . import data as D, templates as TPL, i18n as I18N
+from . import data as D, templates as TPL
 from .ir import Blade
 from .icons import icons_json
 
@@ -960,6 +960,13 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+    public function test_security_headers_and_csp_in_production(): void
+    {
+        $this->get('/')->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeaderMissing('Content-Security-Policy');
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->get('/')->assertHeader('Content-Security-Policy', \\App\\Http\\Middleware\\SecurityHeaders::CSP);
+    }
+
     public function test_seo_robots_sitemap_and_structured_data(): void
     {
         $this->get('/robots.txt')
@@ -1310,6 +1317,37 @@ class ExampleTest extends TestCase
 }
 """
 
+SECURITY_HEADERS = """<?php
+
+namespace App\\Http\\Middleware;
+
+use Closure;
+use Illuminate\\Http\\Request;
+use Symfony\\Component\\HttpFoundation\\Response;
+
+/**
+ * En-têtes de sécurité du site, comme Astro (src/middleware.ts) et Wagtail (settings/production.py).
+ * Branché sur le groupe web par bootstrap/app.php (`$middleware->web(append: [...])`).
+ * La CSP n'est envoyée qu'en production : le serveur Vite de développement (npm run dev) sert depuis un autre port.
+ */
+class SecurityHeaders
+{
+    public const CSP = "__CSP__";
+
+    public function handle(Request $request, Closure $next): Response
+    {
+        $response = $next($request);
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('Referrer-Policy', 'same-origin');
+        if (app()->isProduction()) {
+            $response->headers->set('Content-Security-Policy', self::CSP);
+        }
+
+        return $response;
+    }
+}
+""".replace('__CSP__', D.CSP)
+
 SEO_CONTROLLER = """<?php
 
 namespace App\\Http\\Controllers;
@@ -1353,6 +1391,7 @@ def files(cat, css):
         'config/site.php.tpl': config(),
         'app/Support/SiteData.php.tpl': SITE_DATA,
         'app/Http/Middleware/SetSiteLocale.php.tpl': MIDDLEWARE,
+        'app/Http/Middleware/SecurityHeaders.php.tpl': SECURITY_HEADERS,
         'app/View/Composers/SiteComposer.php.tpl': COMPOSER,
         'app/Providers/SiteServiceProvider.php.tpl': PROVIDER,
         'bootstrap/providers.php.tpl': PROVIDERS,

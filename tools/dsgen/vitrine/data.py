@@ -65,3 +65,10 @@ AUTH_FIELDS = {
     'sign_up': [('name', 'text', 'name'), ('email', 'email', 'email'), ('password', 'password', 'new-password')],
 }
 PASSWORD_MIN = 8
+
+# Politique de sécurité du contenu (CSP) de base, identique sur les 3 frameworks, envoyée en production seulement
+# (Astro : src/middleware.ts ; Laravel : App\Http\Middleware\SecurityHeaders ; Wagtail : SECURE_CSP de Django 6,
+# settings/production.py). 'unsafe-inline' : scripts et styles en ligne du thème, des îlots Astro et de l'admin Wagtail.
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+       "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; "
+       "base-uri 'self'; form-action 'self'; frame-ancestors 'self'")

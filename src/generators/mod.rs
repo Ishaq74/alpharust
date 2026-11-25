@@ -31,7 +31,7 @@ impl Vars {
             .to_string();
         let mut pkg = slug.replace('-', "_");
         if pkg.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-            pkg = format!("site_{}", pkg);
+            pkg = format!("site_{pkg}");
         }
         let title = slug
             .split('-')
@@ -75,8 +75,7 @@ pub fn validate_name(name: &str) -> Result<()> {
         && name.chars().any(|c| c.is_ascii_alphanumeric());
     if !ok {
         bail!(
-            "nom de projet invalide `{}` : utiliser des lettres, chiffres, `-`, `_` ou `.` (64 max, sans `..`)",
-            name
+            "nom de projet invalide `{name}` : utiliser des lettres, chiffres, `-`, `_` ou `.` (64 max, sans `..`)"
         );
     }
     Ok(())

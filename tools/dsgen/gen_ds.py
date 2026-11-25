@@ -6,38 +6,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from spec import SIMPLE, SPECIAL
 
-ROOT = os.path.normpath(os.path.join(HERE, '..', '..', 'templates', 'layers'))
-ATOMIC = ROOT + '/ui-atomic/src/components/atoms'
-OUT_ASTRO = ROOT + '/ui-css/src/components/atoms'
-OUT_BLADE = ROOT + '/ui-blade/resources/views/components/ds'
-OUT_DJ = ROOT + '/ui-django/ds/templatetags/ds.py'
+from common import (  # noqa: E402
+    ATOMIC, OUT_ASTRO, OUT_BLADE, OUT_DJ, ROOT, part_rel, w,
+)
 
 for d in (ROOT + '/ui-css', ROOT + '/ui-blade', ROOT + '/ui-django'):
     shutil.rmtree(d, ignore_errors=True)
-
-def kebab(s): return re.sub(r'(?<!^)(?=[A-Z])', '-', s).lower()
-def snake(s): return kebab(s).replace('-', '_')
-def pascal_comp(c): return ''.join(w.capitalize() for w in c.split('-'))
-def attr_name_astro(k): return k
-def rest_first(text):
-    # Astro ne fusionne pas les attributs en double et le navigateur garde le PREMIER : comme dans atomic,
-    # `{...rest}` passe avant `data-slot` pour qu'un composant parent puisse le surcharger
-    # (Sheet -> Dialog, InputGroupInput -> Input, SidebarInput -> Input…).
-    # Éléments HTML seulement (minuscule ou `Tag` dynamique) : pour un composant, la dernière prop l'emporte.
-    return re.sub(r'(<(?:[a-z][a-z0-9]*|Tag)\b[^<>]*?)(data-slot="[a-z-]+")([^<>]*?) \{\.\.\.rest\}',
-                  r'\1{...rest} \2\3', text)
-
-def w(path, text):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    if path.endswith('.astro'):
-        text = rest_first(text)
-    open(path, 'w').write(text)
-
-def part_rel(comp, name):
-    base = pascal_comp(comp)
-    if name == base: return ''
-    assert name.startswith(base), (comp, name)
-    return kebab(name[len(base):])
 
 # ---------- ASTRO ----------
 def astro_simple(p):
@@ -487,7 +461,6 @@ def blade_simple(p):
         return o + f">{{{{ $slot }}}}</{t}>"
     if p['linkable']:
         has_type = 'type' in p['attrs']
-        other = 'a' if tag != 'a' else 'button'
         return head + "@if ($attributes->has('href'))\n    " + el('a') + "\n@else\n    " + el(tag, ["'type' => 'button'"] if has_type else []) + "\n@endif\n"
     return head + el(tag) + '\n'
 
@@ -830,11 +803,15 @@ class DsConfig(AppConfig):
 print('blade+django ok')
 
 # ---------- composants étendus (CSS pur, Astro) ----------
-exec(open(os.path.join(HERE, 'ext_write.py')).read())
+import ext_write  # noqa: E402
+
+ext_write.write()
 
 # ---------- composants étendus côté serveur (Blade, Django) ----------
-ext = sorted(d for d in os.listdir(ATOMIC) if os.path.isdir(f'{ATOMIC}/{d}') and d not in parts_by_comp)
-exec(open(os.path.join(HERE, 'ext_server.py')).read())
+# (module importé ici : il lit les atomes CSS pur que ext_write vient d'écrire)
+import ext_server  # noqa: E402
+
+ext_server.generate()
 
 # ---------- site complet (même site en Astro, Laravel et Wagtail : tools/dsgen/vitrine/spec.py) ----------
 from vitrine.write import write_all as write_site

@@ -46,6 +46,13 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+    public function test_security_headers_and_csp_in_production(): void
+    {
+        $this->get('/')->assertHeader('X-Content-Type-Options', 'nosniff')->assertHeaderMissing('Content-Security-Policy');
+        $this->app->detectEnvironment(fn () => 'production');
+        $this->get('/')->assertHeader('Content-Security-Policy', \App\Http\Middleware\SecurityHeaders::CSP);
+    }
+
     public function test_seo_robots_sitemap_and_structured_data(): void
     {
         $this->get('/robots.txt')

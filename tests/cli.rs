@@ -40,7 +40,7 @@ fn version_and_help() {
         "check-rules",
         "cache",
     ] {
-        assert!(out.contains(cmd), "{} absent de l'aide", cmd);
+        assert!(out.contains(cmd), "{cmd} absent de l'aide");
     }
 }
 
@@ -59,7 +59,7 @@ fn list_rules_profiles_and_checkers() {
         "starter",
         "secrets",
     ] {
-        assert!(out.contains(p), "profil {} absent", p);
+        assert!(out.contains(p), "profil {p} absent");
     }
     let (out, _, _) = text(&run(&["list", "--checkers"]));
     assert!(
@@ -79,7 +79,7 @@ fn lint_exit_codes_and_profiles() {
     assert!(out.contains("no-eval") && out.contains("error(s)"));
 
     let (out, _, code) = text(&run(&["lint", "tests/fixtures/clean"]));
-    assert_eq!(code, 0, "{}", out);
+    assert_eq!(code, 0, "{out}");
     assert!(out.contains("No violations"));
 
     let (_, _, code) = text(&run(&[
@@ -146,7 +146,7 @@ fn works_from_any_directory() {
 #[test]
 fn check_rules_passes() {
     let (out, _, code) = text(&run(&["check-rules"]));
-    assert_eq!(code, 0, "{}", out);
+    assert_eq!(code, 0, "{out}");
     assert!(out.contains("✓"));
 }
 
@@ -422,12 +422,10 @@ fn new_wizard_requires_a_terminal() {
 fn generate_rejects_dangerous_names() {
     for bad in ["../evil", "a/b", ".hidden", "..", ""] {
         let (_, err, code) = text(&run(&["generate", "astro", bad, "--dry-run"]));
-        assert_eq!(code, 2, "{:?}", bad);
+        assert_eq!(code, 2, "{bad:?}");
         assert!(
             err.contains("invalide") || err.contains("error"),
-            "{:?}: {}",
-            bad,
-            err
+            "{bad:?}: {err}"
         );
     }
     assert!(!Path::new("sites/evil").exists());
@@ -467,4 +465,44 @@ fn closed_pipe_does_not_panic() {
     drop(child.stdout.take());
     let out = child.wait_with_output().unwrap();
     assert!(!String::from_utf8_lossy(&out.stderr).contains("panicked"));
+}
+
+#[test]
+fn langs_is_the_single_language_option_and_i18n_a_deprecated_alias() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("plat");
+    let target = target.to_str().unwrap();
+    // sans --ui : --langs règle le routage i18n de la plateforme Astro
+    let (out, err, code) = text(&run(&[
+        "generate",
+        "astro",
+        "plat",
+        "-p",
+        target,
+        "--template",
+        "alpharust",
+        "--langs",
+        "fr,en",
+        "--no-install",
+        "--dry-run",
+    ]));
+    assert_eq!(code, 0, "{err}");
+    assert!(out.contains("i18n"), "{out}");
+    assert!(!err.contains("déprécié"), "{err}");
+    let (out2, err, code) = text(&run(&[
+        "generate",
+        "astro",
+        "plat",
+        "-p",
+        target,
+        "--template",
+        "alpharust",
+        "--i18n",
+        "fr,en",
+        "--no-install",
+        "--dry-run",
+    ]));
+    assert_eq!(code, 0, "{err}");
+    assert!(err.contains("--i18n est déprécié"), "{err}");
+    assert_eq!(out, out2, "--i18n et --langs donnent le même plan");
 }

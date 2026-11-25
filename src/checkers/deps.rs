@@ -56,18 +56,17 @@ fn json_manifest(content: &str, sections: &[&str], dev: &[&str]) -> Vec<Finding>
             let ver = ver.as_str().unwrap_or("").to_string();
             if is_wildcard(&ver) && !dep.starts_with("php") && !dep.starts_with("ext-") {
                 out.push(Finding::new(
-                    line_for(content, &format!("\"{}\"", dep)),
-                    format!("`{}` : version non contrainte (`{}`)", dep, ver),
+                    line_for(content, &format!("\"{dep}\"")),
+                    format!("`{dep}` : version non contrainte (`{ver}`)"),
                 ));
             }
             if let Some((prev_section, prev_ver)) = seen.get(dep) {
                 let involves_dev = dev.contains(section) || dev.contains(&prev_section.as_str());
                 if involves_dev || prev_ver != &ver {
                     out.push(Finding::new(
-                        line_for(content, &format!("\"{}\"", dep)),
+                        line_for(content, &format!("\"{dep}\"")),
                         format!(
-                            "`{}` déclaré dans `{}` ({}) et `{}` ({})",
-                            dep, prev_section, prev_ver, section, ver
+                            "`{dep}` déclaré dans `{prev_section}` ({prev_ver}) et `{section}` ({ver})"
                         ),
                     ));
                 }
@@ -105,7 +104,7 @@ fn cargo(content: &str) -> Vec<Finding> {
             if !has_source && is_wildcard(&ver) {
                 out.push(Finding::new(
                     line_for(content, dep),
-                    format!("`{}` : version joker ou absente", dep),
+                    format!("`{dep}` : version joker ou absente"),
                 ));
             }
             if let Some((prev_section, prev_ver)) = seen.get(dep) {
@@ -113,8 +112,7 @@ fn cargo(content: &str) -> Vec<Finding> {
                     out.push(Finding::new(
                         line_for(content, dep),
                         format!(
-                            "`{}` : versions divergentes entre [{}] ({}) et [{}] ({})",
-                            dep, prev_section, prev_ver, section, ver
+                            "`{dep}` : versions divergentes entre [{prev_section}] ({prev_ver}) et [{section}] ({ver})"
                         ),
                     ));
                 }
@@ -147,7 +145,7 @@ fn requirements(content: &str) -> Vec<Finding> {
         if let Some(prev) = seen.get(&pkg) {
             out.push(Finding::new(
                 i + 1,
-                format!("`{}` déclaré deux fois ({} puis {})", pkg, prev, spec),
+                format!("`{pkg}` déclaré deux fois ({prev} puis {spec})"),
             ));
         } else {
             seen.insert(pkg, spec);

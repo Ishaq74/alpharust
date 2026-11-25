@@ -161,7 +161,7 @@ impl<'a> FileInfo<'a> {
             Selector::Glob(g) => {
                 glob_match(g, &self.lower_rel)
                     || (!g.contains('/') && glob_match(g, &self.basename))
-                    || glob_match(&format!("**/{}", g), &self.lower_rel)
+                    || glob_match(&format!("**/{g}"), &self.lower_rel)
             }
             Selector::Root(g) => glob_match(g, &self.lower_rel),
             Selector::Language(exts) => exts.contains(&self.ext.as_str()),
@@ -283,7 +283,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
                         .to_str()
                         .is_some_and(|n| SKIP_DIRS.contains(&n)))
         });
-    for entry in walker.filter_map(|e| e.ok()) {
+    for entry in walker.filter_map(std::result::Result::ok) {
         if !entry.file_type().is_file() {
             continue;
         }
@@ -387,7 +387,7 @@ mod tests {
     use std::fs;
 
     fn rule(front: &str) -> Rule {
-        let md = format!("---\n{}\n---\n\n# Message de test\n", front);
+        let md = format!("---\n{front}\n---\n\n# Message de test\n");
         let mut r = Rule::from_markdown(Path::new("t.md"), &md).unwrap();
         r.id = format!("core/{}", r.name);
         r

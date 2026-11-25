@@ -41,8 +41,7 @@ pub fn parse_headings(content: &str) -> Vec<Heading> {
             continue; // bloc de code indenté
         }
         let level = trimmed.chars().take_while(|c| *c == '#').count();
-        if (1..=6).contains(&level) && trimmed.chars().nth(level).is_none_or(|c| c.is_whitespace())
-        {
+        if (1..=6).contains(&level) && trimmed.chars().nth(level).is_none_or(char::is_whitespace) {
             out.push(Heading {
                 level,
                 text: trimmed[level..]
@@ -115,7 +114,7 @@ pub fn frontmatter(ctx: &FileCtx) -> Vec<Finding> {
             let line = e.location().map_or(1, |l| l.line().max(1) as usize);
             vec![Finding::new(
                 line,
-                format!("frontmatter YAML invalide : {}", e),
+                format!("frontmatter YAML invalide : {e}"),
             )]
         }
     }

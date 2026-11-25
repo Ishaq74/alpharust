@@ -1,3 +1,4 @@
+from ext_astro1 import F, HA, ICON, simple
 G = 'dropzone/'
 F[G+'Dropzone.astro'] = f'''---
 {HA}
@@ -87,18 +88,18 @@ H = 'input-group/'
 F[H+'InputGroup.astro'] = simple('div', 'input-group', ' role="group"')
 F[H+'InputGroupAddon.astro'] = simple('div', 'input-group-addon', ' role="group" data-align={align}',
     '  align?: "inline-start" | "inline-end" | "block-start" | "block-end";\n', 'align = "inline-start"')
-F[H+'InputGroupButton.astro'] = f'''---
-import type {{ ComponentProps }} from "astro/types";
+F[H+'InputGroupButton.astro'] = '''---
+import type { ComponentProps } from "astro/types";
 import Button from "../button/Button.astro";
 
-type Props = Omit<ComponentProps<typeof Button>, "size"> & {{
+type Props = Omit<ComponentProps<typeof Button>, "size"> & {
   size?: "sm" | "icon-sm";
-}};
+};
 
-const {{ type = "button", variant = "ghost", size = "sm", class: className, ...rest }} = Astro.props;
+const { type = "button", variant = "ghost", size = "sm", class: className, ...rest } = Astro.props;
 ---
 
-<Button type={{type}} data-size={{size}} size={{size === "sm" ? "sm" : "icon-sm"}} variant={{variant}} class={{className}} data-input-group-button {{...rest}}>
+<Button type={type} data-size={size} size={size === "sm" ? "sm" : "icon-sm"} variant={variant} class={className} data-input-group-button {...rest}>
   <slot />
 </Button>
 '''
@@ -226,20 +227,20 @@ const {{ size = "md", index, class: className, ...rest }} = Astro.props;
 '''
 
 J = 'item/'
-F[J+'Item.astro'] = f'''---
-import type {{ HTMLAttributes, HTMLTag }} from "astro/types";
+F[J+'Item.astro'] = '''---
+import type { HTMLAttributes, HTMLTag } from "astro/types";
 
-type Props = HTMLAttributes<"div"> & {{
+type Props = HTMLAttributes<"div"> & {
   as?: HTMLTag;
   href?: string;
   variant?: "default" | "outline" | "muted";
   size?: "default" | "sm";
-}};
+};
 
-const {{ variant = "default", size = "default", as: Tag = "div", class: className, ...rest }} = Astro.props;
+const { variant = "default", size = "default", as: Tag = "div", class: className, ...rest } = Astro.props;
 ---
 
-<Tag class={{className}} data-variant={{variant}} data-size={{size}} data-slot="item" {{...rest}}>
+<Tag class={className} data-variant={variant} data-size={size} data-slot="item" {...rest}>
   <slot />
 </Tag>
 '''

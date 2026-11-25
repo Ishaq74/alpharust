@@ -25,7 +25,9 @@ static LOCK: Mutex<()> = Mutex::new(());
 static ORIGINAL_PATH: OnceLock<std::ffi::OsString> = OnceLock::new();
 
 fn lock() -> MutexGuard<'static, ()> {
-    let g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let g = LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     ORIGINAL_PATH.get_or_init(|| std::env::var_os("PATH").unwrap_or_default());
     std::env::set_var("ALPHARUST_NO_CACHE", "1");
     g
@@ -143,6 +145,7 @@ fn astro_pipeline_runs_official_tool_then_layers_templates_then_verifies() {
             "prepare",
             "create",
             "tsconfig",
+            "allow-scripts",
             "integrations",
             "typecheck-deps",
             "scripts",
@@ -403,11 +406,11 @@ fn invalid_requests_are_rejected_before_any_work() {
         .to_string()
         .contains("Wagtail exige l'installation"));
     let mut r = astro_request(Path::new("/tmp"), "x", |o| {
-        o.integrations = vec!["sitemap".into()]
+        o.integrations = vec!["sitemap".into()];
     });
     assert!(r.validate().unwrap_err().to_string().contains("--site"));
     r = astro_request(Path::new("/tmp"), "x", |o| {
-        o.integrations = vec!["react".into(), "svelte".into()]
+        o.integrations = vec!["react".into(), "svelte".into()];
     });
     assert!(r.validate().is_err());
     let mut lv = Request::new(Framework::Laravel, "x");
@@ -449,7 +452,7 @@ fn plans_are_pure_previews_and_never_touch_the_disk() {
         assert!(!out.path().join("preview").exists());
     }
     let mut req = astro_request(out.path(), "pm", |o| {
-        o.package_manager = PackageManager::Bun
+        o.package_manager = PackageManager::Bun;
     });
     req.install = true;
     let p = scaffold::plan(&req).unwrap().preview();

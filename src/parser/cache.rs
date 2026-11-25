@@ -36,7 +36,7 @@ pub fn fingerprint(root: &Path) -> u64 {
     for entry in WalkDir::new(root)
         .sort_by_file_name()
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.file_type().is_file())
     {
         if let Ok(meta) = entry.metadata() {

@@ -160,7 +160,7 @@ mod tests {
             file: "./src\\a.rs".into(),
             line,
             rule: rule.into(),
-            rule_id: format!("core/{}", rule),
+            rule_id: format!("core/{rule}"),
             message: "m".into(),
             severity: sev.into(),
         }

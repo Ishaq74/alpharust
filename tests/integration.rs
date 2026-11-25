@@ -28,7 +28,7 @@ fn has(set: &BTreeSet<(String, String)>, file: &str, rule: &str) -> bool {
 fn loads_a_complete_rule_set() {
     let rules = rules();
     assert!(rules.len() >= 90, "{} règles", rules.len());
-    let kinds: BTreeSet<_> = rules.iter().map(|r| r.kind()).collect();
+    let kinds: BTreeSet<_> = rules.iter().map(alpharust::parser::Rule::kind).collect();
     assert_eq!(kinds, BTreeSet::from(["checker", "info", "regex"]));
     // Les ids sont uniques.
     let ids: BTreeSet<_> = rules.iter().map(|r| &r.id).collect();
@@ -58,10 +58,7 @@ fn violations_fixtures_trigger_the_expected_rules() {
     for (file, rule) in expected {
         assert!(
             has(&f, file, rule),
-            "{} devrait déclencher {} — trouvé: {:#?}",
-            file,
-            rule,
-            f
+            "{file} devrait déclencher {rule} — trouvé: {f:#?}"
         );
     }
 }
@@ -69,7 +66,7 @@ fn violations_fixtures_trigger_the_expected_rules() {
 #[test]
 fn clean_fixtures_have_zero_violations() {
     let violations = runner::run(&rules(), Path::new("tests/fixtures/clean")).unwrap();
-    assert!(violations.is_empty(), "{:#?}", violations);
+    assert!(violations.is_empty(), "{violations:#?}");
 }
 
 #[test]
@@ -77,7 +74,7 @@ fn semantic_checkers_report_precise_lines() {
     let rules = rules();
     let v = runner::run(&rules, Path::new("tests/fixtures/violations/page.html")).unwrap();
     let line = |rule: &str| v.iter().find(|x| x.rule == rule).map(|x| x.line);
-    assert_eq!(line("alt-text-required"), Some(6), "{:#?}", v);
+    assert_eq!(line("alt-text-required"), Some(6), "{v:#?}");
     assert_eq!(line("no-inline-styles"), Some(7));
     let v = runner::run(&rules, Path::new("tests/fixtures/violations/unsafe.rs")).unwrap();
     assert_eq!(
@@ -93,17 +90,11 @@ fn project_checkers_detect_missing_readme_and_tests() {
     for rule in ["required-readme", "unit-tests-required", "api-docs-present"] {
         assert!(
             bad.iter().any(|(_, r)| r == rule),
-            "bad-project: {} manquant dans {:?}",
-            rule,
-            bad
+            "bad-project: {rule} manquant dans {bad:?}"
         );
     }
     let good = found("tests/fixtures/projects/good-project", &rules);
-    assert!(
-        good.is_empty(),
-        "good-project doit être propre : {:?}",
-        good
-    );
+    assert!(good.is_empty(), "good-project doit être propre : {good:?}");
 }
 
 #[test]

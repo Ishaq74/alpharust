@@ -29,7 +29,7 @@ mod tests {
     fn rule(id: &str, name: &str) -> Rule {
         let mut r = Rule::from_markdown(
             Path::new("x.md"),
-            &format!("---\nname: {}\napply: \"*\"\nseverity: error\n---\n", name),
+            &format!("---\nname: {name}\napply: \"*\"\nseverity: error\n---\n"),
         )
         .unwrap();
         r.id = id.to_string();
