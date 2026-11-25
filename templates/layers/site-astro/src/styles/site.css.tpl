@@ -277,6 +277,11 @@ body.site-body [data-slot='breadcrumb-link']:hover { color: var(--text); text-de
 body.site-body [data-slot='breadcrumb-page'] { color: var(--text); font-weight: 500; font-size: inherit; }
 body.site-body [data-slot='breadcrumb-separator'] svg { width: 0.875rem; height: 0.875rem; }
 [dir='rtl'] [data-slot='breadcrumb-separator'] svg { transform: scaleX(-1); }
+/* Croix du menu mobile : même place sur les 6 combinaisons (Starwind serveur n'a pas de règle pour elle), côté fin de
+   ligne, donc à gauche en RTL. */
+body.site-body [data-slot='sheet-close'] { position: absolute; inset-block-start: 1rem; inset-inline-end: 1rem; inset-inline-start: auto; display: inline-flex; padding: 0.25rem; color: var(--text-muted); background: transparent; border: 0; border-radius: 0.375rem; cursor: pointer; }
+body.site-body [data-slot='sheet-close']:hover { color: var(--text); }
+body.site-body [data-slot='sheet-close'] svg { width: 1.25rem; height: 1.25rem; }
 body.site-body [data-slot='theme-toggle'] { width: 2.25rem; height: 2.25rem; min-width: 0; padding: 0; border-radius: 0.5rem; }
 body.site-body .site-required { margin: 0; color: var(--site-error); }
 body.site-body blockquote.site-quote__text { padding: 0; border: 0; color: var(--text); font-style: normal; }
