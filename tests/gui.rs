@@ -230,7 +230,7 @@ async fn plan_previews_official_commands_and_validates() {
             || p["preview"].as_str().unwrap().contains("create astro")
     );
     assert!(p["tools"].as_array().unwrap().len() >= 3);
-    assert!(p["target"].as_str().unwrap().ends_with("sites/vitrine"));
+    assert!(std::path::Path::new(p["target"].as_str().unwrap()).ends_with("sites/vitrine"));
 
     // règles de compatibilité
     let bad = post(
@@ -265,7 +265,10 @@ async fn client_cannot_choose_the_destination() {
     .await;
     assert_eq!(r.status, StatusCode::OK);
     let target = r.json()["target"].as_str().unwrap().to_string();
-    assert!(target.ends_with("sites/jail"), "{target}");
+    assert!(
+        std::path::Path::new(&target).ends_with("sites/jail"),
+        "{target}"
+    );
 }
 
 #[tokio::test]

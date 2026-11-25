@@ -40,9 +40,16 @@ gen wagtail-css wagtail --ui css
 gen laravel-starwind laravel --ui starwind
 gen wagtail-starwind wagtail --ui starwind
 
+# Wagtail : DEBUG=False (settings/local.py, lu en fin de dev.py) pour servir la vraie page 404 du site
+# au lieu de la page technique de Django ; --insecure laisse runserver servir les fichiers statiques.
+for combo in wagtail-css wagtail-starwind; do
+  want "$combo" || continue
+  echo "DEBUG = False" > "$DIR/$combo/vitrine/vitrine/settings/local.py"
+done
+
 serve astro-starwind 4401 env HOST=0.0.0.0 PORT=4401 node dist/server/entry.mjs
 serve astro-css 4402 env HOST=0.0.0.0 PORT=4402 node dist/server/entry.mjs
 serve laravel-css 4403 php artisan serve --host=127.0.0.1 --port=4403
-serve wagtail-css 4404 .venv/bin/python manage.py runserver 127.0.0.1:4404 --noreload
+serve wagtail-css 4404 .venv/bin/python manage.py runserver 127.0.0.1:4404 --noreload --insecure
 serve laravel-starwind 4405 php artisan serve --host=127.0.0.1 --port=4405
-serve wagtail-starwind 4406 .venv/bin/python manage.py runserver 127.0.0.1:4406 --noreload
+serve wagtail-starwind 4406 .venv/bin/python manage.py runserver 127.0.0.1:4406 --noreload --insecure
