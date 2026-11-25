@@ -9,6 +9,7 @@ META = {
     'date_intl': 'en-US',
     'date_php': 'F j, Y',
     'date_django': 'F j, Y',
+    'og_locale': 'en_US',  # Open Graph (og:locale)
 }
 
 UI = {

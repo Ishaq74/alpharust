@@ -6,6 +6,7 @@
   "dir": "rtl",
   "flag": "flag-ar",
   "dateLocale": "ar-u-nu-latn",
+  "ogLocale": "ar_AR",
   "order": 4,
   "site": {
     "name": "@@title@@",

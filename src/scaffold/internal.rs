@@ -255,9 +255,11 @@ fn run_cmd(
     on_line: &mut dyn FnMut(&str),
 ) -> Result<()> {
     let cwd = match cmd.cwd {
+        // `-p demo` : le parent de `demo` est le chemin vide, c'est-à-dire le dossier courant
         Cwd::Parent => plan
             .target
             .parent()
+            .filter(|p| !p.as_os_str().is_empty())
             .map(Path::to_path_buf)
             .unwrap_or_else(|| ".".into()),
         Cwd::Project => plan.target.clone(),
@@ -338,12 +340,19 @@ fn run_internal(
             for f in &applied.kept {
                 on_line(&format!("= {f} (fichier officiel conservé)"));
             }
-            Ok(Some(format!(
+            for f in &applied.deleted {
+                on_line(&format!("- {f} (fichier officiel remplacé par une route)"));
+            }
+            let mut summary = format!(
                 "{} créé(s), {} remplacé(s), {} conservé(s)",
                 applied.written.len(),
                 applied.replaced.len(),
                 applied.kept.len()
-            )))
+            );
+            if !applied.deleted.is_empty() {
+                summary.push_str(&format!(", {} supprimé(s)", applied.deleted.len()));
+            }
+            Ok(Some(summary))
         }
         Internal::AstroTsconfig(level) => patch_tsconfig(target, *level).map(Some),
         Internal::AstroSite(url) => patch_astro_site(target, url).map(Some),
@@ -544,6 +553,15 @@ pub fn patch_astro_config(
             ),
         )?;
         done.push("i18n");
+    }
+    if icons && !text.contains("site:") {
+        // Site vitrine : URL canonique, hreflang, robots.txt et sitemap.xml exigent une adresse absolue
+        // (doc Astro « site »). `--site` la fixe ; sinon SITE_URL au build, comme APP_URL (Laravel).
+        text = insert_in_define_config(
+            &text,
+            "\n  site: process.env.SITE_URL ?? 'http://localhost:4321',",
+        )?;
+        done.push("site (SITE_URL)");
     }
     if !text.contains("security:") {
         // `checkOrigin` est actif par défaut depuis Astro 5 : on l'explicite (CSRF des formulaires et API)
@@ -756,6 +774,23 @@ pub fn patch_wagtail_design(
         "\"django.contrib.messages.context_processors.messages\",",
         "                \"wagtail.contrib.settings.context_processors.settings\",\n                \"layout.context_processors.site\",\n",
     )?;
+    // Référencement : plan du site officiel de Wagtail (doc « reference/contrib/sitemaps » : alternatives
+    // hreflang incluses avec WAGTAIL_I18N_ENABLED) et robots.txt servi par le site (layout/seo.py).
+    edit(
+        format!("{pkg}/settings/base.py"),
+        "INSTALLED_APPS = [",
+        "    \"wagtail.contrib.sitemaps\",\n    \"django.contrib.sitemaps\",\n",
+    )?;
+    edit(
+        format!("{pkg}/urls.py"),
+        "from search import views as search_views",
+        "from wagtail.contrib.sitemaps.views import sitemap\n\nfrom layout.seo import robots_txt\n",
+    )?;
+    edit(
+        format!("{pkg}/urls.py"),
+        "path(\"search/\"",
+        "    path(\"sitemap.xml\", sitemap),\n    path(\"robots.txt\", robots_txt),\n",
+    )?;
     // Langues : internationalisation de Wagtail (doc Wagtail, « advanced_topics/i18n »).
     edit(
         format!("{pkg}/settings/base.py"),
@@ -791,7 +826,7 @@ pub fn patch_wagtail_design(
         );
         fs::write(&urls, patched)?;
     }
-    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings), processeurs de contexte, LANGUAGE_CODE = fr, langues fr/en (wagtail.locales, LocaleMiddleware, i18n_patterns), /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
+    Ok("ds et site branchés : INSTALLED_APPS (ds, layout, site_settings, streams, flex, service, blog, contact, wagtail.contrib.settings, wagtail.contrib.sitemaps), processeurs de contexte, /sitemap.xml, /robots.txt, LANGUAGE_CODE = fr, langues fr/en (wagtail.locales, LocaleMiddleware, i18n_patterns), /components/, ds/css/index.css, ds/js/ds.js, favicon".into())
 }
 
 /// Aligne `starwind.config.json` sur atomic : composants dans `atoms/`, utilitaires dans `lib/starwind/`.
@@ -825,7 +860,8 @@ pub fn patch_astro_site(target: &Path, url: &str) -> Result<String> {
         .find(|p| p.is_file())
         .ok_or_else(|| anyhow!("astro.config.* introuvable"))?;
     let text = fs::read_to_string(&path)?;
-    let re_existing = regex::Regex::new(r#"site:\s*['"][^'"]*['"]"#).unwrap();
+    let re_existing =
+        regex::Regex::new(r#"site:\s*(process\.env\.SITE_URL \?\? )?['"][^'"]*['"]"#).unwrap();
     let new = if re_existing.is_match(&text) {
         re_existing
             .replace(&text, format!("site: '{url}'"))

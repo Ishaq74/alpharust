@@ -5,11 +5,13 @@ Mêmes clés que src/lib/site.ts (Astro) et App\\Support\\SiteData (Laravel) : l
 Langues : internationalisation de Wagtail (pages et menus traduits, même ``translation_key``) ; les réglages et
 libellés d'interface passent par gettext (layout/locale/<langue>/LC_MESSAGES/django.po).
 """
+import json
 import re
 from datetime import date
 
 from django.conf import settings
 from django.utils.functional import SimpleLazyObject
+from django.utils.safestring import mark_safe
 from django.utils.translation import get_language, gettext
 from wagtail.models import Locale, Site
 
@@ -20,6 +22,8 @@ SOCIAL = [("github", "GitHub"), ("linkedin", "LinkedIn"), ("mastodon", "Mastodon
 UI = {'skip': 'Aller au contenu', 'main_nav': 'Navigation principale', 'mobile_nav': 'Navigation mobile', 'theme': 'Changer de thème', 'open_menu': 'Ouvrir le menu', 'social': 'Réseaux sociaux', 'language': 'Langue', 'contact': 'Contact', 'more': 'En savoir plus', 'more_label': 'En savoir plus : ', 'details': 'Coordonnées', 'included': 'Ce qui est inclus', 'all_posts': 'Tous les articles', 'services': 'Services', 'blog': 'Blog', 'home': 'Accueil', 'not_found': 'Page introuvable', 'not_found_text': 'La page demandée n’existe pas ou a été déplacée.', 'back_home': 'Retour à l’accueil', 'required': 'Ce champ est obligatoire.', 'invalid_email': 'Adresse e-mail invalide.', 'sign_in': 'Connexion', 'sign_in_lead': 'Accédez à votre espace client.', 'sign_in_submit': 'Se connecter', 'sign_up': 'Créer un compte', 'sign_up_lead': 'Quelques secondes suffisent.', 'sign_up_submit': 'Créer mon compte', 'account': 'Mon compte', 'account_lead': 'Vous êtes connecté.', 'sign_out': 'Se déconnecter', 'field_name': 'Nom', 'field_email': 'E-mail', 'field_password': 'Mot de passe', 'no_account': 'Pas encore de compte ?', 'have_account': 'Déjà inscrit ?', 'err_credentials': 'E-mail ou mot de passe incorrect.', 'err_exists': 'Un compte existe déjà avec cette adresse.', 'err_password': 'Le mot de passe doit contenir au moins 8 caractères.', 'err_required': 'Tous les champs sont obligatoires.', 'err_generic': 'Une erreur est survenue, réessayez.', 'mail_subject': 'Nouveau message depuis le site', 'menu_main': 'Principal'}
 # Libellé du sélecteur et sens d'écriture de chaque langue (vitrine/locales) ; les langues servies sont settings.LANGUAGES.
 LOCALES = {'fr': {'label': 'FR', 'dir': 'ltr'}, 'en': {'label': 'EN', 'dir': 'ltr'}, 'es': {'label': 'ES', 'dir': 'ltr'}, 'ar': {'label': 'AR', 'dir': 'rtl'}}
+# Open Graph (og:locale) de chaque langue, comme Astro (src/data/locales) et Laravel (config/site.php).
+OG_LOCALES = {'fr': 'fr_FR', 'en': 'en_US', 'es': 'es_ES', 'ar': 'ar_AR'}
 
 
 def locale_code():
@@ -166,5 +170,39 @@ def account(request):
 
 
 @@end@@
+def json_ld(data):
+    """JSON-LD sûr dans <script> : < > & échappés (comme JSON_HEX_TAG côté Laravel et l'échappement d'Astro)."""
+    text = json.dumps(data, ensure_ascii=False)
+    return mark_safe(text.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
+
+
+def build_seo(request, site):
+    """Adresse canonique (sans paramètres), alternatives hreflang (+ x-default), og:locale, JSON-LD Organization."""
+    code = locale_code()
+    rest = unprefixed(request.path)
+    alternates = []
+    if len(settings.LANGUAGES) > 1:
+        alternates = [{"hreflang": c, "href": request.build_absolute_uri(prefix(c) + rest)} for c, _ in settings.LANGUAGES]
+        alternates.append({"hreflang": "x-default", "href": request.build_absolute_uri(prefix(settings.LANGUAGE_CODE) + rest)})
+    organization = {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": site["name"],
+        "url": request.build_absolute_uri("/"),
+        "description": site["description"],
+        "email": site["contact"]["email"],
+        "telephone": site["contact"]["phone"],
+        "address": site["contact"]["address"],
+        "sameAs": [s["url"] for s in site["social"]],
+    }
+    return {
+        "canonical": request.build_absolute_uri(request.path),
+        "alternates": alternates,
+        "og_locale": OG_LOCALES.get(code, code),
+        "organization": json_ld(organization),
+    }
+
+
 def site(request):
-    return {"site": SimpleLazyObject(lambda: build_site(request))}
+    data = SimpleLazyObject(lambda: build_site(request))
+    return {"site": data, "seo": SimpleLazyObject(lambda: build_seo(request, data))}

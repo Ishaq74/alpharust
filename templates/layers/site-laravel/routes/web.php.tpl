@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountController;
 @@end@@
 use App\Http\Controllers\BlogController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\SeoController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SiteController;
 use Illuminate\Support\Facades\Route;
@@ -36,5 +37,9 @@ foreach (array_keys(config('site.locales')) as $locale) {
 @@end@@
         });
 }
+
+// Référencement : robots.txt et plan du site XML (mêmes adresses qu'Astro et Wagtail).
+Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 
 require __DIR__.'/pages.php';

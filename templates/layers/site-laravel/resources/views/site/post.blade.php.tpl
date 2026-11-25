@@ -1,5 +1,5 @@
 {{-- Généré par tools/dsgen/vitrine (spec.py) : même site qu’Astro et Wagtail. --}}
-<x-layouts.site :title="$page['title']" :description="$page['description']">
+<x-layouts.site :title="$page['title']" :description="$page['description']" :article="$page">
     <article class="site-article">
         <header class="site-page-header">
             <div class="site-container site-container--narrow">

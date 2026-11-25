@@ -5,6 +5,7 @@
 //! Syntaxe d'un template :
 //! - première ligne facultative `@@meta mode=replace when=tailwind@@` :
 //!   `mode=create` (défaut : n'écrase jamais un fichier existant), `mode=replace` (écrase le fichier officiel),
+//!   `mode=delete` (supprime le fichier officiel s'il existe, ex. `public/robots.txt` remplacé par une route),
 //!   `when=flag` / `when=!flag` / `when=a|b` / `when=a&!b` : n'applique le fichier que si le drapeau est actif ;
 //! - blocs `@@if flag@@ … @@else@@ … @@end@@` (directives sur leur propre ligne, imbriquables) ;
 //! - variables `@@name@@`, `@@slug@@`, `@@pkg@@`, `@@title@@`, `@@upper@@`, `@@pm@@`, `@@run@@`, …
@@ -143,6 +144,7 @@ impl Ctx {
 pub enum Mode {
     Create,
     Replace,
+    Delete,
 }
 
 #[derive(Debug, Clone)]
@@ -162,6 +164,7 @@ pub fn parse_meta(text: &str) -> (Meta, &str) {
             for kv in rest[..end].split_whitespace() {
                 match kv.split_once('=') {
                     Some(("mode", "replace")) => meta.mode = Mode::Replace,
+                    Some(("mode", "delete")) => meta.mode = Mode::Delete,
                     Some(("mode", _)) => meta.mode = Mode::Create,
                     Some(("when", w)) => meta.when = w.to_string(),
                     _ => {}
@@ -219,6 +222,7 @@ pub struct Applied {
     pub written: Vec<String>,
     pub replaced: Vec<String>,
     pub kept: Vec<String>,
+    pub deleted: Vec<String>,
 }
 
 /// Applique les couches `names` (dans l'ordre) à `target`.
@@ -233,6 +237,14 @@ pub fn apply(names: &[&str], ctx: &Ctx, target: &Path) -> Result<Applied> {
             let rel_out = target_path(ctx, &rel);
             let dest = target.join(&rel_out);
             let existed = dest.exists();
+            if meta.mode == Mode::Delete {
+                if existed {
+                    fs::remove_file(&dest)
+                        .with_context(|| format!("suppression de {}", dest.display()))?;
+                    applied.deleted.push(rel_out);
+                }
+                continue;
+            }
             if existed && meta.mode == Mode::Create {
                 applied.kept.push(rel_out);
                 continue;
@@ -267,6 +279,16 @@ mod tests {
         c.var("name", "demo").var("pm", "pnpm");
         c.flag("tailwind", true);
         c
+    }
+
+    #[test]
+    fn delete_mode_removes_an_official_file_only_when_the_flag_holds() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("robots.txt"), "officiel").unwrap();
+        let (m, _) = parse_meta("@@meta mode=delete when=tailwind@@\n");
+        assert_eq!(m.mode, Mode::Delete);
+        let (m2, _) = parse_meta("@@meta mode=delete when=react@@\n");
+        assert!(ctx().holds(&m.when) && !ctx().holds(&m2.when));
     }
 
     #[test]

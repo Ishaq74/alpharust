@@ -46,6 +46,22 @@ class SiteTest extends TestCase
             ->assertSee('<footer class="site-footer">', false);
     }
 
+    public function test_seo_robots_sitemap_and_structured_data(): void
+    {
+        $this->get('/robots.txt')
+            ->assertOk()
+            ->assertSee('Sitemap: '.url('/sitemap.xml'), false);
+        $this->get('/sitemap.xml')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/xml; charset=utf-8')
+            ->assertSee('<loc>'.url('/blog/choisir-son-framework').'</loc>', false);
+        $this->get('/blog/choisir-son-framework')
+            ->assertOk()
+            ->assertSee('<link rel="canonical" href="'.url('/blog/choisir-son-framework').'">', false)
+            ->assertSee('"@type":"Organization"', false)
+            ->assertSee('"@type":"BlogPosting"', false);
+    }
+
 @@if multilingual@@
     public static function translatedPages(): array
     {

@@ -138,7 +138,7 @@ async fn assets_are_embedded_and_never_use_innerhtml() {
 #[tokio::test]
 async fn meta_describes_frameworks_and_options() {
     let m = get("/api/meta").await.json();
-    assert_eq!(m["rules"], 97);
+    assert_eq!(m["rules"], 98);
     assert_eq!(m["checkers"], 15);
     assert!(m["profiles"].as_array().unwrap().len() >= 8);
     let fws = m["frameworks"].as_array().unwrap();
@@ -283,7 +283,7 @@ async fn post_requires_a_local_origin() {
 #[tokio::test]
 async fn rules_api_supports_listing_and_detail() {
     let rules = get("/api/rules").await.json();
-    assert_eq!(rules.as_array().unwrap().len(), 97);
+    assert_eq!(rules.as_array().unwrap().len(), 98);
     let first = &rules[0];
     for k in [
         "id", "name", "category", "severity", "apply", "kind", "message",

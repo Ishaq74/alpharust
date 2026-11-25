@@ -3,7 +3,7 @@
 **AlphaRust** est un binaire Rust unique qui fait trois choses, avec trois interfaces (**CLI**, **TUI**, **GUI web**) branchées
 sur le même moteur :
 
-1. **Vérifier la qualité** d'un dépôt : 97 règles (regex et analyses sémantiques) auto-testées par leurs exemples,
+1. **Vérifier la qualité** d'un dépôt : 98 règles (regex et analyses sémantiques) auto-testées par leurs exemples,
    8 profils, configuration `.alpharust.toml`, cache, sortie **SARIF 2.1.0** pour le code scanning GitHub.
 2. **Générer des projets** avec les **outils officiels** (`create-astro`, `composer create-project`, `wagtail start`,
    `cargo new`), installer réellement les dépendances, poser une couche de modèles et **vérifier** le résultat

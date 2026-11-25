@@ -39,8 +39,8 @@
 }
 [data-slot='popover-content'][hidden] { display: none; }
 [data-slot='popover-content']:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-[data-slot='popover-content'][data-align='start'] { left: 0; transform: none; }
-[data-slot='popover-content'][data-align='end'] { right: 0; left: auto; transform: none; }
+[data-slot='popover-content'][data-align='start'] { left: auto; inset-inline-start: 0; transform: none; }
+[data-slot='popover-content'][data-align='end'] { left: auto; inset-inline-end: 0; transform: none; }
 [data-slot='popover-content'][data-side='top'] { top: auto; bottom: 100%; margin: 0 0 var(--ds-offset, 4px); }
 [data-slot='popover-content'][data-side='right'],
 [data-slot='popover-content'][data-side='left'] { top: 50%; transform: translateY(-50%); margin: 0; }

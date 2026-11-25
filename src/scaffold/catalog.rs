@@ -557,7 +557,7 @@ mod tests {
         .unwrap();
         fs::write(
             p.join("demo/urls.py"),
-            "urlpatterns = [\n    path(\"search/\", search_views.search, name=\"search\"),\n]\nurlpatterns = urlpatterns + [\n    path(\"\", include(wagtail_urls)),\n]\n",
+            "from search import views as search_views\n\nurlpatterns = [\n    path(\"search/\", search_views.search, name=\"search\"),\n]\nurlpatterns = urlpatterns + [\n    path(\"\", include(wagtail_urls)),\n]\n",
         )
         .unwrap();
         fs::write(
@@ -585,6 +585,9 @@ mod tests {
         let urls = fs::read_to_string(p.join("demo/urls.py")).unwrap();
         assert_eq!(urls.matches("ds.urls").count(), 1);
         assert_eq!(urls.matches("i18n_patterns(").count(), 1);
+        assert_eq!(urls.matches("path(\"sitemap.xml\", sitemap)").count(), 1);
+        assert_eq!(urls.matches("path(\"robots.txt\", robots_txt)").count(), 1);
+        assert_eq!(settings.matches("\"wagtail.contrib.sitemaps\"").count(), 1);
         assert!(urls.contains("prefix_default_language=False"));
         assert_eq!(settings.matches("wagtail.locales").count(), 1);
         assert_eq!(settings.matches("LocaleMiddleware").count(), 1);

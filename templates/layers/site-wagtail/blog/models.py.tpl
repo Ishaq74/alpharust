@@ -61,6 +61,24 @@ class BlogPage(Page):
     def back_url(self):
         return self.get_parent().url
 
+    @property
+    def json_ld(self):
+        """Article schema.org (BlogPosting) : mêmes champs qu'Astro et Laravel."""
+        from layout.context_processors import json_ld
+
+        site = self.get_site()
+        return json_ld({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": self.title,
+            "description": self.excerpt,
+            "datePublished": self.date_iso,
+            "author": {"@type": "Person", "name": self.author},
+            "inLanguage": self.locale.language_code,
+            "mainEntityOfPage": self.full_url,
+            "publisher": {"@type": "Organization", "name": site.site_name if site and site.site_name else "@@title@@"},
+        })
+
     def card(self):
         return {
             "title": self.title,

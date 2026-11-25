@@ -8,11 +8,19 @@
         <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}</title>
         <meta name="description" content="{% block description %}{% if page.search_description %}{{ page.search_description }}{% else %}{{ site.description }}{% endif %}{% endblock %}" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="canonical" href="{{ request.build_absolute_uri }}" />
+        <link rel="canonical" href="{{ seo.canonical }}" />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="{% block og_title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %} · {{ site.name }}{% endblock %}" />
         <meta property="og:description" content="{% if page.search_description %}{{ page.search_description }}{% else %}{{ site.description }}{% endif %}" />
-        <script>
+        {# Référencement commun aux 3 frameworks : hreflang (+ x-default), Open Graph, JSON-LD (layout/context_processors.py). #}
+        {% for alt in seo.alternates %}<link rel="alternate" hreflang="{{ alt.hreflang }}" href="{{ alt.href }}" />
+        {% endfor %}<meta property="og:url" content="{{ seo.canonical }}" />
+        <meta property="og:site_name" content="{{ site.name }}" />
+        <meta property="og:locale" content="{{ seo.og_locale }}" />
+        <meta name="twitter:card" content="summary" />
+        <script type="application/ld+json">{{ seo.organization }}</script>
+        {% if page.json_ld %}<script type="application/ld+json">{{ page.json_ld }}</script>
+        {% endif %}        <script>
             // Applique le thème choisi avant le premier rendu (évite le flash).
             try {
                 const saved = localStorage.getItem('theme');
