@@ -111,6 +111,14 @@
   .site-nav, .site-header__cta, .site-header__account { display: none; }
   .site-header__mobile { display: block; }
 }
+/* Téléphone : drapeaux seuls (le code reste le nom accessible du lien), sinon 4 langues débordent de l'écran. */
+@media (max-width: 30rem) {
+  .site-lang__link { padding: 0 0.375rem; }
+  .site-lang__link span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .site-lang__link[aria-current] { background: var(--site-soft); }
+}
 
 /* ---------- sections ---------- */
 .site-section { padding-block: clamp(3rem, 7vw, 5rem); }
@@ -179,7 +187,8 @@
   border-radius: calc(var(--site-radius) * 1.5); background: var(--brand); color: var(--brand-contrast);
 }
 .site-body .site-cta__title { color: inherit; font-size: clamp(1.5rem, 3vw, 2rem); }
-.site-cta__text { margin-top: 0.5rem; opacity: 0.9; }
+/* pas d'opacité : le couple --brand / --brand-contrast est calculé pour 4.5:1, une opacité le ferait tomber dessous */
+.site-cta__text { margin-top: 0.5rem; }
 
 .site-team { text-align: center; }
 .site-team__member { display: grid; justify-items: center; gap: 0.35rem; padding: 1.5rem 1rem; border: 1px solid var(--site-line); border-radius: var(--site-radius); }

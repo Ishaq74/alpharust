@@ -5,6 +5,8 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --all-targets
 alpharust check-rules
+ruff check tools/dsgen && python3 -m pytest -q tools/dsgen/tests
+cargo deny check
 ```
 
 | Suite | Fichier | Contenu |
@@ -14,7 +16,10 @@ alpharust check-rules
 | Cache | `tests/cache.rs` | écriture, hit, invalidation, cache corrompu |
 | CLI | `tests/cli.rs` | binaire réel : codes de sortie, SARIF/JSON purs, `generate --dry-run/--json`, options incompatibles, `doctor`, `cargo new` réel, noms dangereux, tube fermé, TUI/`new` sans TTY |
 | GUI | `tests/gui.rs` | SPA embarquée (CSP, aucun `innerHTML`), API méta/plan/règles/lint, chemins refusés, CSRF (`Origin`/`Host`), **job de génération avec flux SSE** (rejeu, `Last-Event-ID`) |
-| Générateurs | `tests/generators.rs` | pipeline hermétique (faux `npm`/`node`), outil absent, échec d'outil, annulation, `--force` sûr, `cargo new` réel ; **`e2e_*` réels** (create-astro npm/pnpm, composer + Breeze + Pest, wagtail) avec `ALPHARUST_E2E=1` |
+| Générateurs | `tests/generators.rs` | pipeline hermétique (faux `npm`/`node`), outil absent, échec d'outil, annulation, `--force` sûr, `cargo new` réel ; **`e2e_*` réels** (create-astro npm/pnpm, composer + Breeze + Pest, wagtail), marqués `#[ignore]` : `ALPHARUST_E2E=1 … -- --ignored` |
+| Assistant | `src/cli/wizard.rs` | `alpharust new` sans terminal : un `Prompter` scripté rejoue les réponses (Rust, Laravel, Wagtail, Astro plateforme, sitemap, couleurs invalides, nom refusé, choix hors liste) et chaque demande produit un plan valide |
+| Racine | `src/paths.rs` | extraction complète des règles et profils embarqués (binaire installé seul) |
+| `tools/dsgen` | `tools/dsgen/tests/` | pytest : utilitaires communs, langues complètes, fichiers de référence (golden) des couches ; ruff |
 
 Les fixtures : `tests/fixtures/violations/` (doit déclencher des règles précises), `clean/` (zéro violation),
 `projects/{good,bad}-project/` (checkers de projet).
@@ -23,7 +28,7 @@ Les jetons réalistes sont assemblés **à l'exécution** dans les tests pour ne
 ## Générations réelles
 
 ```bash
-ALPHARUST_E2E=1 cargo test --test generators e2e -- --test-threads=1 --nocapture
+ALPHARUST_E2E=1 cargo test --test generators e2e -- --ignored --test-threads=1 --nocapture
 ```
 
 Réseau requis (npm, composer, pip). Chaque test détecte les outils et s'ignore avec un message s'ils manquent ;
@@ -32,9 +37,9 @@ Réseau requis (npm, composer, pip). Chaque test détecte les outils et s'ignore
 ### Plateforme Astro
 
 ```bash
-ALPHARUST_E2E=1 cargo test --test generators e2e_astro_platform -- --test-threads=1
+ALPHARUST_E2E=1 cargo test --test generators e2e_astro_platform -- --ignored --test-threads=1
 # PostgreSQL réel : une base vide `<base>` et `<base>_test` doivent exister
-ALPHARUST_E2E=1 ALPHARUST_E2E_PG_URL=postgresql://…/ma_base cargo test --test generators e2e_astro_platform_postgres
+ALPHARUST_E2E=1 ALPHARUST_E2E_PG_URL=postgresql://…/ma_base cargo test --test generators e2e_astro_platform_postgres -- --ignored
 ```
 
 Les trois tests génèrent de vrais projets (SQLite + Better Auth + Starwind + i18n ; Concordia + thème ; PostgreSQL) et
@@ -64,7 +69,7 @@ Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authent
     CSS, Laravel, Wagtail) utilisent chaque composant, routes et liens compris ; le kit CSS d'Astro installe les 46 feuilles, `utilities.css` et `ds.js` ;
   * branchement Laravel (refus de Breeze) et Wagtail (insertion idempotente, échec si l'ancre manque).
 * **Générateur à jour** (CI) : `python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers`.
-* **e2e réels** : `ALPHARUST_E2E=1 cargo test --release --test generators design_kit -- --test-threads=1` (Laravel : Vite compile
+* **e2e réels** : `ALPHARUST_E2E=1 cargo test --release --test generators design_kit -- --ignored --test-threads=1` (Laravel : Vite compile
   le kit, slots étendus compris, `php artisan test` — dont `/components/advanced` : 23 composants et contrat a11y —, puis
   `php artisan view:cache` compile les 184 parties Blade ; Wagtail : `manage.py check` et tests, dont `/components/advanced/`,
   puis contrôle des 184 balises enregistrées et du rendu de la page avancée).
@@ -95,3 +100,17 @@ Les projets générés exécutent eux-mêmes leurs tests `vitest` (base, authent
   navigateur : 20 contrôles par combinaison, dont l'arabe RTL et l'espagnol), `site_interact.py SORTIE` (sous-menu au survol et au clavier, thème, menu
   mobile, envoi du contact) et `montage.py` (planche 3 × 2 d'une page). Serveurs attendus : 4401 Astro Starwind,
   4402 Astro CSS, 4403 Laravel CSS, 4404 Wagtail CSS, 4405 Laravel Starwind, 4406 Wagtail Starwind.
+
+### Contrôles de la v0.3.0 (ADR 0018)
+
+* **Référencement** : `site_parity.py` compare aussi canonical, alternates `hreflang`, `meta robots`, Open Graph et types
+  JSON-LD de chaque page, et vérifie que chaque combinaison sert `sitemap.xml` (avec `hreflang`) et un `robots.txt` qui
+  pointe vers lui. Tests des projets : Laravel `test_seo_robots_sitemap_and_structured_data`, Wagtail et Astro équivalents.
+* **Accessibilité** : `site_axe.py SORTIE` (variable `AXE_JS` vers `axe.min.js`) passe axe-core (WCAG 2.0/2.1 A et AA) sur
+  les pages de chaque combinaison, thèmes clair et sombre ; code de sortie 1 au moindre impact sérieux ou critique.
+* **Sécurité** : `the_three_frameworks_send_the_same_base_csp` (`catalog.rs`) ; Laravel
+  `test_security_headers_and_csp_in_production` ; Wagtail `settings/production.py` (`check --deploy`).
+* **Serveurs** : `serve_combos.sh DOSSIER [BINAIRE]` génère les 6 combinaisons (`--auth --langs fr,en,es,ar`, palette par
+  défaut) et les sert sur 4401–4406 ; Wagtail tourne avec `DEBUG = False` pour servir la vraie page 404.
+* **CI** : `ci.yml` (Linux complet, Windows et macOS, MSRV 1.89, cargo-deny, générations réelles) et `nightly.yml`
+  (chaque nuit, à la demande et sur les PR qui touchent au site : `serve_combos.sh`, puis parité, comptes, axe ; artefacts).

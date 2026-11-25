@@ -47,11 +47,11 @@ Les options d'un autre framework sont refusées (`generate rust x --pm pnpm` →
 | `--preset` | `vitrine`, `blog-i18n`, `app-auth`, `saas-pg`, `concordia` (voir `alpharust presets`) |
 | `--ui` | `none`, `starwind` (46 composants atomic), `concordia` (+ `--css-variant` ; les 46 composants d'atomic en CSS pur, même API que Starwind) |
 | `--theme-primary/-secondary/-accent` | palette de marque WCAG → `src/styles/themes/theme.css`, **tous les kits** |
-| `--db`, `--db-url` | `none`, `sqlite`, `postgres` (+ URL de développement : migrations appliquées) |
+| `--db`, `--db-url` | `none`, `sqlite`, `postgres` (alias `pgsql`) (+ URL de développement : migrations appliquées) |
 | `--auth`, `--auth-plugin` | Better Auth ; plugins `admin`, `username`, `organization` (site vitrine : pages de compte du site) |
 | `--icons` | site vitrine : jeu d'icônes Iconify (MDI par défaut ; drapeaux Circle Flags) |
-| `--i18n` | `fr,en,es,ar` (au moins deux, la première est la langue par défaut) |
-| `--langs` | langues du site vitrine (`--ui`) : `fr,en,es,ar`, défaut `fr,en` (ou celles de `--i18n`), français obligatoire ; ADR 0017 |
+| `--langs` | **seule option de langues** : site vitrine (`--ui`) `fr,en,es,ar`, défaut `fr,en`, français obligatoire (ADR 0017) ; sans site vitrine, i18n de la plateforme (au moins deux, la première est la langue par défaut) |
+| `--i18n` | alias **déprécié** de `--langs` (avertissement ; si les deux sont donnés, ils doivent concorder) |
 | `--docker`, `--ci` | Dockerfile + compose ; workflow GitHub Actions |
 
 Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
@@ -60,14 +60,14 @@ Les briques plateforme sont détaillées dans [`platform.md`](platform.md).
 |---------|---------|
 | `--starter` | `none` (défaut), `breeze-blade`, `breeze-livewire`, `breeze-react`, `breeze-vue`, `breeze-api` |
 | `--dark`, `--pest` | mode sombre Breeze, Pest au lieu de PHPUnit (exigent un kit) |
-| `--db` | `sqlite` (défaut : migrations + données d'exemple exécutées), `mysql`, `pgsql` |
+| `--db` | `sqlite` (défaut : migrations + données d'exemple exécutées), `mysql`, `postgres` (alias `pgsql`) |
 | `--frontend` | `npm install && npm run build` même sans kit |
 | `--ui` | `none`, `css` (design kit CSS pur) ou `starwind` (Tailwind v4 + règles des atomes Starwind) : composants Blade `<x-ds.*>`, page `/components` et **site vitrine** FR/EN (squelette sans Breeze) |
 | `--auth` | comptes du site avec **Laravel Fortify** (`/auth/sign-in`, `/auth/sign-up`, `/auth/dashboard`) ; exige `--ui` |
 | `--icons` | jeu d'icônes Iconify du site (MDI par défaut, `lucide`, tout jeu Iconify) ; exige `--ui` |
 | `--langs` | langues du site vitrine : `fr,en,es,ar` (défaut `fr,en`, français obligatoire) ; exige `--ui` |
 
-Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind` (application `ds` : balises `{% ds_* %}`, page `/components/`, site vitrine dans les langues de `--langs` ; Starwind compilé par la CLI autonome Tailwind), `--auth` (authentification Django), `--icons <jeu>`, `--langs fr,en,es,ar`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
+Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind` (application `ds` : balises `{% ds_* %}`, page `/components/`, feuille unique `ds.bundle.css` produite par `manage.py ds_bundle` en CSS pur, `settings/production.py` durci, site vitrine dans les langues de `--langs` ; Starwind compilé par la CLI autonome Tailwind), `--auth` (authentification Django), `--icons <jeu>`, `--langs fr,en,es,ar`. Rust : `--kind bin|lib`, `--edition`, `--dep`.
 
 ## Contrôles et garde-fous
 
@@ -88,8 +88,8 @@ Wagtail : `--package` (paquets pip en plus), `--no-migrate`, `--ui css|starwind`
 Les fichiers sont embarqués dans le binaire (`include_dir!`) et s'appliquent **après** l'outil officiel :
 
 * `common/` (`.alpharust.toml`, `docs/`…) puis `<framework>/` ;
-* première ligne facultative `@@meta mode=create|replace when=<expr>@@` : `create` ne **n'écrase jamais** un fichier
-  officiel, `replace` le remplace ; `when` combine des drapeaux avec `|` (ou), `&` (et), `!` (non) ;
+* première ligne facultative `@@meta mode=create|replace|delete when=<expr>@@` : `create` ne **n'écrase jamais** un fichier
+  officiel, `replace` le remplace, `delete` le supprime (le contenu du modèle est ignoré) ; `when` combine des drapeaux avec `|` (ou), `&` (et), `!` (non) ;
 * blocs `@@if expr@@ … @@else@@ … @@end@@` sur leurs propres lignes, ou en ligne (`@@if typecheck@@, check@@end@@`) ;
 * variables `@@name@@ @@slug@@ @@pkg@@ @@title@@ @@pm@@ @@run@@ @@typescript@@…` dans les contenus **et** les chemins ;
   une variable inconnue est conservée (donc détectable) ; `dot-xxx` devient `.xxx`, `.tpl` est retiré.
@@ -118,3 +118,12 @@ Autres générateurs de texte : `readme`, `docs`, `checks` (checklist Markdown d
 2. `templates/layers/<fw>/` : couche de modèles.
 3. L'enregistrer dans `Framework`/`Options` (`src/scaffold/mod.rs`) : la CLI, la TUI et la GUI le proposent via `Options`.
 4. Tests hermétiques (shims) et un test `e2e_*`.
+
+## Versions épinglées et téléchargements vérifiés
+
+Les outils officiels lancés par les générateurs ont une version fixe dans `src/scaffold/pins.rs` (`create-astro`,
+`starwind`, Better Auth CLI, spécification pip de Wagtail) : aucune commande ne tire `@latest`. Pour relever une version,
+modifier `pins.rs`, puis `cargo test` et le job `generated-projects`. La CLI autonome Tailwind (Wagtail + Starwind) est
+téléchargée depuis sa release GitHub et comparée à la somme SHA-256 publiée avant d'être rendue exécutable. Côté npm,
+le champ `allowScripts` du `package.json` Astro autorise explicitement les scripts d'installation d'`esbuild` (et de
+`better-sqlite3` avec SQLite).

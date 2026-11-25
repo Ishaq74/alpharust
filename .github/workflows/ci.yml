@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   pull_request:
 
+# une nouvelle poussée sur la même PR annule le passage précédent (main garde tous ses passages)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
 

@@ -12,6 +12,8 @@ sur le même moteur :
    ou CSS pur) : **6 combinaisons** au rendu identique (écart mesuré ≤ 0,84 % des pixels), en **français, anglais, espagnol et
    arabe** (RTL), au choix avec `--langs`, avec **comptes utilisateurs** (Better Auth, Laravel Fortify, authentification Django).
 
+*English summary: [README.en.md](README.en.md) · Journal des versions : [CHANGELOG.md](CHANGELOG.md)*
+
 ![Le même site sur les 6 combinaisons (accueil)](docs/screenshots/phase10-6combos-accueil.png)
 
 ---
@@ -83,6 +85,23 @@ rustup-init
 « Add to PATH »). AlphaRust utilise automatiquement `.venv\Scripts\` sous Windows et `tailwindcss.exe` pour la CLI Tailwind.
 
 ## Installation
+
+**Binaire publié** (release GitHub, aucune chaîne Rust nécessaire) — installateurs produits par cargo-dist :
+
+```bash
+# Linux et macOS
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/Ishaq74/alpharust/releases/latest/download/alpharust-installer.sh | sh
+# Windows (PowerShell)
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/Ishaq74/alpharust/releases/latest/download/alpharust-installer.ps1 | iex"
+# ou, avec Rust 1.89+ :
+cargo install --locked --git https://github.com/Ishaq74/alpharust --tag v0.3.0
+```
+
+Les archives de chaque version (Linux x86_64/arm64, macOS Intel/Apple Silicon, Windows x86_64, avec leurs sommes
+SHA-256) sont sur la [page des releases](https://github.com/Ishaq74/alpharust/releases). Un binaire installé seul
+embarque ses règles et profils (extraits au premier lancement dans un dossier temporaire `alpharust-<version>`).
+
+**Depuis les sources** :
 
 ```bash
 git clone https://github.com/Ishaq74/alpharust.git
@@ -158,11 +177,11 @@ dossier étranger), `--no-install`, `--no-verify`, `--no-git`, `--dry-run` (plan
 | `--ui` | `none`, `starwind`, `concordia` | `none`, `css`, `starwind` | `none`, `css`, `starwind` | |
 | `--theme-primary/-secondary/-accent <#rrggbb>` (contrôle WCAG) | ✔ | avec `--ui` | avec `--ui` | |
 | `--css-variant initial,retro,modern,futuristic` | Concordia | | | |
-| `--db` | `none`, `sqlite`, `postgres` (+ `--db-url`) | `sqlite`, `mysql`, `pgsql` | | |
+| `--db` | `none`, `sqlite`, `postgres` (alias `pgsql`) (+ `--db-url`) | `sqlite`, `mysql`, `postgres` (alias `pgsql`) | | |
 | `--auth` | Better Auth (exige `--db`) ; `--auth-plugin admin,username,organization` | Fortify (exige `--ui`) | auth Django (exige `--ui`) | |
 | `--icons <jeu>` (site vitrine) | avec `--ui` | avec `--ui` | avec `--ui` | |
-| `--langs fr,en,es,ar` (langues du site vitrine, défaut `fr,en`, le français est obligatoire) | avec `--ui` (à défaut : langues de `--i18n`) | avec `--ui` | avec `--ui` | |
-| `--i18n fr,en,es,ar`, `--docker`, `--ci` | ✔ | | | |
+| `--langs fr,en,es,ar` (seule option de langues : site vitrine avec `--ui`, défaut `fr,en`, français obligatoire ; sinon i18n de la plateforme Astro) | ✔ | avec `--ui` | avec `--ui` | |
+| `--i18n` (alias **déprécié** de `--langs`, avertissement à l'usage), `--docker`, `--ci` | ✔ | | | |
 | `--starter none\|breeze-blade\|breeze-livewire\|breeze-react\|breeze-vue\|breeze-api`, `--dark`, `--pest`, `--frontend` | | ✔ (Breeze exclut `--ui`) | | |
 | `--package <pip>`, `--no-migrate` | | | ✔ | |
 | `--kind bin\|lib`, `--edition 2018\|2021\|2024`, `--dep <crates>` | | | | ✔ |
@@ -179,9 +198,9 @@ preflight ─► plan ─► exécution (événements en direct) ─► couche d
 
 | Framework | Outil officiel | Vérification réelle |
 |-----------|----------------|---------------------|
-| Astro | `<pm> create astro@latest` (+ `astro add`) | `astro check`, `astro build`, tests `vitest` (plateforme), lint |
+| Astro | `<pm> create astro@5.3.2` (+ `astro add`) | `astro check`, `astro build`, tests `vitest` (plateforme), lint |
 | Laravel | `composer create-project laravel/laravel` (+ Breeze ou Fortify) | `php artisan test`, migrations SQLite, lint |
-| Wagtail | `python -m venv .venv`, `pip install wagtail`, `wagtail start` | `manage.py check`, `makemigrations`, `manage.py test`, lint |
+| Wagtail | `python -m venv .venv`, `pip install "wagtail>=8.1,<8.2"`, `wagtail start` | `manage.py check`, `makemigrations`, `manage.py test`, lint |
 | Rust | `cargo new` (+ `cargo add`) | `cargo test`, `cargo fmt --check`, `cargo clippy -D warnings`, lint |
 
 Exemples :
@@ -196,6 +215,10 @@ alpharust generate rust outil --kind bin --edition 2024 --dep clap,anyhow
 alpharust generate astro demo --dry-run                            # commandes exactes, rien n'est écrit
 alpharust generate astro demo --json | jq .                        # événements pour d'autres outils
 ```
+
+Versions des outils officiels **épinglées** dans [`src/scaffold/pins.rs`](src/scaffold/pins.rs) (`create-astro`,
+`starwind`, Better Auth CLI, Wagtail) : jamais de `@latest`, une génération est reproductible ; la CLI autonome
+Tailwind téléchargée pour Wagtail + Starwind est vérifiée par la somme SHA-256 publiée avec sa release.
 
 Garde-fous : outils et versions vérifiés **avant** toute écriture ; options incompatibles refusées (`--auth` Astro sans
 `--db`, `--dark` sans Breeze, Breeze avec `--ui`, `--auth`/`--icons` Laravel/Wagtail sans `--ui`…) ; `--force` ne
@@ -305,6 +328,31 @@ obligatoires. », e-mail invalide, mot de passe trop court, compte existant, ide
 ![Erreur de connexion en anglais](docs/screenshots/phase10-6combos-auth-sign-in-error-en.png)
 ![Erreur de connexion en arabe (RTL)](docs/screenshots/phase11-6combos-auth-sign-in-error-ar.png)
 
+## Référencement et sécurité de production
+
+**Référencement identique** sur les 6 combinaisons (vérifié par `site_parity.py`) : `<link rel="canonical">`,
+alternates `hreflang` de chaque langue + `x-default`, Open Graph (`og:title`, `og:type`, `og:url`, `og:locale`),
+JSON-LD `Organization` sur chaque page et `BlogPosting` sur les articles, `robots.txt` qui pointe vers
+`sitemap.xml`, plan du site multilingue (`xhtml:link hreflang`). Astro : endpoints `src/pages/sitemap.xml.ts` et
+`robots.txt.ts` (`SITE_URL` donne l'adresse publique) ; Laravel : `SeoController` ; Wagtail :
+`wagtail.contrib.sitemaps` (alternates ajoutés par Wagtail) et `layout/seo.py`.
+
+**Même CSP de base** dans les trois frameworks, **en production seulement** (`default-src 'self'`, `object-src 'none'`,
+`base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'self'`…) :
+
+| Framework | Où |
+|-----------|----|
+| Astro | `<meta http-equiv="Content-Security-Policy">` dans `BaseLayout.astro` quand `import.meta.env.PROD` |
+| Laravel | middleware `App\Http\Middleware\SecurityHeaders` (groupe `web`, `bootstrap/app.php`) : `nosniff` et `Referrer-Policy` toujours, CSP si `APP_ENV=production` |
+| Wagtail | middleware CSP intégré à Django 6 (`SECURE_CSP`) dans `settings/production.py` |
+
+**Wagtail en production** : `settings/production.py` durci selon la [liste de contrôle Django](https://docs.djangoproject.com/en/stable/howto/deployment/checklist/)
+— `DJANGO_SECRET_KEY` et `DJANGO_ALLOWED_HOSTS` obligatoires, `DJANGO_CSRF_TRUSTED_ORIGINS`, redirection HTTPS
+(`DJANGO_SECURE_SSL_REDIRECT`), `DJANGO_BEHIND_PROXY=1` derrière un proxy HTTPS, cookies sécurisés, HSTS
+(`DJANGO_SECURE_HSTS_SECONDS`, 3600 par défaut). `DJANGO_SETTINGS_MODULE=<paquet>.settings.production python manage.py
+check --deploy` ne laisse que W005/W021 (sous-domaines et préchargement HSTS, à décider selon l'hébergement).
+Variables commentées dans `.env.example`.
+
 ## Icônes et drapeaux (`--icons`)
 
 * **Par défaut** : [Material Design Icons](https://pictogrammers.com/library/mdi/) (`@iconify-json/mdi`, Apache-2.0) pour
@@ -330,7 +378,9 @@ mêmes `data-slot`) :
 | Tailwind + Starwind | `starwind init` + atomes d'atomic (`src/components/atoms`) | Tailwind v4 via `@tailwindcss/vite` ; feuilles `resources/css/starwind/` générées depuis les atomes | CLI autonome Tailwind v4.3.5 (téléchargée dans `.tailwind/`) ; `tailwind/input.css` → `static/css/tailwind.css` |
 | CSS pur | Concordia (`--ui concordia`, variantes `--css-variant`) | design kit `resources/css/design` + composants Blade `<x-ds.*>` | application `ds` : balises `{% ds_* %}`, `ds/static/ds/css` |
 
-Catalogues : `/components` et `/components/advanced` dans chaque projet.
+Catalogues : `/components` et `/components/advanced` dans chaque projet. Wagtail CSS pur charge **une seule feuille**
+`ds/css/ds.bundle.css`, produite par `python manage.py ds_bundle` (lancé à la génération ; à relancer après avoir
+modifié `ds/static/ds/css`) au lieu de 55 `@import` en cascade ; `components/custom.css` reste à part pour vos ajouts.
 
 **Palette de marque** (tous les kits) — contraste WCAG contrôlé à la génération :
 
@@ -446,8 +496,8 @@ src/
   scaffold/              génération : mod.rs (Request, Options, Step, Internal), astro.rs, laravel.rs, wagtail.rs,
                          rust.rs, platform.rs (briques et préréglages Astro), theme.rs (palette WCAG), tools.rs
                          (détection des outils), exec.rs (processus enfants), layer.rs (moteur de couches),
-                         internal.rs (étapes internes : couches, design kit, Wagtail i18n, gettext → .mo, CLI Tailwind,
-                         icônes…), catalog.rs (contrat du design kit), projects.rs (projets et tâches)
+                         internal/ (étapes internes : mod.rs couches, design kit, Wagtail i18n ; gettext.rs → .mo ;
+                         tailwind.rs CLI vérifiée ; git.rs ; icons.rs), pins.rs (versions épinglées), catalog.rs (contrat du design kit), projects.rs (projets et tâches)
   tui/, gui/             interfaces
 rules/, profiles/        règles (Markdown + frontmatter YAML) et profils
 templates/layers/        couches embarquées dans le binaire (include_dir!) : common, astro, laravel, wagtail, rust,
@@ -457,8 +507,8 @@ docs/, adr/, todos/      documentation, décisions, feuille de route
 sites/                   projets générés (ignorés par Git)
 ```
 
-Couches (`templates/layers/`) : première ligne facultative `@@meta mode=create|replace when=<expr>@@` (`create` n'écrase
-jamais un fichier officiel ; `when` combine des drapeaux avec `|`, `&`, `!`), blocs `@@if expr@@ … @@else@@ … @@end@@`,
+Couches (`templates/layers/`) : première ligne facultative `@@meta mode=create|replace|delete when=<expr>@@` (`create`
+n'écrase jamais un fichier officiel, `delete` retire un fichier de l'outil officiel ; `when` combine des drapeaux avec `|`, `&`, `!`), blocs `@@if expr@@ … @@else@@ … @@end@@`,
 variables `@@name@@ @@slug@@ @@pkg@@ @@title@@…` dans les contenus et les chemins, suffixe `.tpl` retiré.
 Arborescence détaillée : [`docs/arborescence.md`](docs/arborescence.md).
 
@@ -478,7 +528,8 @@ python3 tools/dsgen/vitrine/fetch_icons.py    # rafraîchit iconsets.json depuis
 | `vitrine/site.css` | styles du site (communs aux 6 combinaisons) |
 | `vitrine/iconsets.py`, `iconsets.json`, `icons.py` | jeux d'icônes (MDI, Lucide, Circle Flags), correspondance des noms |
 | `starwind_server.py` | traduit les `tv()` des atomes Starwind en règles `[data-slot][data-variant] { @apply … }` pour Laravel et Wagtail |
-| `spec.py`, `ext_*.py`, `gen_ds.py` | design kit partagé (catalogue, CSS pur, Blade, Django), composants étendus, point d'entrée |
+| `spec.py`, `ext_*.py`, `gen_ds.py`, `common.py` | design kit partagé (catalogue, CSS pur, Blade, Django), composants étendus (modules importés), point d'entrée, chemins et utilitaires communs |
+| `tests/`, `ruff.toml` | tests pytest (fichiers de référence, langues) et configuration ruff, lancés en CI |
 
 **Règle d'or** : ne modifiez jamais `templates/layers/site-*` ou `*-starwind/` à la main — la CI exécute
 `python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers` et échoue si les couches ne correspondent pas
@@ -492,6 +543,8 @@ cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test --a
 ./target/release/alpharust check-rules
 ./target/release/alpharust lint --profile strict        # le dépôt passe son propre lint
 python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers
+ruff check tools/dsgen && python3 -m pytest -q tools/dsgen/tests
+cargo deny check                                         # RustSec, licences, sources (deny.toml)
 ```
 
 * **Une règle** : un fichier Markdown + frontmatter YAML dans `rules/`, avec exemples valides et invalides (ils sont
@@ -506,7 +559,9 @@ python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers
 | Suite | Commande |
 |-------|----------|
 | Unitaires, intégration, CLI, GUI, générateurs hermétiques | `cargo test --all-targets` |
-| Générations réelles (réseau) | `ALPHARUST_E2E=1 cargo test --release --test generators e2e -- --test-threads=1` |
+| Générations réelles (réseau, tests `#[ignore]`) | `ALPHARUST_E2E=1 cargo test --release --test generators e2e -- --ignored --test-threads=1` |
+| Assistant `alpharust new` (réponses scriptées, sans terminal) | `cargo test --lib wizard` |
+| `tools/dsgen` | `ruff check tools/dsgen && python3 -m pytest -q tools/dsgen/tests` |
 | Plateforme Astro sur PostgreSQL | `ALPHARUST_E2E=1 ALPHARUST_E2E_PG_URL=postgresql://…/base cargo test --test generators e2e_astro_platform_postgres` |
 | Projets générés | lancés par la génération : `php artisan test`, `manage.py test`, `astro check` + build (+ `vitest`) |
 
@@ -515,18 +570,24 @@ python3 tools/dsgen/gen_ds.py && git diff --exit-code templates/layers
 (`SITE_STACKS=astro-css,laravel-css` pour en garder certains) :
 
 ```bash
+bash docs/screenshots/scripts/serve_combos.sh /tmp/combos target/release/alpharust   # génère (--auth, 4 langues) et sert les 6
 python docs/screenshots/scripts/site_parity.py /tmp/parite 1   # 35 pages (4 langues) × bureau/mobile : structure, console, pixels
 python docs/screenshots/scripts/site_auth.py /tmp/comptes      # inscription, compte, déconnexion, erreurs, EN, AR (RTL), ES
+AXE_JS=…/axe-core/axe.min.js python docs/screenshots/scripts/site_axe.py /tmp/axe   # WCAG 2.1 AA, clair et sombre
 python docs/screenshots/scripts/site_interact.py /tmp/interac  # sous-menu, thème, menu mobile, contact
 python docs/screenshots/scripts/montage.py /tmp/parite en planche.png   # planche 3 × 2 d'une page
 ```
 
-Dernier résultat (`docs/screenshots/phase10-site-parity.json`, `phase10-site-auth.json`) : **19 pages × 6 combinaisons,
-0 différence de structure (liens compris), 0 erreur de console, écart maximal 0,84 %** ; parcours de compte **78/78**.
+Dernier résultat (`docs/screenshots/phase12-site-parity.json`, `phase12-site-auth.json`, `phase12-site-axe.json`) :
+@@RESULTS@@
 
-**CI** (`.github/workflows/ci.yml`) : job `rust` (fmt, clippy `-D warnings`, build, tests, couches à jour, `check-rules`,
-auto-lint strict, export SARIF) et job `generated-projects` (générations réelles Astro, plateforme Astro avec
-PostgreSQL, Laravel, Wagtail, Rust). Détails : [`docs/tests.md`](docs/tests.md).
+**CI** (`.github/workflows/ci.yml`) : job `rust` (fmt, clippy `-D warnings`, build, `cargo package`, tests, couches à
+jour, ruff + pytest de `tools/dsgen`, `check-rules`, auto-lint strict, export SARIF), build et tests **Windows et macOS**,
+**MSRV** (Rust 1.89), **cargo-deny**, et `generated-projects` (générations réelles Astro, plateforme Astro avec
+PostgreSQL, Laravel, Wagtail, Rust). **Nightly** (`.github/workflows/nightly.yml`, chaque nuit, à la demande et sur
+les PR qui touchent au site) : 6 combinaisons × 4 langues avec `--auth`, parité (structure, SEO, pixels ≤ 1 %),
+parcours de compte et axe-core, captures en artefacts. **Release** (`.github/workflows/release.yml`, cargo-dist) :
+un tag `v*` publie les binaires et installateurs. Détails : [`docs/tests.md`](docs/tests.md).
 
 ## Dépannage / FAQ
 
@@ -543,6 +604,8 @@ PostgreSQL, Laravel, Wagtail, Rust). Détails : [`docs/tests.md`](docs/tests.md)
 | Astro répond 403 à un `curl -d …` | protection `security.checkOrigin` : testez les formulaires dans un navigateur |
 | une étape semble bloquée | `-v` pour le journal complet ; `ALPHARUST_STEP_TIMEOUT` pour ajuster le délai |
 | la CI échoue sur « couches à jour » | lancez `python3 tools/dsgen/gen_ds.py` et commitez `templates/layers` |
+| « `--i18n` est déprécié » | remplacez par `--langs` (même valeur) |
+| `alpharust lint` : « 0 règle » avec un binaire copié à la main | `ALPHARUST_HOME` vers un dossier contenant `rules/`, ou laissez la copie embarquée s'extraire (dossier temporaire inscriptible) |
 | `alpharust new` / `tui` refusent de démarrer | un terminal interactif (TTY) est requis ; utilisez `generate` ou `gui` |
 
 ## Documentation et décisions (ADR)
@@ -556,7 +619,8 @@ PostgreSQL, Laravel, Wagtail, Rust). Détails : [`docs/tests.md`](docs/tests.md)
 | [`docs/configuration.md`](docs/configuration.md), [`docs/profiles.md`](docs/profiles.md), [`docs/checks.md`](docs/checks.md) | lint |
 | [`docs/rule-format.md`](docs/rule-format.md), [`docs/writing-rules.md`](docs/writing-rules.md), [`docs/composition.md`](docs/composition.md) | écrire des règles |
 | [`docs/tests.md`](docs/tests.md), [`docs/arborescence.md`](docs/arborescence.md) | tests, arborescence |
-| [`adr/`](adr/README.md) | décisions 0001 → 0016 (dernières : [0015](adr/0015-shared-site-spec-astro-laravel-wagtail.md) site partagé, [0016](adr/0016-site-i18n-auth-icons.md) langues, comptes, icônes) |
+| [`adr/`](adr/README.md) | décisions 0001 → 0018 (dernières : [0017](adr/0017-site-langs-rtl.md) langues et RTL, [0018](adr/0018-audit-quality-release-0-3.md) v0.3.0 : audit, parité en CI, sécurité, releases) |
+| [`CHANGELOG.md`](CHANGELOG.md) | journal des versions (notes des releases GitHub) |
 
 ## Licence
 
