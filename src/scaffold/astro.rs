@@ -737,11 +737,21 @@ pub fn steps(req: &Request, o: &AstroOptions) -> Vec<Step> {
         ));
     }
     if o.typecheck && req.install {
+        // Site vitrine : `process.env` (astro.config) et `node:fs` (contact sans base) demandent les types Node,
+        // comme l'indique `astro check` (ts 2591 : « install type definitions for node »).
+        let mut dev = vec!["@astrojs/check", TYPESCRIPT_SPEC];
+        if o.vitrine() {
+            dev.push("@types/node");
+        }
         steps.push(Step::run(
             "typecheck-deps",
             Phase::Install,
-            "Installer @astrojs/check et typescript 6",
-            pm.add_dev(&["@astrojs/check", TYPESCRIPT_SPEC]),
+            if o.vitrine() {
+                "Installer @astrojs/check, typescript 6 et @types/node"
+            } else {
+                "Installer @astrojs/check et typescript 6"
+            },
+            pm.add_dev(&dev),
         ));
     }
 

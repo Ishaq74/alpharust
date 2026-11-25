@@ -747,8 +747,12 @@ fn e2e_wagtail_design_kit_serves_components_and_passes_its_tests() {
             "{f}.css"
         );
     }
-    assert!(read(&t.join("e2e_wg_kit/templates/base.html")).contains("ds/css/index.css"));
-    for id in ["design-wire", "check", "test"] {
+    // une seule feuille (manage.py ds_bundle) au lieu de la cascade d'@import d'index.css
+    let base = read(&t.join("e2e_wg_kit/templates/base.html"));
+    assert!(base.contains("ds/css/ds.bundle.css") && !base.contains("ds/css/index.css"));
+    let bundle = read(&t.join("ds/static/ds/css/ds.bundle.css"));
+    assert!(!bundle.contains("@import") && bundle.contains("[data-slot"));
+    for id in ["design-wire", "ds-bundle", "check", "test"] {
         assert!(report.steps.iter().find(|s| s.id == id).unwrap().ok, "{id}");
     }
     // les 46 composants Django : balises core et étendues enregistrées, page avancée rendue sans erreur

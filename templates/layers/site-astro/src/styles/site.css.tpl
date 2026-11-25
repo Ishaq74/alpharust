@@ -253,7 +253,7 @@
 .site-body .site-prose :is(ul, ol) { padding-inline-start: 1.5em; }
 .site-body .site-prose ul { list-style: disc; }
 .site-body .site-prose ol { list-style: decimal; }
-.site-body .site-prose li { margin: 0.4em 0; }
+.site-body .site-prose li { margin: 0.4em 0; padding-inline-start: 0; }
 .site-body .site-prose a { color: var(--brand-text, var(--brand)); text-decoration: underline; }
 .site-body .site-prose strong { font-weight: 600; }
 .site-body .site-prose blockquote { padding-inline-start: 1em; border-inline-start: 3px solid var(--site-line); color: var(--site-muted); }
