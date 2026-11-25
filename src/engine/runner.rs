@@ -321,7 +321,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
         report.files_scanned += 1;
         let info = FileInfo::new(&rel, &content);
         let lines: Vec<&str> = content.lines().collect();
-        let display = path.display().to_string();
+        let display = display_path(path);
         let mut seen: HashSet<(usize, String)> = HashSet::new();
 
         for cr in &file_rules {
@@ -357,7 +357,7 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
     }
 
     if is_dir && !project_rules.is_empty() {
-        let display = target.display().to_string();
+        let display = display_path(target);
         for cr in &project_rules {
             if let Some(Checker::Project(check)) = cr.checker {
                 let ctx = ProjectCtx {
@@ -379,6 +379,17 @@ pub fn run_with(rules: &[Rule], target: &Path, opts: &Options) -> anyhow::Result
         .violations
         .sort_by(|a, b| (&a.file, a.line, &a.rule).cmp(&(&b.file, b.line, &b.rule)));
     Ok(report)
+}
+
+/// Chemin affiché dans les rapports : séparateur `/` sur tous les systèmes (SARIF, JSON et texte identiques
+/// sous Windows ; sous Unix, `\\` est un caractère de nom de fichier valide et reste tel quel).
+fn display_path(path: &Path) -> String {
+    let s = path.display().to_string();
+    if cfg!(windows) {
+        s.replace('\\', "/")
+    } else {
+        s
+    }
 }
 
 #[cfg(test)]

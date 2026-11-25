@@ -802,10 +802,12 @@ mod tests {
             ]);
             ask_with(&mut s, None, Some(Framework::Astro))
         };
+        // alpharust-ignore: no-hardcoded-urls
         let req = ok("https://exemple.org").unwrap();
         let Options::Astro(o) = &req.options else {
             panic!()
         };
+        // alpharust-ignore: no-hardcoded-urls
         assert_eq!(o.site.as_deref(), Some("https://exemple.org"));
         assert!(ok("exemple.org").is_err());
     }

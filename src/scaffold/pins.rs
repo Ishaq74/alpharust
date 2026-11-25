@@ -3,7 +3,7 @@
 //! Aucune commande ne tire `@latest` : une génération est reproductible et une nouvelle version d'un outil
 //! n'entre qu'après passage de la CI (mettre à jour ici, puis `cargo test` et le job e2e).
 //! Vérification : `npm view create-astro version`, `npm view starwind version`, `npm view auth version`,
-//! https://pypi.org/project/wagtail/ (même série que le `requirements.txt` de `wagtail start`).
+//! https://pypi.org/project/wagtail/ (alpharust-ignore: no-hardcoded-urls ; même série que le `requirements.txt` de `wagtail start`).
 
 /// `npm create astro@<version>` (paquet `create-astro`).
 pub const CREATE_ASTRO: &str = "5.3.2";

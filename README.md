@@ -552,7 +552,7 @@ cargo deny check                                         # RustSec, licences, so
 * **Un framework** : `src/scaffold/<fw>.rs` (options serde, `validate`, `tools`, `steps`), `templates/layers/<fw>/`,
   enregistrement dans `Framework`/`Options`, tests hermétiques et `e2e_*` — [`docs/generators.md`](docs/generators.md).
 * **Le site vitrine** : modifiez `tools/dsgen/vitrine`, régénérez, puis vérifiez les 6 combinaisons (section suivante).
-* Chaque décision structurante a son ADR dans [`adr/`](adr/README.md) ; la feuille de route est dans [`todos/TODO.md`](todos/TODO.md).
+* Chaque décision structurante a son ADR dans [`adr/`](adr/README.md) ; la feuille de route est dans [`todos/TODO.md`](todos/TODO.md). <!-- alpharust-ignore: no-todo-in-prod -->
 
 ## Tests, preuves visuelles et CI
 
